@@ -306,10 +306,10 @@
         <div id="siteTier1Grid" class="grid grid-cols-2 gap-1.5 sm:gap-2"></div>
       </div>
 
-      <!-- 기본 베이스캠프 유적지 5곳 (공식: 각 2인 슬롯 총 10칸, 신발 이동) -->
+      <!-- 기본 베이스캠프 유적지 5곳 (공식 솔로/2인 규칙: 두 번째 자리는 차단 타일로 봉쇄되어 각 1인 입장) -->
       <div class="space-y-1.5">
         <div class="flex items-center justify-between text-xs px-0.5">
-          <span class="font-bold text-slate-300">베이스캠프 5구역 · 각 2인 슬롯 (신발: 모든 카드 가능)</span>
+          <span class="font-bold text-slate-300">베이스캠프 5구역 · 2번 칸 차단 타일 봉쇄 (솔로/2인 공식)</span>
         </div>
         <div id="siteBaseGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 sm:gap-2"></div>
       </div>
@@ -768,6 +768,12 @@
             <circle cx="13.5" cy="8.5" r="1.5" fill="#fef08a"/>
           </svg>`;
 
+        case "block_tile":
+          return `<svg ${base}>
+            <circle cx="12" cy="12" r="8.8" fill="#1e2430" stroke="#64748b" stroke-width="1.6"/>
+            <path d="M7.5 7.5l9 9M16.5 7.5l-9 9" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>
+          </svg>`;
+
         default:
           return "";
       }
@@ -1139,11 +1145,20 @@
       ]);
     }
 
-    // 공식 10장 오토마 액션 타일 스택 생성 (고고학자 파견 5장 + 녹색/적색 행동 5장)
+    const RES_KO_NAMES = {
+      coins: "동전",
+      compass: "나침반",
+      tablets: "석판",
+      arrowheads: "화살촉",
+      jewels: "루비"
+    };
+
+    // 공식 10장 오토마 액션 타일 스택 생성 (자원별 고고학자 발굴 타일 5장 + 녹색/적색 행동 5장)
     function createAutomaRoundTiles() {
       const diff = getDiffObj();
-      const workerTiles = Array.from({ length: 5 }).map(() => ({
+      const workerTiles = ["coins", "compass", "tablets", "arrowheads", "jewels"].map(resKey => ({
         type: "ARCHAEOLOGIST",
+        targetRes: resKey,
         isRed: false,
         icon: "meeple_automa"
       }));
@@ -1298,13 +1313,13 @@
         marketItems: iPool.slice(0, 5),
         marketArts: aPool.slice(0, 1),
 
-        // 공식 기본 베이스캠프 5곳 (모두 신발 이동 & 각 2인 슬롯 총 10칸!)
+        // 공식 솔로/2인 규칙 기본 베이스캠프 5곳: 두 번째 자리(더블 부츠 칸)는 차단 타일로 영구 봉쇄!
         baseSites: [
-          { id: "b1", tier: 0, name: "해안 야영지", travel: "boot", reward: { coins: 2 }, slots: [null, null] },
-          { id: "b2", tier: 0, name: "정글 오솔길", travel: "boot", reward: { compass: 2 }, slots: [null, null] },
-          { id: "b3", tier: 0, name: "고대 채석장", travel: "boot", reward: { tablets: 2 }, slots: [null, null] },
-          { id: "b4", tier: 0, name: "사냥꾼 초소", travel: "boot", reward: { arrowheads: 1 }, slots: [null, null] },
-          { id: "b5", tier: 0, name: "심연의 광산", travel: "boot", reward: { jewels: 1 }, discardExtra: true, slots: [null, null] }
+          { id: "b1", tier: 0, name: "해안 야영지", travel: "boot", reward: { coins: 2 }, slots: [null, "blocked"] },
+          { id: "b2", tier: 0, name: "정글 오솔길", travel: "boot", reward: { compass: 2 }, slots: [null, "blocked"] },
+          { id: "b3", tier: 0, name: "고대 채석장", travel: "boot", reward: { tablets: 2 }, slots: [null, "blocked"] },
+          { id: "b4", tier: 0, name: "사냥꾼 초소", travel: "boot", reward: { arrowheads: 1 }, slots: [null, "blocked"] },
+          { id: "b5", tier: 0, name: "심연의 광산", travel: "boot", reward: { jewels: 1 }, discardExtra: true, slots: [null, "blocked"] }
         ],
 
         // 공식 I단계 정글 유적 8곳 (탐사: 나침반 3, 각 1인 슬롯)
@@ -2114,6 +2129,35 @@
       }
     }
 
+    // 공식 오토마 자원 지정 발굴 규칙: 목표 자원을 주는 유적지를 상위(II→I단계)부터 찾고, 베이스캠프까지 모두 막혀 있으면 허탕!
+    function placeAutomaWorkerByRes(targetRes) {
+      const resName = RES_KO_NAMES[targetRes] || "자원";
+      const candidates = [
+        ...G.tier2Sites.filter(s => s.discovered && hasOpenSlot(s) && (s.reward[targetRes] || 0) > 0),
+        ...G.tier1Sites.filter(s => s.discovered && hasOpenSlot(s) && (s.reward[targetRes] || 0) > 0),
+        ...G.baseSites.filter(s => hasOpenSlot(s) && (s.reward[targetRes] || 0) > 0)
+      ];
+      const target = candidates[0] || null;
+
+      if (G.automa.workers > 0 && target) {
+        G.automa.workers -= 1;
+        placeOnSite(target, "automa");
+        G.automa.vp += target.tier > 0 ? 2 : 1;
+        G.automa.lastIcon = targetRes;
+        G.automa.lastSub = `${resName} 발굴 타일 (남은 미플 ${G.automa.workers}/6)`;
+        G.automa.lastTitle = `[${target.name}] 슬롯 점유`;
+        pushLog(`오토마(${resName} 타일)가 [${target.name}]에 일꾼을 파견했습니다.`);
+        return true;
+      }
+
+      // 공식 규칙: 해당 자원을 주는 모든 유적지가 점유/차단 타일로 막혀 있으면 오토마는 그 턴에 행동하지 못함!
+      G.automa.lastIcon = "block_tile";
+      G.automa.lastSub = `${resName} 발굴 타일 블로킹 성공!`;
+      G.automa.lastTitle = `[${resName} 유적] 빈자리 없음 — 오토마 허탕!`;
+      pushLog(`[블로킹] ${resName} 유적지가 모두 막혀 오토마가 일꾼을 놓지 못했습니다!`);
+      return false;
+    }
+
     function placeAutomaWorkerStandard() {
       const openHigh = [...G.tier2Sites, ...G.tier1Sites].find(s => s.discovered && hasOpenSlot(s) && !s.guardian.active);
       const openBaseList = G.baseSites.filter(s => hasOpenSlot(s));
@@ -2155,9 +2199,7 @@
       G.automa.flipTrigger = true;
 
       if (tile.type === "ARCHAEOLOGIST") {
-        if (!placeAutomaWorkerStandard()) {
-          advanceAutomaGlass(false);
-        }
+        placeAutomaWorkerByRes(tile.targetRes || "coins");
       } else if (tile.type === "RESEARCH") {
         advanceAutomaGlass(tile.isRed);
       } else if (tile.type === "BUY_ITEM") {
@@ -2566,9 +2608,9 @@
         G.mysticSummonUsed = false;
       }
 
-      // 유적지 모든 슬롯(2인 슬롯 포함) 일꾼 복귀
+      // 유적지 일꾼 복귀 (솔로/2인 공식 규칙에 따라 차단 타일 'blocked' 칸은 영구 유지!)
       [...G.baseSites, ...G.tier1Sites, ...G.tier2Sites].forEach(s => {
-        s.slots = s.slots.map(() => null);
+        s.slots = s.slots.map(occ => (occ === "blocked" ? "blocked" : null));
       });
 
       const kept = [];
@@ -2637,11 +2679,11 @@
       } else if (mode === "rules") {
         heading.textContent = "아르낙 공식 풀 스케일 & 탐험대장 마스터 규칙서";
         const sections = [
-          ["1. 공식 17구역 섬 유적지 & 2인 베이스캠프", "베이스캠프 5곳은 모두 신발 아이콘이며 각 2칸의 일꾼 슬롯(총 10칸)을 가집니다(심연의 광산은 루비+1을 얻는 대신 손패 카드 1장을 추가로 버립니다). I단계 정글(8곳)은 나침반 3개, II단계 심층 유적(4곳)은 나침반 6개를 지불해 개척하며, II단계 최초 발견 시 우상을 2개(+6점 가치) 획득합니다."],
+          ["1. 공식 17구역 섬 유적지 & 차단 타일(솔로/2인)", "실물 보드판의 베이스캠프 5곳은 원래 2자리씩 그려져 있으나, 공식 솔로 및 2인 규칙에서는 두 번째 자리(더블 부츠 칸)를 모두 '차단 타일'로 막아 각 1자리만 사용합니다(심연의 광산은 루비+1을 얻는 대신 손패 카드 1장을 추가로 버립니다). I단계 정글(8곳)은 나침반 3개, II단계 심층 유적(4곳)은 나침반 6개를 지불해 개척하며, II단계 최초 발견 시 우상을 2개(+6점 가치) 획득합니다."],
           ["2. 6칸 카드 상점 & 푸른 달 / 붉은 달 지팡이", "상점에는 총 6장의 카드(1R 유물1:아이템5 → 5R 유물5:아이템1)가 깔립니다. 《푸른 달의 지팡이》는 라운드마다 지팡이 양옆 유물 1장+아이템 1장을 지우고, 확장 규칙인 《붉은 달의 지팡이》는 유물 2장+아이템 2장씩 총 4장을 대량 순환시켜 다양한 카드를 빠르게 만날 수 있게 해줍니다."],
           ["3. 공식 새의 신전 8층 트랙 & 3종 보물 타일", "돋보기는 8층 신전 정상(선착 23점 / 후착 21점)까지 등반할 수 있으며, 정상 도달 후 +2점(동색)·+6점(은색)·+11점(금색) 신전 타일을 추가로 구매할 수 있습니다. 수첩은 돋보기를 추월하지 않는 선에서 최대 7층(14점)까지 오르며 2층과 4층에서 조수 2명을 영입하고 6층에서 골드로 승급시킵니다."],
           ["4. 개인판 우상 4홈 ([1, 2, 3, 4]점 슬롯)", "개인판 우상 홈은 총 4칸이며 비워두면 종료 시 총 +10점(1+2+3+4점)을 얻습니다. 자유 행동으로 우상을 홈에 끼우면 1→2→3→4점 칸을 순서대로 덮는 대신 즉시 핵심 자원(동전+나침반 / 석판 / 화살촉 / 루비)을 공급받습니다."],
-          ["5. 공식 10타일 · 6일꾼 라이벌 오토마", "라이벌 오토마는 남은 3개 색상의 고고학자 미플 6명을 보유하며 매 라운드 10장의 액션 타일(일꾼 파견 5장 + 행동 5장)을 사용합니다. 난이도 설정에서 녹색 타일 5장 중 0~5장을 적색 타일로 교체하면 고득점 카드 강탈 및 6번째 일꾼 미발견 유적 개척까지 수행합니다."]
+          ["5. 공식 10타일 · 6일꾼 라이벌 오토마", "라이벌 오토마는 남은 3개 색상의 고고학자 미플 6명을 보유하며 매 라운드 10장의 액션 타일(자원별 발굴 5장 + 행동 5장)을 사용합니다. 내가 특정 자원 유적을 먼저 선점해 빈자리가 모두 막히면 해당 자원 오토마 발굴 타일은 허탕(블로킹)을 칩니다!"]
         ];
         content.innerHTML = sections.map(([t, d]) => `
           <div class="bg-[#0b0e14] border border-white/10 rounded-xl p-3.5 space-y-1">
@@ -2703,13 +2745,16 @@
       const gActive = s.guardian?.active;
       const canDefeat = G.isPlayerTurn && !G.playerPassed && gActive && hasPlayerOnSite(s) && canPay(s.guardian.cost);
 
-      // 슬롯 배지(베이스캠프는 2칸, I/II단계는 1칸)
+      // 슬롯 배지(베이스캠프는 1번 열림 + 2번 차단 타일 봉쇄, I/II단계는 1칸)
       const slotBadges = s.slots.map(occ => {
         if (occ === "player") {
           return `<span class="meeple-land w-6 h-6 rounded-full bg-sky-950 border border-sky-400 flex items-center justify-center shrink-0" title="내 탐험가 파견됨">${iconSvg("meeple_player", 14)}</span>`;
         }
         if (occ === "automa") {
           return `<span class="meeple-land w-6 h-6 rounded-full bg-rose-950 border border-rose-400 flex items-center justify-center shrink-0" title="라이벌 오토마 점유">${iconSvg("meeple_automa", 14)}</span>`;
+        }
+        if (occ === "blocked") {
+          return `<span class="w-6 h-6 rounded-full bg-[#11151d] border border-slate-600/60 flex items-center justify-center shrink-0 opacity-75" title="솔로/2인 공식 규칙: 차단 타일로 봉쇄된 두 번째 자리">${iconSvg("block_tile", 14)}</span>`;
         }
         return `<span class="w-6 h-6 rounded-full bg-black/45 border ${canClick ? "border-[#e6c173]/60" : "border-white/10"} flex items-center justify-center text-xs text-slate-500 shrink-0" title="빈 일꾼 슬롯">·</span>`;
       }).join("");
