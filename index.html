@@ -200,7 +200,7 @@
           <div id="hudRes_coins" class="flex items-center gap-1" title="동전: 아이템 구매 또는 2개로 비행기 고용">
             <span id="hudIcon_coins"></span>
             <span class="hidden sm:inline text-xs text-slate-400 font-medium">동전</span>
-            <span id="hudVal_coins" class="text-xs sm:text-sm font-black text-[#f7d57e] min-w-[12px] text-center">2</span>
+            <span id="hudVal_coins" class="text-xs sm:text-sm font-black text-[#f7d57e] min-w-[12px] text-center">1</span>
           </div>
           <div class="w-px h-3.5 bg-white/10"></div>
           <div id="hudRes_compass" class="flex items-center gap-1" title="나침반: 신규 유적 탐사(3개/6개) 또는 유물 구매">
@@ -467,6 +467,17 @@
       <button onclick="closeExileOverlay()" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition">
         추방하지 않고 건너뛰기
       </button>
+    </div>
+  </div>
+
+  <!-- 공식 3더미 조수 선택 영입 모달 -->
+  <div id="assistantModalOverlay" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="board-frame rounded-2xl max-w-md w-full p-6 space-y-4 border border-[#c99b42]/55">
+      <div class="border-b border-white/10 pb-3">
+        <h3 class="text-base font-extrabold text-[#f4ebd9]">조수 요원 영입 (공식 3더미 공개 풀)</h3>
+        <p class="text-xs text-slate-400 mt-0.5">공급처의 3개 조수 더미 맨 위 요원 중 1명을 선택해 내 원정대에 합류시키세요.</p>
+      </div>
+      <div id="assistantCandidatesBox" class="space-y-2.5"></div>
     </div>
   </div>
 
@@ -1087,14 +1098,24 @@
       }
     };
 
-    // 공식 1인 솔로 오토마 난이도 테이블 (10장 액션 타일 중 녹색 5장을 적색 0~5장으로 교체, 일꾼 항상 6명!)
+    // 공식 공급처 조수 타일 풀 (6종을 무작위 셔플해 3더미×2장으로 배치)
+    const ASSISTANT_POOL = [
+      { role: "compass", name: "길잡이 조수", icon: "compass", silverDesc: "나침반+1", goldDesc: "나침반+2" },
+      { role: "coins", name: "회계사 조수", icon: "coins", silverDesc: "동전+1", goldDesc: "동전+2" },
+      { role: "tablet", name: "고문헌 조수", icon: "tablets", silverDesc: "석판+1", goldDesc: "석판+1, 동전+1" },
+      { role: "exile", name: "정화 사제 조수", icon: "exile", silverDesc: "카드 1장 추방", goldDesc: "카드 추방 & 나침반+1" },
+      { role: "hunter", name: "정글 사냥꾼 조수", icon: "arrowheads", silverDesc: "동전+1", goldDesc: "화살촉+1" },
+      { role: "appraiser", name: "보석 감정사 조수", icon: "jewels", silverDesc: "석판+1", goldDesc: "루비+1" }
+    ];
+
+    // 공식 1인 솔로 오토마 난이도 테이블 (인위적 가산점 0점! 순수 공식 5대 항목 점수제 + 적색 타일 0~5장 교체)
     const AUTOMA_LEVELS = {
-      red0: { id: "red0", redCount: 0, name: "적색 0장", badge: "녹5 · 적0", baseVp: 0, desc: "입문 (녹색 타일 5장 + 일꾼 타일 5장) — 오토마가 상점의 가장 저렴한 카드를 가져가며 온건하게 연구합니다." },
-      red1: { id: "red1", redCount: 1, name: "적색 1장", badge: "녹4 · 적1", baseVp: 2, desc: "초급 (녹색 4장 + 적색 1장 + 일꾼 5장) — 매 라운드 적색 강화 행동 1개가 섞여 들어옵니다." },
-      red2: { id: "red2", redCount: 2, name: "적색 2장", badge: "녹3 · 적2", baseVp: 4, desc: "표준 (녹색 3장 + 적색 2장 + 일꾼 5장) — 공식 보드게임 솔로 권장 밸런스입니다." },
-      red3: { id: "red3", redCount: 3, name: "적색 3장", badge: "녹2 · 적3", baseVp: 6, desc: "숙련 (녹색 2장 + 적색 3장 + 일꾼 5장) — 고득점 카드 강탈과 6번째 일꾼 개척 빈도가 높아집니다." },
-      red4: { id: "red4", redCount: 4, name: "적색 4장", badge: "녹1 · 적4", baseVp: 9, desc: "영웅 (녹색 1장 + 적색 4장 + 일꾼 5장) — 신전 선착 보너스와 수호자를 매섭게 사냥합니다." },
-      red5: { id: "red5", redCount: 5, name: "적색 5장", badge: "적색 100%", baseVp: 12, desc: "전설 (적색 타일 5장 전원 투입 + 일꾼 5장) — 모든 비일꾼 행동이 적색 강화판으로 작동하는 공식 최고 난이도!" }
+      red0: { id: "red0", redCount: 0, name: "적색 0장", badge: "녹5 · 적0", baseVp: 0, desc: "입문 (녹색 타일 5장 + 일꾼 타일 5장) — 오토마가 상점의 저렴한 카드를 가져가며 1칸씩 연구합니다." },
+      red1: { id: "red1", redCount: 1, name: "적색 1장", badge: "녹4 · 적1", baseVp: 0, desc: "초급 (녹색 4장 + 적색 1장 + 일꾼 5장) — 매 라운드 적색 강화 행동 1개가 섞여 들어옵니다." },
+      red2: { id: "red2", redCount: 2, name: "적색 2장", badge: "녹3 · 적2", baseVp: 0, desc: "표준 (녹색 3장 + 적색 2장 + 일꾼 5장) — 공식 보드게임 솔로 권장 밸런스입니다." },
+      red3: { id: "red3", redCount: 3, name: "적색 3장", badge: "녹2 · 적3", baseVp: 0, desc: "숙련 (녹색 2장 + 적색 3장 + 일꾼 5장) — 고득점 카드 강탈·돋보기/수첩 동반 연구·6번째 일꾼 개척이 활발해집니다." },
+      red4: { id: "red4", redCount: 4, name: "적색 4장", badge: "녹1 · 적4", baseVp: 0, desc: "영웅 (녹색 1장 + 적색 4장 + 일꾼 5장) — 신전 선착 보너스와 조수 더미까지 매섭게 견제합니다." },
+      red5: { id: "red5", redCount: 5, name: "적색 5장", badge: "적색 100%", baseVp: 0, desc: "전설 (적색 타일 5장 전원 투입 + 일꾼 5장) — 모든 행동 타일이 적색 강화판으로 작동하는 공식 최고 난이도!" }
     };
 
     // =========================================================
@@ -1251,6 +1272,22 @@
       const firstTrackMap = {};
       for (let lv = 1; lv <= 7; lv++) firstTrackMap[lv] = true;
 
+      // 공식 2인 세팅: 공급처 조수 6종을 섞어 3더미×2장으로 배치
+      const shuffledAss = shuffleList(ASSISTANT_POOL).map((a, idx) => ({ ...a, uid: `ass_${idx}` }));
+      const assistantStacks = [
+        [shuffledAss[0], shuffledAss[1]],
+        [shuffledAss[2], shuffledAss[3]],
+        [shuffledAss[4], shuffledAss[5]]
+      ];
+
+      // 공식 2인 세팅: 8층 잃어버린 신전 도착 칸에 놓이는 연구 보너스 타일 2장 뒷면 스택
+      const summitBonusStack = shuffleList([
+        { jewels: 1 },
+        { arrowheads: 1, coins: 1 },
+        { tablets: 2 },
+        { compass: 2 }
+      ]).slice(0, 2);
+
       G = {
         round: 1,
         maxRounds: configMaxRounds,
@@ -1264,8 +1301,9 @@
         automaPassed: false,
         ended: false,
 
+        // 공식 솔로 규칙: 오토마가 항상 1번 플레이어(선공), 인간 플레이어는 2번 플레이어(동전 1 + 나침반 1 시작!)
         res: {
-          coins: activeLeader?.id === "baroness" ? 3 : 2,
+          coins: activeLeader?.id === "baroness" ? 2 : 1,
           compass: 1,
           tablets: 0,
           arrowheads: 0,
@@ -1275,6 +1313,7 @@
         glass: 0,
         book: 0,
         summitClaimedFirstBy: null, // 8층 정상 선착순 판정 ("player" | "automa")
+        summitBonusStack,           // 2인 기준 8층 도착 보너스 타일 2장
 
         // 탐험대장 전용 상태값
         leaderSkillUsed: false,
@@ -1289,15 +1328,17 @@
         idolsOwned: 0,
         idolsSlotted: 0,
 
-        // 신전 정상 3종 보물 타일 잔여량 및 내 획득 수
-        templeTiles: { bronze: 4, silver: 3, gold: 2 },
+        // 공식 2인 세팅 신전 보물 타일 잔여량: 동색(3스택×2장=6), 은색(2스택×2장=4), 금색(1스택×2장=2)
+        templeTiles: { bronze: 6, silver: 4, gold: 2 },
         myTempleTiles: { bronze: 0, silver: 0, gold: 0 },
 
         extraVp: 0,
         guardiansBeaten: 0,
         firstTrackBonus: firstTrackMap,
 
-        // 최대 2명의 조수 운용 시스템
+        // 공식 3더미 조수 공개 풀 & 최대 2명의 조수 운용 시스템
+        assistantStacks,
+        pendingAssistantHires: 0,
         assistants: [],
         boons: [],
 
@@ -1341,7 +1382,7 @@
           };
         }),
 
-        // 공식 II단계 심층 유적 4곳 (탐사: 나침반 6, 발견 시 우상 2개 획득!)
+        // 공식 II단계 심층 유적 4곳 (탐사: 나침반 6, 공개 우상 1개 + 비공개 우상 1개 = 총 2개!)
         tier2Sites: Array.from({ length: 4 }).map((_, idx) => {
           const tile = t2Pool[idx];
           const gd = gPool[8 + idx];
@@ -1360,12 +1401,13 @@
           };
         }),
 
-        // 공식 라이벌 오토마 (고고학자 미플 6명 + 매 라운드 10장 타일 스택)
+        // 공식 라이벌 오토마 (돋보기+수첩 동시 운용 · 고고학자 미플 6명 · 매 라운드 10장 타일 스택)
         automa: {
           maxWorkers: 6,
           workers: 6,
           glass: 0,
-          vp: diff.baseVp,
+          book: 0,
+          vp: 0,
           deck: createAutomaRoundTiles(),
           lastIcon: "compass",
           lastSub: `10장 스택 (${diff.badge})`,
@@ -1374,14 +1416,18 @@
         },
 
         logs: [
-          `[1R] 공식 풀 스케일 원정 개시! (${activeLeader ? `리더: ${activeLeader.name}` : "기본판"} · ${configMoonStaff === "red" ? "붉은 달의 지팡이" : "푸른 달의 지팡이"} · 오토마: ${diff.name})`
+          `[1R] 공식 2인/솔로 규격 원정 개시! (후공 시작 자원: 동전${activeLeader?.id === "baroness" ? 2 : 1}+나침반1 · 오토마 선공)`
         ]
       };
 
       document.getElementById("summaryModalOverlay").classList.add("hidden");
       document.getElementById("exileModalOverlay").classList.add("hidden");
+      document.getElementById("assistantModalOverlay").classList.add("hidden");
       document.getElementById("settingsModalOverlay").classList.add("hidden");
       document.getElementById("infoModalOverlay").classList.add("hidden");
+
+      // 공식 솔로 규칙: 매 라운드 오토마가 선 플레이어로 첫 타일 1장을 먼저 진행!
+      executeAutomaOpeningTurn();
       renderGame();
     }
 
@@ -1477,9 +1523,11 @@
 
       const playerTotal = gPts + bPts + guardPts + idolPts + templeTilePts + ritualPts + G.extraVp + cardPts + fearPts;
 
-      const automaTrack = G.automa.glass === 8
+      const automaGlassPts = G.automa.glass === 8
         ? (G.summitClaimedFirstBy === "player" ? TEMPLE_TRACK[8].gPtsSecond : TEMPLE_TRACK[8].gPts)
         : TEMPLE_TRACK[G.automa.glass].gPts;
+      const automaBookPts = TEMPLE_TRACK[G.automa.book || 0].bPts;
+      const automaTrack = automaGlassPts + automaBookPts;
       const automaTotal = automaTrack + G.automa.vp;
 
       return {
@@ -1822,8 +1870,73 @@
     }
 
     // 6-6. 새의 신전 8층 연구 트랙 등반 & 3종 정상 보물 타일 구매
+    function resolvePendingAssistantHireAuto() {
+      while (G.pendingAssistantHires > 0) {
+        const sIdx = G.assistantStacks.findIndex(st => st.length > 0);
+        if (sIdx < 0) {
+          G.pendingAssistantHires = 0;
+          break;
+        }
+        const picked = G.assistantStacks[sIdx].shift();
+        G.pendingAssistantHires -= 1;
+        const shouldGold = G.book >= 6;
+        G.assistants.push({ ...picked, tier: shouldGold ? 2 : 1, tapped: false });
+        pushLog(`[조수 합류] ${picked.name}(${shouldGold ? picked.goldDesc : picked.silverDesc}) 영입 완료!`);
+      }
+      document.getElementById("assistantModalOverlay").classList.add("hidden");
+    }
+
+    function openAssistantHireOverlay() {
+      const box = document.getElementById("assistantCandidatesBox");
+      const available = G.assistantStacks
+        .map((st, idx) => ({ top: st[0], left: st.length, idx }))
+        .filter(x => !!x.top);
+
+      if (available.length === 0) {
+        G.pendingAssistantHires = 0;
+        return;
+      }
+
+      box.innerHTML = available.map(item => `
+        <button onclick="selectAssistantFromStack(${item.idx})" class="w-full p-3 rounded-xl bg-[#151923] hover:bg-[#1f2636] border border-[#c99b42]/45 flex items-center justify-between text-left transition cursor-pointer">
+          <div class="flex items-center gap-2.5">
+            <span class="w-9 h-9 rounded-lg bg-black/45 border border-white/10 flex items-center justify-center shrink-0">
+              ${iconSvg(item.top.icon, 20)}
+            </span>
+            <div>
+              <div class="text-xs sm:text-sm font-extrabold text-[#f4ebd9]">${item.top.name} <span class="text-xs text-slate-400 font-normal">(더미 잔여 ${item.left}장)</span></div>
+              <div class="text-xs text-slate-300 mt-0.5">실버: <strong class="text-sky-300">${item.top.silverDesc}</strong> · 골드(6층): <strong class="text-[#e6c173]">${item.top.goldDesc}</strong></div>
+            </div>
+          </div>
+          <span class="px-2.5 py-1 rounded-lg bg-[#282012] border border-[#e6c173] text-[#e6c173] text-xs font-bold shrink-0">영입</span>
+        </button>
+      `).join("");
+
+      document.getElementById("assistantModalOverlay").classList.remove("hidden");
+    }
+
+    function selectAssistantFromStack(stackIdx) {
+      const st = G.assistantStacks[stackIdx];
+      if (!st || st.length === 0 || G.pendingAssistantHires <= 0) return;
+      sfx("coin");
+      const picked = st.shift();
+      G.pendingAssistantHires -= 1;
+      const shouldGold = G.book >= 6;
+      G.assistants.push({ ...picked, tier: shouldGold ? 2 : 1, tapped: false });
+      pushLog(`[공식 3더미 영입] ${picked.name}(${shouldGold ? picked.goldDesc : picked.silverDesc})를 원정대에 영입했습니다!`);
+      pushToast(`${picked.name} 영입 완료!`);
+
+      if (G.pendingAssistantHires > 0) {
+        openAssistantHireOverlay();
+      } else {
+        document.getElementById("assistantModalOverlay").classList.add("hidden");
+      }
+      renderGame();
+    }
+
     function onClimbTemple(trackKind, targetLv, btnEl) {
       if (!ensurePlayerTurn()) return;
+      if (G.pendingAssistantHires > 0) resolvePendingAssistantHireAuto();
       clearSiteSelection();
 
       if (trackKind === "glass") {
@@ -1838,11 +1951,17 @@
         G.glass = targetLv;
 
         if (targetLv === 8) {
+          // 공식 2인 세팅: 8층 정상 도착 칸에 쌓여 있는 뒷면 연구 보너스 타일(총 2장) 중 1장 획득!
+          if (G.summitBonusStack && G.summitBonusStack.length > 0) {
+            const topBonus = G.summitBonusStack.shift();
+            gainResources(topBonus, btnEl);
+            pushLog("[8층 도착 보너스 타일] 잃어버린 신전 정상 연구 보너스 자원을 획득했습니다!");
+          }
           if (!G.summitClaimedFirstBy) {
             G.summitClaimedFirstBy = "player";
-            pushToast("잃어버린 신전 정상 1위 등정! (+23점 & 보물 타일 개방!)");
+            pushToast("잃어버린 신전 정상 1위 등정! (+23점 & 도착 보너스 & 보물 타일 개방!)");
           } else {
-            pushToast("잃어버린 신전 정상 등정 완료! (+21점 & 보물 타일 개방!)");
+            pushToast("잃어버린 신전 정상 등정 완료! (+21점 & 도착 보너스 & 보물 타일 개방!)");
           }
           pushLog(`돋보기가 8층 신전 정상에 도달했습니다!`);
         } else {
@@ -1874,12 +1993,9 @@
         if (st.bExile) openExileOverlay();
         if (st.bPtsBonus) G.extraVp += st.bPtsBonus;
 
-        if (st.bHireAss === 1) {
-          G.assistants.push({ id: 1, role: "compass", tier: 1, tapped: false });
-          pushToast("1번 길잡이 조수(실버: 나침반+1)를 영입했습니다!");
-        } else if (st.bHireAss === 2) {
-          G.assistants.push({ id: 2, role: "tablet", tier: 1, tapped: false });
-          pushToast("2번 고문헌 조수(실버: 석판+1)를 영입했습니다!");
+        if (st.bHireAss === 1 || st.bHireAss === 2) {
+          G.pendingAssistantHires += 1;
+          openAssistantHireOverlay();
         } else if (st.bUpgradeAss) {
           G.assistants.forEach(a => {
             a.tier = 2;
@@ -2010,7 +2126,7 @@
       renderGame();
     }
 
-    // 6-8. 2인 조수 및 수호자 은혜 자유 행동
+    // 6-8. 6종 조수 풀 및 수호자 은혜 자유 행동
     function onTapAssistant(assIdx, btnEl) {
       if (!ensurePlayerTurn()) return;
       const ass = G.assistants[assIdx];
@@ -2018,22 +2134,28 @@
 
       sfx("coin");
       ass.tapped = true;
+      const isGold = ass.tier === 2;
+      const gradeTxt = isGold ? "골드" : "실버";
+
       if (ass.role === "compass") {
-        if (ass.tier === 1) {
-          gainResources({ compass: 1 }, btnEl);
-          pushLog("[자유 행동] 1번 실버 조수 → 나침반+1 획득");
-        } else {
-          gainResources({ compass: 2 }, btnEl);
-          pushLog("[자유 행동] 1번 골드 조수 → 나침반+2 획득");
-        }
-      } else {
-        if (ass.tier === 1) {
-          gainResources({ tablets: 1 }, btnEl);
-          pushLog("[자유 행동] 2번 실버 조수 → 석판+1 획득");
-        } else {
-          gainResources({ tablets: 1, coins: 1 }, btnEl);
-          pushLog("[자유 행동] 2번 골드 조수 → 석판+1, 동전+1 획득");
-        }
+        gainResources({ compass: isGold ? 2 : 1 }, btnEl);
+        pushLog(`[자유 행동] ${ass.name}(${gradeTxt}) → 나침반+${isGold ? 2 : 1}`);
+      } else if (ass.role === "coins") {
+        gainResources({ coins: isGold ? 2 : 1 }, btnEl);
+        pushLog(`[자유 행동] ${ass.name}(${gradeTxt}) → 동전+${isGold ? 2 : 1}`);
+      } else if (ass.role === "tablet") {
+        gainResources(isGold ? { tablets: 1, coins: 1 } : { tablets: 1 }, btnEl);
+        pushLog(`[자유 행동] ${ass.name}(${gradeTxt}) → ${isGold ? "석판+1, 동전+1" : "석판+1"}`);
+      } else if (ass.role === "exile") {
+        if (isGold) gainResources({ compass: 1 }, btnEl);
+        pushLog(`[자유 행동] ${ass.name}(${gradeTxt}) → 카드 추방${isGold ? " & 나침반+1" : ""}`);
+        openExileOverlay();
+      } else if (ass.role === "hunter") {
+        gainResources(isGold ? { arrowheads: 1 } : { coins: 1 }, btnEl);
+        pushLog(`[자유 행동] ${ass.name}(${gradeTxt}) → ${isGold ? "화살촉+1" : "동전+1"}`);
+      } else if (ass.role === "appraiser") {
+        gainResources(isGold ? { jewels: 1 } : { tablets: 1 }, btnEl);
+        pushLog(`[자유 행동] ${ass.name}(${gradeTxt}) → ${isGold ? "루비+1" : "석판+1"}`);
       }
       renderGame();
     }
@@ -2065,7 +2187,7 @@
     }
 
     // =========================================================
-    // 7. 턴 전환 & 공식 10타일 · 6일꾼 라이벌 오토마 인공지능
+    // 7. 턴 전환 & 공식 10타일 · 6일꾼 · 선공 라이벌 오토마 인공지능
     // =========================================================
 
     function concludeMainAction() {
@@ -2081,6 +2203,7 @@
 
     function onPassRound() {
       if (!ensurePlayerTurn()) return;
+      if (G.pendingAssistantHires > 0) resolvePendingAssistantHireAuto();
       clearSiteSelection();
       sfx("card");
       G.playerPassed = true;
@@ -2095,22 +2218,53 @@
       }
     }
 
+    // 오토마 수첩 전진 (돋보기를 추월할 수 없으며, 2·4층 도달 시 공급처 3더미에서 조수 1명을 제거해 견제!)
+    function advanceAutomaBook(isRed) {
+      if (G.automa.book < G.automa.glass && G.automa.book < 7) {
+        G.automa.book += 1;
+        let removedAssMsg = "";
+        if ((G.automa.book === 2 || G.automa.book === 4) && G.assistantStacks) {
+          let bestIdx = -1;
+          let maxLen = 0;
+          G.assistantStacks.forEach((st, i) => {
+            if (st.length > maxLen) {
+              maxLen = st.length;
+              bestIdx = i;
+            }
+          });
+          if (bestIdx >= 0) {
+            const swept = G.assistantStacks[bestIdx].shift();
+            removedAssMsg = ` · [${swept.name}] 제거`;
+            pushLog(`[오토마 조수 견제] 오토마 수첩이 ${G.automa.book}층에 도달해 공급처의 [${swept.name}]를 가져갔습니다!`);
+          }
+        }
+        G.automa.lastIcon = isRed ? "red_skull" : "book";
+        G.automa.lastSub = isRed ? "적색 연구 타일 (수첩 추격)" : "오토마 수첩 기록";
+        G.automa.lastTitle = `오토마 수첩 ${G.automa.book}층 도달${removedAssMsg}`;
+        pushLog(`오토마 수첩이 ${G.automa.book}층으로 전진했습니다.`);
+        return true;
+      }
+      return false;
+    }
+
     function advanceAutomaGlass(isRed) {
       if (G.automa.glass < 8) {
         G.automa.glass += 1;
         if (G.automa.glass <= 7) {
           G.firstTrackBonus[G.automa.glass] = false;
-        } else if (!G.summitClaimedFirstBy) {
-          G.summitClaimedFirstBy = "automa";
+        } else {
+          if (!G.summitClaimedFirstBy) G.summitClaimedFirstBy = "automa";
+          if (G.summitBonusStack && G.summitBonusStack.length > 0) {
+            G.summitBonusStack.shift();
+          }
         }
-        if (isRed) G.automa.vp += 2;
         G.automa.lastIcon = isRed ? "red_skull" : "glass";
         G.automa.lastSub = isRed ? "적색 연구 타일" : "녹색 연구 타일";
-        G.automa.lastTitle = `새의 신전 ${G.automa.glass}층 등반${isRed ? " (+2점)" : ""}`;
-        pushLog(`오토마가 연구 트랙 ${G.automa.glass}층에 도달했습니다.`);
+        G.automa.lastTitle = `돋보기 ${G.automa.glass}층 등반`;
+        pushLog(`오토마 돋보기가 연구 트랙 ${G.automa.glass}층에 도달했습니다.`);
         return;
       }
-      // 이미 8층 정상 도달 시 보물 타일 선점
+      // 이미 8층 정상 도달 시 보물 타일 선점 (공식 액면가 +2/+6/+11점 그대로 획득!)
       const stealOrder = isRed ? ["gold", "silver", "bronze"] : ["bronze", "silver", "gold"];
       const tKey = stealOrder.find(k => G.templeTiles[k] > 0);
       if (tKey) {
@@ -2118,18 +2272,31 @@
         const pts = TEMPLE_TILE_TYPES[tKey].pts;
         G.automa.vp += pts;
         G.automa.lastIcon = isRed ? "red_skull" : "vp";
-        G.automa.lastSub = "신전 정상 연구";
-        G.automa.lastTitle = `[${TEMPLE_TILE_TYPES[tKey].name}] 선점 (+${pts}점)`;
+        G.automa.lastSub = "신전 정상 보물 타일 선점";
+        G.automa.lastTitle = `[${TEMPLE_TILE_TYPES[tKey].name}] 획득 (+${pts}점)`;
         pushLog(`오토마가 신전 정상의 ${TEMPLE_TILE_TYPES[tKey].name}(+${pts}점)을 가져갔습니다!`);
       } else {
-        G.automa.vp += 2;
-        G.automa.lastIcon = "vp";
-        G.automa.lastSub = "신전 정상 기록";
-        G.automa.lastTitle = "고대 비문 해독 (+2점)";
+        advanceAutomaBook(isRed);
       }
     }
 
-    // 공식 오토마 자원 지정 발굴 규칙: 목표 자원을 주는 유적지를 상위(II→I단계)부터 찾고, 베이스캠프까지 모두 막혀 있으면 허탕!
+    // 공식 오토마 연구 행동: 녹색은 돋보기(또는 추격 필요한 수첩) 1칸, 적색은 돋보기 전진 후 수첩도 함께 추격!
+    function advanceAutomaResearch(isRed, preferBook = false) {
+      if (preferBook && G.automa.book < G.automa.glass && G.automa.book < 7) {
+        advanceAutomaBook(isRed);
+        return;
+      }
+      const prevGlass = G.automa.glass;
+      advanceAutomaGlass(isRed);
+      if (isRed && G.automa.book < G.automa.glass && G.automa.book < 7) {
+        advanceAutomaBook(true);
+        G.automa.lastTitle = `돋보기 ${G.automa.glass}층 & 수첩 ${G.automa.book}층 동반 등반!`;
+      } else if (prevGlass === 8 && G.automa.book < 7) {
+        // 정상이 이미 끝난 상태에서 보물 타일도 없으면 수첩 전진
+      }
+    }
+
+    // 공식 오토마 자원 지정 발굴 규칙: 일꾼 배치 자체는 점수를 주지 않으며, 자리가 막혀 있으면 허탕!
     function placeAutomaWorkerByRes(targetRes) {
       const resName = RES_KO_NAMES[targetRes] || "자원";
       const candidates = [
@@ -2142,7 +2309,6 @@
       if (G.automa.workers > 0 && target) {
         G.automa.workers -= 1;
         placeOnSite(target, "automa");
-        G.automa.vp += target.tier > 0 ? 2 : 1;
         G.automa.lastIcon = targetRes;
         G.automa.lastSub = `${resName} 발굴 타일 (남은 미플 ${G.automa.workers}/6)`;
         G.automa.lastTitle = `[${target.name}] 슬롯 점유`;
@@ -2166,7 +2332,6 @@
       if (G.automa.workers > 0 && target) {
         G.automa.workers -= 1;
         placeOnSite(target, "automa");
-        G.automa.vp += target.tier > 0 ? 2 : 1;
         G.automa.lastIcon = "meeple_automa";
         G.automa.lastSub = `고고학자 파견 (남은 미플 ${G.automa.workers}/6)`;
         G.automa.lastTitle = `[${target.name}] 슬롯 점유`;
@@ -2174,6 +2339,93 @@
         return true;
       }
       return false;
+    }
+
+    // 오토마 단일 타일 처리 코어 함수
+    function processAutomaTile(tile) {
+      G.automa.flipTrigger = true;
+
+      if (tile.type === "ARCHAEOLOGIST") {
+        placeAutomaWorkerByRes(tile.targetRes || "coins");
+      } else if (tile.type === "RESEARCH") {
+        advanceAutomaResearch(tile.isRed, false);
+      } else if (tile.type === "BUY_ITEM") {
+        if (G.marketItems.length > 0) {
+          // 공식 규칙: 적색 타일은 상점 우측(고비용/고득점), 녹색 타일은 좌측(저비용) 아이템 선점 후 인쇄된 승점 획득
+          let pickIdx = tile.isRed ? G.marketItems.length - 1 : 0;
+          G.marketItems.forEach((c, idx) => {
+            if (tile.isRed ? c.cost >= G.marketItems[pickIdx].cost : c.cost < G.marketItems[pickIdx].cost) {
+              pickIdx = idx;
+            }
+          });
+          const taken = G.marketItems.splice(pickIdx, 1)[0];
+          if (G.itemDeck.length > 0) G.marketItems.push(G.itemDeck.shift());
+          G.automa.vp += taken.pts;
+          G.automa.lastIcon = tile.isRed ? "red_skull" : "green_tile";
+          G.automa.lastSub = tile.isRed ? "적색 아이템 선점 타일" : "녹색 아이템 구매 타일";
+          G.automa.lastTitle = `아이템 [${taken.name}] 선점 (+${taken.pts}점)`;
+          pushLog(`오토마가 상점 아이템 [${taken.name} (+${taken.pts}점)]을 가져갔습니다.`);
+        } else {
+          advanceAutomaResearch(tile.isRed, true);
+        }
+      } else if (tile.type === "BUY_ARTIFACT") {
+        if (G.marketArts.length > 0) {
+          let pickIdx = tile.isRed ? G.marketArts.length - 1 : 0;
+          G.marketArts.forEach((c, idx) => {
+            if (tile.isRed ? c.cost >= G.marketArts[pickIdx].cost : c.cost < G.marketArts[pickIdx].cost) {
+              pickIdx = idx;
+            }
+          });
+          const taken = G.marketArts.splice(pickIdx, 1)[0];
+          if (G.artDeck.length > 0) G.marketArts.push(G.artDeck.shift());
+          G.automa.vp += taken.pts;
+          G.automa.lastIcon = tile.isRed ? "red_skull" : "green_tile";
+          G.automa.lastSub = tile.isRed ? "적색 유물 선점 타일" : "녹색 유물 구매 타일";
+          G.automa.lastTitle = `유물 [${taken.name}] 선점 (+${taken.pts}점)`;
+          pushLog(`오토마가 상점 유물 [${taken.name} (+${taken.pts}점)]을 가져갔습니다.`);
+        } else {
+          advanceAutomaResearch(tile.isRed, true);
+        }
+      } else if (tile.type === "GUARDIAN") {
+        const activeSite = [...G.tier2Sites, ...G.tier1Sites].find(s => s.guardian?.active);
+        if (activeSite) {
+          activeSite.guardian.active = false;
+          G.automa.vp += 5; // 공식 규칙: 제압 수호자당 5점 고정!
+          if (tile.isRed) advanceAutomaBook(true); // 적색 수호자 타일 추가 압박: 수첩 추격!
+          G.automa.lastIcon = tile.isRed ? "red_skull" : "guardian";
+          G.automa.lastSub = tile.isRed ? "적색 수호자 토벌 타일" : "녹색 수호자 제압 타일";
+          G.automa.lastTitle = `${activeSite.guardian.name} 제압 (+5점)`;
+          pushLog(`오토마가 [${activeSite.guardian.name}]를 제압해 +5점을 획득했습니다!`);
+        } else {
+          // 보드에 수호자가 없을 때 공식 대체 행동: 수첩(또는 돋보기) 연구 전진!
+          advanceAutomaResearch(tile.isRed, true);
+        }
+      } else if (tile.type === "EXPEDITION") {
+        // 적색 개척 타일: 6번째 예비 일꾼까지 동원해 미발견 정글 유적 개척 및 우상(+3점) 선점!
+        const undiscT1 = G.tier1Sites.find(s => !s.discovered && hasOpenSlot(s));
+        if (tile.isRed && G.automa.workers > 0 && undiscT1) {
+          G.automa.workers -= 1;
+          undiscT1.discovered = true;
+          undiscT1.guardian.active = true;
+          placeOnSite(undiscT1, "automa");
+          G.automa.vp += 3;
+          G.automa.lastIcon = "red_skull";
+          G.automa.lastSub = `적색 미발견 개척 타일 (6번째 일꾼 출동!)`;
+          G.automa.lastTitle = `[${undiscT1.name}] 개척 & 우상(+3점) 선점`;
+          pushLog(`[적색 타일] 오토마가 6번째 일꾼으로 [${undiscT1.name}]을 신규 개척했습니다!`);
+        } else if (!placeAutomaWorkerStandard()) {
+          advanceAutomaResearch(tile.isRed, true);
+        }
+      }
+    }
+
+    // 공식 솔로 규칙: 매 라운드(1~5R) 오토마가 항상 선 플레이어로서 첫 타일 1장을 먼저 집행!
+    function executeAutomaOpeningTurn() {
+      if (G.automa.deck.length === 0) return;
+      const firstTile = G.automa.deck.shift();
+      processAutomaTile(firstTile);
+      G.automa.lastSub = `[${G.round}R 선공] ${G.automa.lastSub}`;
+      G.isPlayerTurn = true;
     }
 
     function runAutomaTurn() {
@@ -2196,79 +2448,7 @@
 
       sfx("automa");
       const tile = G.automa.deck.shift();
-      G.automa.flipTrigger = true;
-
-      if (tile.type === "ARCHAEOLOGIST") {
-        placeAutomaWorkerByRes(tile.targetRes || "coins");
-      } else if (tile.type === "RESEARCH") {
-        advanceAutomaGlass(tile.isRed);
-      } else if (tile.type === "BUY_ITEM") {
-        if (G.marketItems.length > 0) {
-          let pickIdx = 0;
-          G.marketItems.forEach((c, idx) => {
-            if (tile.isRed ? c.pts > G.marketItems[pickIdx].pts : c.cost < G.marketItems[pickIdx].cost) {
-              pickIdx = idx;
-            }
-          });
-          const taken = G.marketItems.splice(pickIdx, 1)[0];
-          if (G.itemDeck.length > 0) G.marketItems.push(G.itemDeck.shift());
-          G.automa.vp += taken.pts;
-          G.automa.lastIcon = tile.isRed ? "red_skull" : "green_tile";
-          G.automa.lastSub = tile.isRed ? "적색 아이템 강탈 타일" : "녹색 아이템 구매 타일";
-          G.automa.lastTitle = `아이템 [${taken.name}] 선점 (+${taken.pts}점)`;
-          pushLog(`오토마가 상점 아이템 [${taken.name}]을 가져갔습니다.`);
-        } else {
-          advanceAutomaGlass(tile.isRed);
-        }
-      } else if (tile.type === "BUY_ARTIFACT") {
-        if (G.marketArts.length > 0) {
-          let pickIdx = 0;
-          G.marketArts.forEach((c, idx) => {
-            if (tile.isRed ? c.pts > G.marketArts[pickIdx].pts : c.cost < G.marketArts[pickIdx].cost) {
-              pickIdx = idx;
-            }
-          });
-          const taken = G.marketArts.splice(pickIdx, 1)[0];
-          if (G.artDeck.length > 0) G.marketArts.push(G.artDeck.shift());
-          const bonus = tile.isRed ? 1 : 0;
-          G.automa.vp += taken.pts + bonus;
-          G.automa.lastIcon = tile.isRed ? "red_skull" : "green_tile";
-          G.automa.lastSub = tile.isRed ? "적색 유물 강탈 타일" : "녹색 유물 구매 타일";
-          G.automa.lastTitle = `유물 [${taken.name}] 선점 (+${taken.pts + bonus}점)`;
-          pushLog(`오토마가 상점 유물 [${taken.name}]을 가져갔습니다.`);
-        } else {
-          advanceAutomaGlass(tile.isRed);
-        }
-      } else if (tile.type === "GUARDIAN") {
-        const activeSite = [...G.tier2Sites, ...G.tier1Sites].find(s => s.guardian?.active);
-        if (activeSite) {
-          activeSite.guardian.active = false;
-          const pts = tile.isRed ? 6 : 5;
-          G.automa.vp += pts;
-          G.automa.lastIcon = tile.isRed ? "red_skull" : "guardian";
-          G.automa.lastSub = tile.isRed ? "적색 수호자 토벌 타일" : "녹색 수호자 제압 타일";
-          G.automa.lastTitle = `${activeSite.guardian.name} 제압 (+${pts}점)`;
-          pushLog(`오토마가 [${activeSite.guardian.name}]를 제압해 +${pts}점을 획득했습니다!`);
-        } else {
-          advanceAutomaGlass(tile.isRed);
-        }
-      } else if (tile.type === "EXPEDITION") {
-        // 적색 개척 타일: 6번째 예비 일꾼까지 동원해 미발견 정글 유적 개척 및 우상(+3점) 선점!
-        const undiscT1 = G.tier1Sites.find(s => !s.discovered && hasOpenSlot(s));
-        if (tile.isRed && G.automa.workers > 0 && undiscT1) {
-          G.automa.workers -= 1;
-          undiscT1.discovered = true;
-          undiscT1.guardian.active = true;
-          placeOnSite(undiscT1, "automa");
-          G.automa.vp += 3;
-          G.automa.lastIcon = "red_skull";
-          G.automa.lastSub = `적색 미발견 개척 타일 (6번째 일꾼 출동!)`;
-          G.automa.lastTitle = `[${undiscT1.name}] 개척 & 우상(+3점) 선점`;
-          pushLog(`[적색 타일] 오토마가 6번째 일꾼으로 [${undiscT1.name}]을 신규 개척했습니다!`);
-        } else if (!placeAutomaWorkerStandard()) {
-          advanceAutomaGlass(tile.isRed);
-        }
-      }
+      processAutomaTile(tile);
 
       if (G.playerPassed) {
         renderGame();
@@ -2646,10 +2826,9 @@
 
       const diff = getDiffObj();
       G.automa.deck = createAutomaRoundTiles();
-      G.automa.lastIcon = G.moonStaff === "red" ? "staff_red" : "staff_blue";
-      G.automa.lastSub = `10장 스택 재편 (${diff.badge})`;
-      G.automa.lastTitle = `${G.round}라운드 개시 (상점 유물${G.marketArts.length}:아이템${G.marketItems.length})`;
-      pushLog(`${G.round}라운드 시작! (${G.moonStaff === "red" ? "붉은 달 지팡이 2+2 순환" : "푸른 달 지팡이 1+1 순환"} 완료)`);
+      pushLog(`${G.round}라운드 시작! (${G.moonStaff === "red" ? "붉은 달 지팡이 2+2 순환" : "푸른 달 지팡이 1+1 순환"} · 오토마 선공 진행)`);
+      // 공식 솔로 규칙: 매 라운드 오토마가 선 플레이어로 첫 타일 1장을 먼저 오픈!
+      executeAutomaOpeningTurn();
       renderGame();
     }
 
@@ -2765,11 +2944,12 @@
         ? `미발견 심층 #${s.id.split("_")[1]}`
         : `미발견 정글 #${s.id.split("_")[1]}`;
 
-      // 미발견 유적의 우상 뒷면 힌트 아이콘
+      // 미발견 유적의 우상 표시 (공식 규칙: I단계는 뒷면 비공개 1개, II단계는 앞면 공개 보너스 1개 + 뒷면 1개 = 총 2개!)
       let idolHint = "";
       if (needsDisc) {
         const idolCnt = s.idolCountGain || 1;
-        idolHint = `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-[#282012] border border-[#c99b42]/45 text-xs font-bold text-[#e6c173]">${iconSvg("idol", 12)}<span>${idolCnt > 1 ? `×${idolCnt}` : "+3점"}</span></span>`;
+        const faceUpBonus = s.tier === 2 && s.idolBonus ? renderCostPills(s.idolBonus, 11) : "";
+        idolHint = `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-[#282012] border border-[#c99b42]/45 text-xs font-bold text-[#e6c173]">${iconSvg("idol", 12)}<span>${idolCnt > 1 ? `×${idolCnt}` : "+3점"}</span></span>${faceUpBonus}`;
       }
 
       return `
@@ -3099,28 +3279,31 @@
           return `
             <div class="bg-[#0d1017] border border-white/5 rounded-xl px-2.5 py-1.5 flex items-center justify-between text-xs">
               <span class="text-slate-400 font-semibold">0층 출발점</span>
-              <div class="flex items-center gap-1.5">
+              <div class="flex items-center gap-1 flex-wrap justify-end">
                 ${G.glass === 0 ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-sky-950 border border-sky-400/50 text-sky-200 font-bold">${iconSvg("glass", 12)}<span>나</span></span>` : ""}
                 ${G.book === 0 ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-purple-950 border border-purple-400/50 text-purple-200 font-bold">${iconSvg("book", 12)}<span>나</span></span>` : ""}
-                ${G.automa.glass === 0 ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-rose-950 border border-rose-400/50 text-rose-200 font-bold">${iconSvg("meeple_automa", 12)}<span>봇</span></span>` : ""}
+                ${G.automa.glass === 0 ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-rose-950 border border-rose-400/50 text-rose-200 font-bold" title="오토마 돋보기">${iconSvg("glass", 12)}<span>봇</span></span>` : ""}
+                ${G.automa.book === 0 ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-rose-950/75 border border-rose-400/40 text-rose-200 font-bold" title="오토마 수첩">${iconSvg("book", 12)}<span>봇</span></span>` : ""}
               </div>
             </div>
           `;
         }
 
-        // 8층 잃어버린 신전 정상 (돋보기 전용 12칸 통합 배너)
+        // 8층 잃어버린 신전 정상 (돋보기 전용 12칸 통합 배너 + 2인 기준 도착 보너스 타일 2장 표시)
         if (st.isSummit) {
           const nextG = G.glass === 7;
           const canG = G.isPlayerTurn && !G.playerPassed && nextG && canPay(st.gCost);
           const displaySummitPts = G.summitClaimedFirstBy && G.summitClaimedFirstBy !== "player" ? st.gPtsSecond : st.gPts;
+          const bonusLeft = G.summitBonusStack ? G.summitBonusStack.length : 0;
           return `
             <button onclick="onClimbTemple('glass', 8, this)" ${!canG ? "disabled" : ""}
               class="w-full tactile-tile rounded-xl px-2.5 py-2 text-left flex items-center justify-between gap-2 ${
                 canG ? "tactile-clickable cursor-pointer border-[#e6c173]" : G.glass === 8 ? "border-[#c99b42]/60" : nextG ? "opacity-85" : "opacity-60"
               }">
               <div class="min-w-0">
-                <div class="text-xs font-extrabold text-[#f7d57e] flex items-center gap-1">
-                  ${iconSvg("temple", 14)}<span>8층 신전 정상 (+${displaySummitPts}점)</span>
+                <div class="text-xs font-extrabold text-[#f7d57e] flex items-center gap-1 flex-wrap">
+                  ${iconSvg("temple", 14)}<span>8층 정상 (+${displaySummitPts}점)</span>
+                  ${bonusLeft > 0 ? `<span class="px-1.5 py-0.5 rounded bg-[#282012] border border-[#c99b42]/50 text-[#6ee7b7] text-xs font-bold">보너스(${bonusLeft})</span>` : ""}
                 </div>
                 <div class="flex flex-wrap items-center gap-1 mt-1">${renderCostPills(st.gCost, 12)}</div>
               </div>
@@ -3176,25 +3359,29 @@
               </div>
               <div class="flex items-center justify-between w-full">
                 <div class="flex items-center gap-0.5 flex-wrap">${renderCostPills(st.bCost, 12)}</div>
-                ${G.book === st.level ? iconSvg("book", 15) : ""}
+                <div class="flex items-center gap-0.5 shrink-0">
+                  ${G.book === st.level ? iconSvg("book", 15) : ""}
+                  ${G.automa.book === st.level ? iconSvg("meeple_automa", 14) : ""}
+                </div>
               </div>
             </button>
           </div>
         `;
       }).join("");
 
-      // 5. 하단 플레이어 도크: 탐험대장 고유 스킬, 최대 2인 조수, 수호자 은혜, 손패 카드, 패스 버튼
+      // 5. 하단 플레이어 도크: 탐험대장 고유 스킬, 3더미 선택 조수(최대 2명), 수호자 은혜, 손패 카드, 패스 버튼
       renderLeaderSkillBox();
 
       const assBox = document.getElementById("playerAssistantBox");
       if (G.assistants.length === 0) {
-        assBox.innerHTML = `<div class="bg-[#141822] border border-dashed border-white/10 rounded-xl px-2.5 py-2 text-xs text-slate-500">조수 없음 (수첩 2·4층 영입)</div>`;
+        const stacksLeft = G.assistantStacks ? G.assistantStacks.reduce((s, arr) => s + arr.length, 0) : 0;
+        assBox.innerHTML = `<div class="bg-[#141822] border border-dashed border-white/10 rounded-xl px-2.5 py-2 text-xs text-slate-500">조수 없음 (수첩 2·4층 선택 영입 · 풀 ${stacksLeft}명)</div>`;
       } else {
         assBox.innerHTML = G.assistants.map((ass, idx) => {
           const ready = G.isPlayerTurn && !G.playerPassed && !ass.tapped;
-          const desc = ass.role === "compass"
-            ? (ass.tier === 2 ? "1번 골드(나침반+2)" : "1번 실버(나침반+1)")
-            : (ass.tier === 2 ? "2번 골드(석판1+동전1)" : "2번 실버(석판+1)");
+          const isGold = ass.tier === 2;
+          const effectTxt = isGold ? ass.goldDesc : ass.silverDesc;
+          const desc = `${ass.name || "조수"} · ${isGold ? "골드" : "실버"}(${effectTxt})`;
           return `
             <button onclick="onTapAssistant(${idx}, this)" ${!ready ? "disabled" : ""}
               class="tactile-tile rounded-xl px-2.5 py-2 flex items-center gap-1.5 text-xs font-bold ${
