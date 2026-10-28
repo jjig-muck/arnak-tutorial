@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
@@ -10,7 +10,6 @@
   <meta name="mobile-web-app-capable" content="yes">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23141821'/%3E%3Cpath d='M32 10L10 24h44L32 10z' fill='%23e6c173'/%3E%3Cpath d='M16 28h6v20h-6V28zm13 0h6v20h-6V28zm13 0h6v20h-6V28z' fill='%23d6cbb5'/%3E%3Crect x='10' y='50' width='44' height='5' rx='2' fill='%23e6c173'/%3E%3C/svg%3E">
   <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23141821'/%3E%3Cpath d='M32 10L10 24h44L32 10z' fill='%23e6c173'/%3E%3Cpath d='M16 28h6v20h-6V28zm13 0h6v20h-6V28zm13 0h6v20h-6V28z' fill='%23d6cbb5'/%3E%3Crect x='10' y='50' width='44' height='5' rx='2' fill='%23e6c173'/%3E%3C/svg%3E">
-  <link rel="manifest" href="./manifest.json">
   <title>아르낙의 잊혀진 유적 — 솔로 & 탐험대장 디지털 에디션</title>
   <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
   <style>
@@ -146,127 +145,122 @@
   ========================================================== -->
   <div class="sticky top-0 z-40 sticky-hud safe-top">
     
-    <!-- HUD 1행: 타이틀, 라운드 트랙, 점수 비교, 시스템 설정 -->
-    <div class="max-w-[1640px] mx-auto px-2.5 sm:px-5 py-1.5 sm:py-2 flex flex-wrap items-center justify-between gap-1.5 sm:gap-2 border-b border-white/5">
+    <!-- HUD 1행 (단일 행 고정): 라운드·리더·스코어보드·원정 편성 메뉴 -->
+    <div class="max-w-[1640px] mx-auto px-2 sm:px-5 py-1 sm:py-1.5 flex items-center justify-between gap-1 sm:gap-2 border-b border-white/5 overflow-x-auto">
       
-      <!-- 좌측: 브랜드 엠블럼 & 라운드 / 현재 리더 표시 -->
-      <div class="flex items-center gap-2">
-        <div id="brandEmblem" class="hidden sm:flex w-8 h-8 rounded-lg bg-[#241f16] border border-[#c99b42]/50 items-center justify-center shadow-inner shrink-0"></div>
-        <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-          <h1 class="text-sm sm:text-base font-extrabold tracking-tight text-[#f4ebd9]">아르낙<span class="hidden md:inline">의 잊혀진 유적</span></h1>
-          <span id="hudRoundBadge" class="px-1.5 sm:px-2 py-0.5 rounded bg-[#262015] border border-[#c99b42]/45 text-[#e6c173] text-xs font-bold">
-            1 / 5R
-          </span>
-          <button id="hudLeaderBadge" onclick="openSettingsModal()" class="px-2 py-0.5 rounded bg-[#18202c] hover:bg-[#222d3d] border border-sky-400/35 text-sky-200 text-xs font-bold flex items-center gap-1 transition cursor-pointer" title="탐험대장 확장 및 난이도 변경">
-          </button>
-        </div>
+      <!-- 좌측: 브랜드 엠블럼 & 라운드 / 현재 리더·맵 표시 -->
+      <div class="flex items-center gap-1 sm:gap-2 shrink-0">
+        <div id="brandEmblem" class="hidden sm:flex w-7 h-7 rounded-lg bg-[#241f16] border border-[#c99b42]/50 items-center justify-center shadow-inner shrink-0"></div>
+        <h1 class="hidden md:inline text-sm sm:text-base font-extrabold tracking-tight text-[#f4ebd9]">아르낙의 잊혀진 유적</h1>
+        <span id="hudRoundBadge" class="px-1.5 py-0.5 rounded bg-[#262015] border border-[#c99b42]/45 text-[#e6c173] text-xs font-bold shrink-0">
+          1/5R
+        </span>
+        <button id="hudLeaderBadge" onclick="openSettingsModal()" class="px-1.5 sm:px-2 py-0.5 rounded bg-[#18202c] hover:bg-[#222d3d] border border-sky-400/35 text-sky-200 text-xs font-bold flex items-center gap-1 transition cursor-pointer shrink-0" title="탐험대장 · 신전 맵 · 난이도 변경">
+        </button>
       </div>
 
       <!-- 중앙: 실시간 대전 스코어보드 & 오토마 난이도 원터치 배지 -->
-      <div class="flex items-center bg-[#090b0f] border border-white/10 rounded-xl px-2.5 sm:px-3.5 py-0.5 sm:py-1 gap-2 sm:gap-2.5 shadow-inner">
-        <div class="flex items-center gap-1">
+      <div class="flex items-center bg-[#090b0f] border border-white/10 rounded-lg px-2 sm:px-3 py-0.5 gap-1.5 sm:gap-2 shadow-inner shrink-0">
+        <div class="flex items-center gap-0.5 sm:gap-1">
           <span id="hudPlayerMeepleIcon"></span>
-          <span class="hidden sm:inline text-xs text-slate-300 font-semibold">나</span>
-          <strong id="hudPlayerScore" class="text-sm sm:text-base font-black text-[#e6c173]">0</strong>
+          <strong id="hudPlayerScore" class="text-xs sm:text-sm font-black text-[#e6c173]">0</strong>
         </div>
-        <span class="text-xs font-bold text-slate-600">VS</span>
+        <span class="text-xs font-bold text-slate-600">:</span>
         <div class="flex items-center gap-1">
-          <strong id="hudAutomaScore" class="text-sm sm:text-base font-black text-rose-400">0</strong>
+          <strong id="hudAutomaScore" class="text-xs sm:text-sm font-black text-rose-400">0</strong>
           <button id="hudDiffBadge" onclick="openSettingsModal()" class="px-1.5 py-0.5 rounded bg-rose-950/70 hover:bg-rose-900/80 border border-rose-500/40 text-rose-200 text-xs font-bold transition cursor-pointer" title="라이벌 오토마 난이도 변경">
-            표준
+            적색2
           </button>
         </div>
       </div>
 
-      <!-- 우측: 원정 설정(확장/난이도) 및 보조 창 버튼 -->
-      <div class="flex items-center gap-1 sm:gap-1.5 flex-wrap">
-        <button onclick="openSettingsModal()" class="px-2 sm:px-2.5 py-1 rounded-lg bg-[#282115] hover:bg-[#382e1d] border border-[#c99b42]/60 text-[#e6c173] text-xs font-extrabold transition cursor-pointer">
-          확장 · 난이도
+      <!-- 우측: 원정 설정(확장/맵/난이도) 및 보조 창 버튼 -->
+      <div class="flex items-center gap-1 shrink-0">
+        <button onclick="openSettingsModal()" class="px-2 py-0.5 sm:py-1 rounded-lg bg-[#282115] hover:bg-[#382e1d] border border-[#c99b42]/60 text-[#e6c173] text-xs font-extrabold transition cursor-pointer">
+          옵션
         </button>
-        <button onclick="openModalView('rules')" class="px-2 sm:px-2.5 py-1 rounded-lg bg-[#181c26] hover:bg-[#232938] border border-white/10 text-slate-200 text-xs font-semibold transition">규칙</button>
-        <button onclick="openModalView('log')" class="hidden sm:inline-block px-2.5 py-1 rounded-lg bg-[#181c26] hover:bg-[#232938] border border-white/10 text-slate-200 text-xs font-semibold transition">일지</button>
-        <button onclick="toggleAudio()" id="btnAudioToggle" class="w-7 h-7 rounded-lg bg-[#181c26] hover:bg-[#232938] border border-white/10 text-slate-300 flex items-center justify-center transition" title="효과음 켜기/끄기"></button>
-        <button onclick="startNewGame()" class="px-2 sm:px-2.5 py-1 rounded-lg bg-[#181c26] hover:bg-[#232938] border border-white/15 text-slate-200 text-xs font-bold transition">재시작</button>
+        <button onclick="openModalView('rules')" class="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg bg-[#181c26] hover:bg-[#232938] border border-white/10 text-slate-200 text-xs font-semibold transition">규칙</button>
+        <button onclick="openModalView('log')" class="hidden sm:inline-block px-2 py-1 rounded-lg bg-[#181c26] hover:bg-[#232938] border border-white/10 text-slate-200 text-xs font-semibold transition">일지</button>
+        <button onclick="toggleAudio()" id="btnAudioToggle" class="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-[#181c26] hover:bg-[#232938] border border-white/10 text-slate-300 flex items-center justify-center transition" title="효과음 켜기/끄기"></button>
+        <button onclick="startNewGame()" class="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg bg-[#181c26] hover:bg-[#232938] border border-white/15 text-slate-200 text-xs font-bold transition">재시작</button>
       </div>
     </div>
 
-    <!-- HUD 2행 (핵심 요청 반영!): 어느 곳을 보고 있어도 100% 고정 노출되는 내 자원 현황 + 일꾼 + 우상 슬롯 + 현재 행동 상태 -->
-    <div class="max-w-[1640px] mx-auto px-2.5 sm:px-5 py-1.5 sm:py-2 flex flex-wrap items-center justify-between gap-1.5 sm:gap-2.5">
+    <!-- HUD 2행 (초컴팩트 1줄 통합!): 자원 5종 + 일꾼 + 우상 보너스 버튼 + 턴 상태 배지가 줄바꿈 없이 한 줄에 정렬! -->
+    <div class="max-w-[1640px] mx-auto px-2 sm:px-5 py-1 sm:py-1.5 flex items-center justify-between gap-1 sm:gap-2 overflow-x-auto">
       
-      <!-- 좌측~중앙: 내 보유 자원 5종 + 남은 일꾼 미플 + 우상 보너스 슬롯 -->
-      <div class="flex items-center flex-wrap gap-1.5 sm:gap-2">
+      <!-- 좌측~중앙: 내 보유 자원 5종 + 일꾼 미플 + 우상 슬롯 버튼 (모두 1줄!) -->
+      <div class="flex items-center gap-1 sm:gap-2 shrink-0">
         <!-- 자원 5종 고정 카운터 바 -->
-        <div class="flex items-center bg-[#080a0e] border border-white/10 rounded-xl px-2 sm:px-2.5 py-1 gap-2 sm:gap-3.5 shadow-inner">
-          <div id="hudRes_coins" class="flex items-center gap-1" title="동전: 아이템 구매 또는 2개로 비행기 고용">
+        <div class="flex items-center bg-[#080a0e] border border-white/10 rounded-lg px-1.5 sm:px-2.5 py-0.5 sm:py-1 gap-1.5 sm:gap-3 shadow-inner">
+          <div id="hudRes_coins" class="flex items-center gap-0.5 sm:gap-1" title="동전: 아이템 구매 또는 2개로 비행기 고용">
             <span id="hudIcon_coins"></span>
-            <span class="hidden sm:inline text-xs text-slate-400 font-medium">동전</span>
-            <span id="hudVal_coins" class="text-xs sm:text-sm font-black text-[#f7d57e] min-w-[12px] text-center">1</span>
+            <span class="hidden md:inline text-xs text-slate-400 font-medium">동전</span>
+            <span id="hudVal_coins" class="text-xs sm:text-sm font-black text-[#f7d57e] min-w-[10px] text-center">1</span>
           </div>
-          <div class="w-px h-3.5 bg-white/10"></div>
-          <div id="hudRes_compass" class="flex items-center gap-1" title="나침반: 신규 유적 탐사(3개/6개) 또는 유물 구매">
+          <div id="hudRes_compass" class="flex items-center gap-0.5 sm:gap-1" title="나침반: 신규 유적 탐사(3개/6개) 또는 유물 구매">
             <span id="hudIcon_compass"></span>
-            <span class="hidden sm:inline text-xs text-slate-400 font-medium">나침반</span>
-            <span id="hudVal_compass" class="text-xs sm:text-sm font-black text-[#6ee7b7] min-w-[12px] text-center">1</span>
+            <span class="hidden md:inline text-xs text-slate-400 font-medium">나침반</span>
+            <span id="hudVal_compass" class="text-xs sm:text-sm font-black text-[#6ee7b7] min-w-[10px] text-center">1</span>
           </div>
-          <div class="w-px h-3.5 bg-white/10"></div>
-          <div id="hudRes_tablets" class="flex items-center gap-1" title="석판: 연구 등반 및 유물 재발동">
+          <div id="hudRes_tablets" class="flex items-center gap-0.5 sm:gap-1" title="석판: 연구 등반 및 유물 재발동">
             <span id="hudIcon_tablets"></span>
-            <span class="hidden sm:inline text-xs text-slate-400 font-medium">석판</span>
-            <span id="hudVal_tablets" class="text-xs sm:text-sm font-black text-slate-100 min-w-[12px] text-center">0</span>
+            <span class="hidden md:inline text-xs text-slate-400 font-medium">석판</span>
+            <span id="hudVal_tablets" class="text-xs sm:text-sm font-black text-slate-100 min-w-[10px] text-center">0</span>
           </div>
-          <div class="w-px h-3.5 bg-white/10"></div>
-          <div id="hudRes_arrowheads" class="flex items-center gap-1" title="화살촉: 중상위 연구 등반 및 수호자 제압">
+          <div id="hudRes_arrowheads" class="flex items-center gap-0.5 sm:gap-1" title="화살촉: 중상위 연구 등반 및 수호자 제압">
             <span id="hudIcon_arrowheads"></span>
-            <span class="hidden sm:inline text-xs text-slate-400 font-medium">화살촉</span>
-            <span id="hudVal_arrowheads" class="text-xs sm:text-sm font-black text-[#fdba74] min-w-[12px] text-center">0</span>
+            <span class="hidden md:inline text-xs text-slate-400 font-medium">화살촉</span>
+            <span id="hudVal_arrowheads" class="text-xs sm:text-sm font-black text-[#fdba74] min-w-[10px] text-center">0</span>
           </div>
-          <div class="w-px h-3.5 bg-white/10"></div>
-          <div id="hudRes_jewels" class="flex items-center gap-1" title="루비: 신전 정상 연구 등반 핵심 보석">
+          <div id="hudRes_jewels" class="flex items-center gap-0.5 sm:gap-1" title="루비: 신전 정상 연구 등반 핵심 보석">
             <span id="hudIcon_jewels"></span>
-            <span class="hidden sm:inline text-xs text-slate-400 font-medium">루비</span>
-            <span id="hudVal_jewels" class="text-xs sm:text-sm font-black text-[#fda4af] min-w-[12px] text-center">0</span>
+            <span class="hidden md:inline text-xs text-slate-400 font-medium">루비</span>
+            <span id="hudVal_jewels" class="text-xs sm:text-sm font-black text-[#fda4af] min-w-[10px] text-center">0</span>
           </div>
         </div>
 
         <!-- 남은 일꾼 미플 직관 표시 -->
-        <div class="flex items-center bg-[#141821] border border-white/10 rounded-xl px-2 py-1 gap-1" title="이번 라운드 파견 가능한 내 고고학자 일꾼">
-          <span class="hidden sm:inline text-xs text-slate-400 font-semibold">일꾼</span>
+        <div class="flex items-center bg-[#141821] border border-white/10 rounded-lg px-1.5 py-0.5 sm:py-1 gap-0.5" title="이번 라운드 파견 가능한 내 고고학자 일꾼">
           <div id="hudWorkersBox" class="flex items-center gap-0.5"></div>
         </div>
 
-        <!-- 내 개인판 우상(Idol) 자유행동 변환 버튼 -->
-        <div id="hudIdolSlotBox"></div>
+        <!-- 내 개인판 우상(Idol) 5가지 보너스 선택 자유행동 버튼 (한 줄 안에 나란히 배치!) -->
+        <div id="hudIdolSlotBox" class="shrink-0"></div>
       </div>
 
-      <!-- 우측: 실시간 턴 안내 & 이동 수단 선택 취소 컨트롤 -->
-      <div class="flex items-center gap-1.5 ml-auto max-w-full">
-        <div class="flex items-center gap-1.5 bg-[#131720] border border-white/10 rounded-xl px-2.5 py-1 min-w-0">
+      <!-- 우측: 컴팩트 턴 상태 배지 (평소에는 짧은 배지로 2행 우측 끝에 쏙 들어가고, 별도 줄을 먹지 않음!) -->
+      <div class="flex items-center gap-1 ml-auto shrink-0">
+        <div class="flex items-center gap-1 bg-[#131720] border border-white/10 rounded-lg px-2 py-0.5 sm:py-1">
           <span id="hudTurnDot" class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
-          <span id="hudPromptText" class="text-xs font-semibold text-slate-200 truncate">내 차례 — 주요 행동 선택</span>
-        </div>
-
-        <div id="hudTravelActions" class="hidden items-center gap-1 shrink-0">
-          <button id="btnCoinPlane" onclick="confirmTravelByCoins()" class="hidden px-2 py-1 rounded-lg bg-[#2d2415] hover:bg-[#3f321c] border border-[#e2b866] text-[#f7d57e] text-xs font-bold transition flex items-center gap-1">
-            <span id="hudPlaneIcon"></span>
-            <span>동전2</span>
-          </button>
-          <button onclick="clearSiteSelection()" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-white/10 text-slate-300 text-xs font-bold">
-            취소
-          </button>
+          <span id="hudPromptText" class="text-xs font-bold text-slate-200 whitespace-nowrap">내 턴</span>
         </div>
       </div>
-
     </div>
 
-    <!-- HUD 3행 (모바일·태블릿 전용 원터치 보드 전환 탭 — 핸드폰 세로 스크롤 제거!) -->
-    <div class="xl:hidden bg-[#0c0f16] border-t border-white/10 px-2.5 py-1.5 grid grid-cols-3 gap-1.5">
-      <button id="mTabSites" onclick="switchMobileBoard('sites')" class="py-1.5 px-1 rounded-lg text-xs font-extrabold transition bg-[#282012] border border-[#e6c173] text-[#e6c173] truncate">
+    <!-- 유적지 이동 지불 중에만 나타나는 컨텍스트 액션 바 (평소에는 hidden으로 높이 0px!) -->
+    <div id="hudTravelActions" class="hidden max-w-[1640px] mx-auto px-2.5 sm:px-5 py-1 bg-[#1e1910] border-t border-[#e6c173]/35 items-center justify-between gap-2">
+      <span id="hudTravelTargetText" class="text-xs font-bold text-[#f7d57e] truncate">이동할 카드를 아래 손패에서 터치하세요</span>
+      <div class="flex items-center gap-1.5 shrink-0">
+        <button id="btnCoinPlane" onclick="confirmTravelByCoins()" class="hidden px-2 py-0.5 rounded bg-[#2d2415] hover:bg-[#3f321c] border border-[#e2b866] text-[#f7d57e] text-xs font-bold transition flex items-center gap-1">
+          <span id="hudPlaneIcon"></span>
+          <span>동전2 비행기</span>
+        </button>
+        <button onclick="clearSiteSelection()" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 border border-white/15 text-slate-200 text-xs font-bold">
+          취소
+        </button>
+      </div>
+    </div>
+
+    <!-- HUD 3행 (모바일·태블릿 전용 원터치 보드 전환 탭) -->
+    <div class="xl:hidden bg-[#0c0f16] border-t border-white/10 px-2 py-1 grid grid-cols-3 gap-1.5">
+      <button id="mTabSites" onclick="switchMobileBoard('sites')" class="py-1 px-1 rounded-lg text-xs font-extrabold transition bg-[#282012] border border-[#e6c173] text-[#e6c173] truncate">
         유적지 탐사
       </button>
-      <button id="mTabMarket" onclick="switchMobileBoard('market')" class="py-1.5 px-1 rounded-lg text-xs font-bold transition bg-[#141822] border border-white/10 text-slate-300 truncate">
+      <button id="mTabMarket" onclick="switchMobileBoard('market')" class="py-1 px-1 rounded-lg text-xs font-bold transition bg-[#141822] border border-white/10 text-slate-300 truncate">
         상점 · 라이벌
       </button>
-      <button id="mTabTemple" onclick="switchMobileBoard('temple')" class="py-1.5 px-1 rounded-lg text-xs font-bold transition bg-[#141822] border border-white/10 text-slate-300 truncate">
+      <button id="mTabTemple" onclick="switchMobileBoard('temple')" class="py-1 px-1 rounded-lg text-xs font-bold transition bg-[#141822] border border-white/10 text-slate-300 truncate">
         신전 연구
       </button>
     </div>
@@ -369,14 +363,14 @@
 
     </section>
 
-    <!-- [제3열: 3칸] 새의 신전 8층 공식 연구 트랙 & 3종 보물 타일(+2/+6/+11점) -->
+    <!-- [제3열: 3칸] 새의 신전 / 뱀의 신전 8층 공식 연구 트랙 & 3종 보물 타일(+2/+6/+11점) -->
     <section id="boardColTemple" class="hidden xl:flex xl:col-span-3 board-frame rounded-2xl p-3 sm:p-4 flex-col justify-between gap-2">
       <div class="flex items-center justify-between border-b border-white/5 pb-1.5">
         <div class="flex items-center gap-1.5">
           <span id="secIconTemple"></span>
-          <h2 class="text-sm font-extrabold text-[#f4ebd9]">새의 신전 (8층 트랙)</h2>
+          <h2 id="templeHeaderTitle" class="text-sm font-extrabold text-[#f4ebd9]">새의 신전 (8층 트랙)</h2>
         </div>
-        <span class="text-xs text-slate-400">터치하여 연구 전진</span>
+        <button onclick="openSettingsModal()" class="text-xs text-[#e6c173] hover:underline font-bold cursor-pointer">맵 변경</button>
       </div>
 
       <!-- 정상 신전 보물 타일 3종 슬롯 (+2점 동 / +6점 은 / +11점 금) -->
@@ -481,52 +475,72 @@
     </div>
   </div>
 
+  <!-- 공식 개인판 우상 슬롯 보너스 5택 1 선택 모달 -->
+  <div id="idolBonusModalOverlay" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="board-frame rounded-2xl max-w-md w-full p-5 sm:p-6 space-y-4 border border-[#e6c173]/60">
+      <div class="flex items-center justify-between border-b border-white/10 pb-3">
+        <div>
+          <h3 class="text-base font-extrabold text-[#f4ebd9]">개인판 우상 홈 보너스 선택 (자유 행동)</h3>
+          <p id="idolModalSubDesc" class="text-xs text-slate-400 mt-0.5">가장 왼쪽 빈 홈에 우상을 끼우고 아래 5가지 보너스 중 1가지를 즉시 받습니다.</p>
+        </div>
+        <button onclick="closeIdolBonusModal()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300">취소</button>
+      </div>
+      <div id="idolBonusChoicesBox" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+    </div>
+  </div>
+
   <div id="settingsModalOverlay" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
     <div class="board-frame rounded-2xl max-w-2xl w-full p-4 sm:p-6 space-y-4 border border-[#c99b42]/50 max-h-[92vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-white/10 pb-3">
         <div>
-          <h3 class="text-base sm:text-lg font-extrabold text-[#f4ebd9]">원정 편성 — 확장팩 · 달의 지팡이 · 공식 오토마</h3>
-          <p class="text-xs text-slate-400 mt-0.5">실물 보드게임 공식 룰(17구역 맵 · 6칸 상점 · 8층 신전 · 10타일 오토마) 기준</p>
+          <h3 class="text-base sm:text-lg font-extrabold text-[#f4ebd9]">원정 편성 — 신전 맵 · 확장팩 · 달의 지팡이 · 오토마</h3>
+          <p class="text-xs text-slate-400 mt-0.5">실물 보드게임 공식 룰(양면 신전 맵 · 17구역 · 6칸 상점 · 10타일 오토마) 기준</p>
         </div>
         <button onclick="closeSettingsModal()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300">닫기</button>
       </div>
 
-      <div class="space-y-4 text-xs">
-        <!-- 1. 게임 모드 (기본판 vs 탐험대장 확장) -->
+      <div class="space-y-3.5 text-xs">
+        <!-- 1. 양면 보드 신전 맵 선택 (새의 신전 vs 뱀의 신전) -->
         <div class="space-y-1.5">
-          <div class="font-bold text-[#e6c173]">1. 확장팩 적용 여부</div>
+          <div class="font-bold text-[#e6c173]">1. 보드판 양면 맵 선택 (새의 신전 vs 뱀의 신전)</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="templeMapButtons"></div>
+        </div>
+
+        <!-- 2. 게임 모드 (기본판 vs 탐험대장 확장) -->
+        <div class="space-y-1.5">
+          <div class="font-bold text-[#e6c173]">2. 확장팩 적용 여부</div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="expModeButtons"></div>
         </div>
 
-        <!-- 2. 탐험대장 6종 캐릭터 선택 (확장 ON일 때 표시) -->
+        <!-- 3. 탐험대장 6종 캐릭터 선택 (확장 ON일 때 표시) -->
         <div id="leaderSelectSection" class="space-y-2.5 bg-[#0a0d13] border border-[#c99b42]/30 rounded-xl p-3">
           <div class="flex items-center justify-between">
-            <span class="font-bold text-[#f4ebd9]">2. 내 탐험대장(리더) 선택</span>
+            <span class="font-bold text-[#f4ebd9]">3. 내 탐험대장(리더) 선택</span>
             <span class="text-slate-400">전용 시작 덱 & 고유 능력 보유</span>
           </div>
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-2" id="leaderGridButtons"></div>
           <div id="leaderDetailPreview" class="bg-[#141923] border border-white/10 rounded-xl p-3 space-y-1.5"></div>
         </div>
 
-        <!-- 3. 달의 지팡이 종류 선택 (푸른 달의 지팡이 vs 붉은 달의 지팡이) -->
+        <!-- 4. 달의 지팡이 종류 선택 (푸른 달의 지팡이 vs 붉은 달의 지팡이) -->
         <div class="space-y-1.5">
-          <div class="font-bold text-[#e6c173]">3. 달의 지팡이 선택 (상점 카드 순환 속도)</div>
+          <div class="font-bold text-[#e6c173]">4. 달의 지팡이 선택 (상점 카드 순환 속도)</div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="moonStaffButtons"></div>
         </div>
 
-        <!-- 4. 공식 라이벌 오토마 난이도 조절 (적색 타일 0~5장 교체) -->
+        <!-- 5. 공식 라이벌 오토마 난이도 조절 (적색 타일 0~5장 교체) -->
         <div class="space-y-1.5">
           <div class="flex items-center justify-between">
-            <span class="font-bold text-[#e6c173]">4. 공식 라이벌 오토마 난이도 (10타일 스택 · 일꾼 6명)</span>
+            <span class="font-bold text-[#e6c173]">5. 공식 라이벌 오토마 난이도 (10타일 스택 · 일꾼 6명)</span>
             <span class="text-slate-400">녹색 타일을 적색 타일로 교체</span>
           </div>
           <div class="grid grid-cols-3 sm:grid-cols-6 gap-1.5" id="diffModeButtons"></div>
           <div id="diffDetailDesc" class="text-slate-300 bg-[#0d1118] border border-white/5 rounded-lg px-3 py-2"></div>
         </div>
 
-        <!-- 5. 라운드 길이 -->
+        <!-- 6. 라운드 길이 -->
         <div class="space-y-1.5">
-          <div class="font-bold text-slate-200">5. 게임 라운드 길이</div>
+          <div class="font-bold text-slate-200">6. 게임 라운드 길이</div>
           <div class="grid grid-cols-2 gap-2" id="roundModeButtons"></div>
         </div>
 
@@ -785,6 +799,20 @@
             <path d="M7.5 7.5l9 9M16.5 7.5l-9 9" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>
           </svg>`;
 
+        case "temple_snake":
+          return `<svg ${base}>
+            <path d="M4 20h16l-2-5H6l-2 5z" fill="#065f46" stroke="#6ee7b7" stroke-width="1.3"/>
+            <path d="M12 3.5c-3.2 0-4.8 2.2-3.6 4.5 1.1 2 4.5 2.4 5.2 4.5.5 1.5-.8 2.5-2.6 2.5" stroke="#34d399" stroke-width="2.2" stroke-linecap="round"/>
+            <circle cx="11.2" cy="5.2" r="1.1" fill="#fef08a"/>
+          </svg>`;
+
+        case "draw_card":
+          return `<svg ${base}>
+            <rect x="4.5" y="4.5" width="11" height="15" rx="2" fill="#1e293b" stroke="#94a3b8" stroke-width="1.3"/>
+            <rect x="8.5" y="4.5" width="11" height="15" rx="2" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5"/>
+            <path d="M14 9v6M11 12h6" stroke="#7dd3fc" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>`;
+
         default:
           return "";
       }
@@ -894,8 +922,8 @@
 
     const TRAVEL_LABELS = { boot: "신발", car: "자동차", ship: "배", plane: "비행기" };
 
-    // 공식 보드판 '새의 신전 (Bird Temple)' 0~8층 연구 트랙 설계 (8층 정상은 돋보기 전용 선착 23점 / 후착 21점)
-    const TEMPLE_TRACK = [
+    // 공식 보드판 앞면 '새의 신전 (Bird Temple)' 0~8층 연구 트랙 설계 (8층 정상은 돋보기 전용 선착 23점 / 후착 21점)
+    const BIRD_TEMPLE_TRACK = [
       { level: 0, name: "0층 출발점", gPts: 0, bPts: 0, gCost: null, bCost: null },
       { level: 1, name: "1층 외곽 유적", gPts: 1, bPts: 1, gCost: { compass: 2 }, bCost: { coins: 2 }, firstReward: { coins: 1 }, bReward: { compass: 1 }, bLabel: "나침반 +1" },
       { level: 2, name: "2층 고대 성벽", gPts: 2, bPts: 2, gCost: { tablets: 1, coins: 1 }, bCost: { compass: 2 }, firstExile: true, bHireAss: 1, bLabel: "1번 조수 영입" },
@@ -906,6 +934,22 @@
       { level: 7, name: "7층 대신관의 방", gPts: 16, bPts: 14, gCost: { jewels: 1, arrowheads: 1 }, bCost: { jewels: 1, tablets: 1 }, firstReward: { jewels: 1 }, bReward: { compass: 2 }, bPtsBonus: 2, bLabel: "나침반+2 & +2점" },
       { level: 8, name: "8층 잃어버린 신전 정상", gPts: 23, gPtsSecond: 21, bPts: 0, gCost: { compass: 2, tablets: 1, arrowheads: 1, jewels: 1 }, bCost: null, isSummit: true }
     ];
+
+    // 공식 보드판 뒷면 '뱀의 신전 (Snake Temple)' 0~8층 연구 트랙 설계
+    // 고유 기믹: 3층 돋보기 진입 시 공포 카드 1장 수용(& 나침반+2), 3층·5층 수첩에서 조난당한 조수 구출, 5층 돋보기 '무너진 다리' 통과 시 미사용 우상 1개 영구 헌납 필수!
+    const SNAKE_TEMPLE_TRACK = [
+      { level: 0, name: "0층 뱀의 제단 입구", gPts: 0, bPts: 0, gCost: null, bCost: null },
+      { level: 1, name: "1층 늪지대 초입", gPts: 1, bPts: 1, gCost: { coins: 1, compass: 1 }, bCost: { compass: 2 }, firstReward: { coins: 1 }, bReward: { coins: 2 }, bLabel: "동전 +2" },
+      { level: 2, name: "2층 허물 벗는 방", gPts: 2, bPts: 2, gCost: { tablets: 1, compass: 1 }, bCost: { tablets: 1, coins: 1 }, firstReward: { compass: 1 }, bReward: { tablets: 1 }, bLabel: "석판 +1" },
+      { level: 3, name: "3층 독기의 회랑", gPts: 4, bPts: 3, gCost: { arrowheads: 1, coins: 1 }, bCost: { arrowheads: 1 }, firstReward: { tablets: 1 }, gReward: { compass: 2 }, gSpawnFear: true, bHireAss: 1, bLabel: "조난 조수 구출(1)" },
+      { level: 4, name: "4층 비늘 성소", gPts: 6, bPts: 5, gCost: { jewels: 1 }, bCost: { tablets: 2 }, firstReward: { arrowheads: 1 }, bExile: true, bReward: { coins: 1 }, bLabel: "카드 추방 & 동전+1" },
+      { level: 5, name: "5층 무너진 다리", gPts: 10, bPts: 7, gCost: { arrowheads: 1, tablets: 1 }, reqIdolSacrifice: true, bCost: { jewels: 1 }, firstReward: { jewels: 1 }, bHireAss: 2, bLabel: "조난 조수 구출(2)" },
+      { level: 6, name: "6층 맹독의 연구실", gPts: 13, bPts: 10, gCost: { jewels: 1, arrowheads: 1 }, bCost: { arrowheads: 1, tablets: 1, coins: 1 }, firstReward: { coins: 2 }, bUpgradeAss: true, bLabel: "조수 전원 골드승급" },
+      { level: 7, name: "7층 코브라의 내전", gPts: 17, bPts: 14, gCost: { jewels: 2 }, bCost: { jewels: 1, arrowheads: 1 }, firstReward: { jewels: 1 }, bReward: { arrowheads: 1, compass: 1 }, bPtsBonus: 2, bLabel: "화살촉+1,나침반+1,+2점" },
+      { level: 8, name: "8층 뱀의 신전 정상", gPts: 23, gPtsSecond: 21, bPts: 0, gCost: { compass: 2, tablets: 2, arrowheads: 1, jewels: 1 }, bCost: null, isSummit: true }
+    ];
+
+    let TEMPLE_TRACK = BIRD_TEMPLE_TRACK;
 
     // 신전 정상 3종 보물 타일 정의 (+2점 동색 / +6점 은색 / +11점 금색)
     const TEMPLE_TILE_TYPES = {
@@ -1123,6 +1167,7 @@
     // =========================================================
 
     let G = {};
+    let configTempleMap = "bird";      // 양면 보드판 선택: "bird"(새의 신전 앞면) | "snake"(뱀의 신전 뒷면)
     let configUseExpansion = true;     // 기본값: 《탐험대장》 확장 활성화
     let configLeaderId = "captain";    // 기본 선택 리더: 대위
     let configMoonStaff = "red";       // 달의 지팡이: "blue"(기본판 1+1 추방) | "red"(확장 2+2 고속 순환)
@@ -1130,6 +1175,7 @@
     let configMaxRounds = 5;           // 정식 5라운드
 
     // 설정 모달 내 임시 선택 상태
+    let draftTempleMap = "bird";
     let draftUseExpansion = true;
     let draftLeaderId = "captain";
     let draftMoonStaff = "red";
@@ -1253,21 +1299,27 @@
       const activeLeader = configUseExpansion ? LEADERS[configLeaderId] : null;
       const maxW = activeLeader ? activeLeader.maxWorkers : 2;
       const diff = getDiffObj();
+      const isSnake = configTempleMap === "snake";
+      TEMPLE_TRACK = isSnake ? SNAKE_TEMPLE_TRACK : BIRD_TEMPLE_TRACK;
 
       pendingSite = null;
 
-      // I단계 우상 뒷면 즉시 보너스 8곳 분배
+      // I단계 우상 뒷면 즉시 보너스 8곳 분배 (양면 보드판별 이동 아이콘 배열 반영)
       const t1IdolBonuses = shuffleList([
         { coins: 1 }, { compass: 1 }, { tablets: 1 }, { arrowheads: 1 },
         { coins: 2 }, { compass: 1 }, { exile: true }, { draw: 1 }
       ]);
-      const t1Travels = ["car", "ship", "car", "ship", "car", "ship", "car", "ship"];
+      const t1Travels = isSnake
+        ? ["ship", "car", "ship", "plane", "car", "ship", "car", "boot"]
+        : ["car", "ship", "car", "ship", "car", "ship", "car", "ship"];
 
       // II단계 우상 뒷면 보너스 4곳 분배
       const t2IdolBonuses = shuffleList([
         { arrowheads: 1 }, { tablets: 1 }, { jewels: 1 }, { coins: 2 }
       ]);
-      const t2Travels = ["plane", "plane", "car", "ship"];
+      const t2Travels = isSnake
+        ? ["plane", "plane", "ship", "plane"]
+        : ["plane", "plane", "car", "ship"];
 
       const firstTrackMap = {};
       for (let lv = 1; lv <= 7; lv++) firstTrackMap[lv] = true;
@@ -1291,6 +1343,7 @@
       G = {
         round: 1,
         maxRounds: configMaxRounds,
+        templeMap: configTempleMap,
         useExpansion: configUseExpansion,
         leaderId: activeLeader ? activeLeader.id : null,
         moonStaff: configMoonStaff,
@@ -1416,13 +1469,15 @@
         },
 
         logs: [
-          `[1R] 공식 2인/솔로 규격 원정 개시! (후공 시작 자원: 동전${activeLeader?.id === "baroness" ? 2 : 1}+나침반1 · 오토마 선공)`
+          `[1R] [${isSnake ? "뱀의 신전" : "새의 신전"}] 공식 2인/솔로 원정 개시! (후공 시작 자원: 동전${activeLeader?.id === "baroness" ? 2 : 1}+나침반1 · 오토마 선공)`
         ]
       };
 
       document.getElementById("summaryModalOverlay").classList.add("hidden");
       document.getElementById("exileModalOverlay").classList.add("hidden");
       document.getElementById("assistantModalOverlay").classList.add("hidden");
+      const idolModalEl = document.getElementById("idolBonusModalOverlay");
+      if (idolModalEl) idolModalEl.classList.add("hidden");
       document.getElementById("settingsModalOverlay").classList.add("hidden");
       document.getElementById("infoModalOverlay").classList.add("hidden");
 
@@ -1701,35 +1756,83 @@
       concludeMainAction();
     }
 
-    // 6-2. 공식 개인판 우상(Idol) 4홈 슬롯 자유행동 변환
-    function onSlotIdolBonus(btnEl) {
+    // 6-2. 공식 개인판 우상(Idol) 4홈 슬롯 자유행동 5택 1 보너스 변환
+    const IDOL_BONUS_OPTIONS = [
+      { key: "coins_compass", title: "동전 +1 & 나침반 +1", sub: "기초 자금 및 탐사력 동시 보충", gain: { coins: 1, compass: 1 }, icons: ["coins", "compass"] },
+      { key: "tablets", title: "석판 +1", sub: "유물 발동 및 초반 신전 연구용", gain: { tablets: 1 }, icons: ["tablets"] },
+      { key: "arrowheads", title: "화살촉 +1", sub: "수호자 제압 및 중층 신전 연구용", gain: { arrowheads: 1 }, icons: ["arrowheads"] },
+      { key: "jewels", title: "루비 +1", sub: "고층 신전 등반 및 수호자 제압용", gain: { jewels: 1 }, icons: ["jewels"] },
+      { key: "draw", title: "카드 1장 뽑기", sub: "내 덱 맨 위에서 카드 1장 즉시 드로우", draw: 1, icons: ["draw_card"] }
+    ];
+
+    function onSlotIdolBonus(btnEl, directChoiceKey = null) {
       if (!ensurePlayerTurn()) return;
       const availableIdols = G.idolsOwned - G.idolsSlotted;
       if (availableIdols <= 0 || G.idolsSlotted >= 4) return;
 
+      if (directChoiceKey) {
+        confirmIdolBonusChoice(directChoiceKey, btnEl);
+        return;
+      }
+      openIdolBonusModal();
+    }
+
+    function openIdolBonusModal() {
+      const nextSlotNum = G.idolsSlotted + 1;
+      const explorerExtra = G.leaderId === "explorer" ? " + [탐험가 특전: 나침반+1 추가!]" : "";
+      const subEl = document.getElementById("idolModalSubDesc");
+      if (subEl) {
+        subEl.textContent = `${nextSlotNum}번 홈(${nextSlotNum}점 칸)에 우상을 끼우고 받을 보너스 1가지를 선택하세요${explorerExtra}`;
+      }
+      const grid = document.getElementById("idolBonusChoicesBox");
+      if (grid) {
+        grid.innerHTML = IDOL_BONUS_OPTIONS.map(opt => `
+          <button onclick="confirmIdolBonusChoice('${opt.key}', this)"
+            class="w-full p-2.5 rounded-xl bg-[#151923] hover:bg-[#1f2636] border border-[#c99b42]/45 flex items-center justify-between text-left transition cursor-pointer">
+            <div class="flex items-center gap-2.5">
+              <span class="w-9 h-9 rounded-lg bg-black/45 border border-white/10 flex items-center justify-center gap-0.5 shrink-0">
+                ${opt.icons.map(ic => iconSvg(ic, 17)).join("")}
+              </span>
+              <div>
+                <div class="text-xs sm:text-sm font-extrabold text-[#f4ebd9]">${opt.title}${G.leaderId === "explorer" ? ` <span class="text-[#6ee7b7] text-xs">+나침반1</span>` : ""}</div>
+                <div class="text-xs text-slate-400">${opt.sub}</div>
+              </div>
+            </div>
+            <span class="px-2.5 py-1 rounded-lg bg-[#282012] border border-[#e6c173] text-[#e6c173] text-xs font-bold shrink-0">선택</span>
+          </button>
+        `).join("");
+      }
+      const modal = document.getElementById("idolBonusModalOverlay");
+      if (modal) modal.classList.remove("hidden");
+    }
+
+    function closeIdolBonusModal() {
+      const modal = document.getElementById("idolBonusModalOverlay");
+      if (modal) modal.classList.add("hidden");
+    }
+
+    function confirmIdolBonusChoice(choiceKey, btnEl = null) {
+      if (!ensurePlayerTurn()) return;
+      const availableIdols = G.idolsOwned - G.idolsSlotted;
+      if (availableIdols <= 0 || G.idolsSlotted >= 4) {
+        closeIdolBonusModal();
+        return;
+      }
+      const opt = IDOL_BONUS_OPTIONS.find(o => o.key === choiceKey) || IDOL_BONUS_OPTIONS[0];
       sfx("coin");
       G.idolsSlotted += 1;
-      if (G.idolsSlotted === 1) {
-        gainResources({ coins: 1, compass: 1 }, btnEl);
-        pushLog("[자유 행동] 우상을 1번 홈(1점 칸)에 끼워 동전+1, 나침반+1 획득!");
-      } else if (G.idolsSlotted === 2) {
-        gainResources({ tablets: 1 }, btnEl);
-        pushLog("[자유 행동] 우상을 2번 홈(2점 칸)에 끼워 석판+1 획득!");
-      } else if (G.idolsSlotted === 3) {
-        gainResources({ arrowheads: 1 }, btnEl);
-        pushLog("[자유 행동] 우상을 3번 홈(3점 칸)에 끼워 화살촉+1 획득!");
-      } else {
-        gainResources({ jewels: 1 }, btnEl);
-        pushLog("[자유 행동] 우상을 4번 홈(4점 칸)에 끼워 루비+1 획득!");
-      }
+      closeIdolBonusModal();
 
-      // 탐험가 패시브: 우상 홈 변환 시 나침반 +1 추가 획득
+      if (opt.gain) gainResources(opt.gain, btnEl);
+      if (opt.draw) drawFromPlayerDeck(opt.draw);
+
       if (G.leaderId === "explorer") {
         gainResources({ compass: 1 }, btnEl);
-        pushLog("[탐험가 특전] 우상 변환 추가 보너스로 나침반 +1 획득!");
-        pushToast("우상 변환 완료! (탐험가 특전 나침반+1 추가)");
+        pushLog(`[자유 행동] 우상을 ${G.idolsSlotted}번 홈에 끼워 [${opt.title}] + 탐험가 특전(나침반+1) 획득!`);
+        pushToast(`우상 보너스 [${opt.title} + 나침반1] 획득!`);
       } else {
-        pushToast("우상 보너스 변환 완료!");
+        pushLog(`[자유 행동] 우상을 ${G.idolsSlotted}번 홈(${G.idolsSlotted}점 칸)에 끼워 [${opt.title}] 획득!`);
+        pushToast(`우상 보너스 [${opt.title}] 획득!`);
       }
       renderGame();
     }
@@ -1946,8 +2049,17 @@
           pushToast("돋보기 조사에 필요한 자원이 부족합니다.", true);
           return;
         }
+        const freeIdols = G.idolsOwned - G.idolsSlotted;
+        if (st.reqIdolSacrifice && freeIdols < 1) {
+          pushToast("[뱀의 신전 5층 무너진 다리] 건너려면 미사용 우상 1개를 영구 헌납해야 합니다!", true);
+          return;
+        }
         sfx("temple");
         spendResources(st.gCost);
+        if (st.reqIdolSacrifice) {
+          G.idolsOwned -= 1;
+          pushLog("[뱀의 신전 · 무너진 다리] 미사용 우상 1개를 제단에 영구 헌납하고 5층 다리를 건넜습니다!");
+        }
         G.glass = targetLv;
 
         if (targetLv === 8) {
@@ -1969,6 +2081,13 @@
             G.firstTrackBonus[targetLv] = false;
             if (st.firstReward) gainResources(st.firstReward, btnEl);
             if (st.firstExile) openExileOverlay();
+          }
+          if (st.gReward) gainResources(st.gReward, btnEl);
+          if (st.gSpawnFear) {
+            fearSeq += 1;
+            G.played.push({ uid: `fe_${fearSeq}`, kind: "fear", name: "공포", travel: "boot", pts: -1, isFree: false, desc: "종료 -1점 (신발 이동 전용)" });
+            pushLog("[뱀의 신전 · 독기의 회랑] 3층 진입 대가로 공포 카드 1장을 받아들였습니다 (나침반+2 획득).");
+            pushToast("독기의 회랑 통과! (나침반+2 & 공포 카드 1장 수용)");
           }
           pushLog(`돋보기가 ${st.name}에 도달했습니다! (+${st.gPts}점 구간)`);
         }
@@ -2218,12 +2337,13 @@
       }
     }
 
-    // 오토마 수첩 전진 (돋보기를 추월할 수 없으며, 2·4층 도달 시 공급처 3더미에서 조수 1명을 제거해 견제!)
+    // 오토마 수첩 전진 (돋보기를 추월할 수 없으며, 조수 영입 층 도달 시 공급처 3더미에서 조수 1명을 제거해 견제!)
     function advanceAutomaBook(isRed) {
       if (G.automa.book < G.automa.glass && G.automa.book < 7) {
         G.automa.book += 1;
         let removedAssMsg = "";
-        if ((G.automa.book === 2 || G.automa.book === 4) && G.assistantStacks) {
+        const stBook = TEMPLE_TRACK[G.automa.book];
+        if (stBook && stBook.bHireAss && G.assistantStacks) {
           let bestIdx = -1;
           let maxLen = 0;
           G.assistantStacks.forEach((st, i) => {
@@ -2507,8 +2627,9 @@
       document.getElementById("exileModalOverlay").classList.add("hidden");
     }
 
-    // 원정 편성 모달 제어 (확장팩 ON/OFF · 탐험대장 6종 · 푸른 달/붉은 달 지팡이 · 공식 적색 타일 0~5장 난이도 · 라운드 길이)
+    // 원정 편성 모달 제어 (양면 맵 선택 · 확장팩 ON/OFF · 탐험대장 6종 · 푸른 달/붉은 달 지팡이 · 공식 적색 타일 0~5장 난이도 · 라운드 길이)
     function openSettingsModal() {
+      draftTempleMap = configTempleMap;
       draftUseExpansion = configUseExpansion;
       draftLeaderId = configLeaderId;
       draftMoonStaff = configMoonStaff;
@@ -2519,7 +2640,43 @@
     }
 
     function renderSettingsModalContent() {
-      // 1. 확장팩 적용 여부 버튼
+      // 1. 양면 보드판 맵 선택 (새의 신전 vs 뱀의 신전)
+      const mapBox = document.getElementById("templeMapButtons");
+      if (mapBox) {
+        mapBox.innerHTML = [
+          {
+            id: "bird",
+            icon: "temple",
+            title: "새의 신전 (앞면 · 표준)",
+            sub: "수첩 2·4층 조수 영입 · 균형 잡힌 정석 연구 트랙",
+            activeCls: "bg-[#2c2314] border-[#e6c173] text-[#f4ebd9] shadow-md"
+          },
+          {
+            id: "snake",
+            icon: "temple_snake",
+            title: "뱀의 신전 (뒷면 · 숙련자)",
+            sub: "3층 독기(공포+1·나침반2) · 3·5층 조난 조수 구출 · 5층 다리(우상 1개 헌납 필수!)",
+            activeCls: "bg-[#112a22] border-emerald-400 text-emerald-100 shadow-md"
+          }
+        ].map(mp => {
+          const active = draftTempleMap === mp.id;
+          return `
+            <button onclick="selectDraftTempleMap('${mp.id}')" class="p-3 rounded-xl border text-left flex items-start gap-2.5 transition cursor-pointer ${
+              active ? mp.activeCls : "bg-[#141821] border-white/10 text-slate-300 hover:bg-[#1d2330]"
+            }">
+              <span class="w-8 h-8 rounded-lg bg-black/40 border border-white/10 flex items-center justify-center shrink-0 mt-0.5">
+                ${iconSvg(mp.icon, 20)}
+              </span>
+              <div class="min-w-0">
+                <div class="font-extrabold text-xs sm:text-sm">${mp.title}</div>
+                <div class="text-xs ${active ? "text-slate-200" : "text-slate-400"} mt-0.5 leading-snug">${mp.sub}</div>
+              </div>
+            </button>
+          `;
+        }).join("");
+      }
+
+      // 2. 확장팩 적용 여부 버튼
       const expBox = document.getElementById("expModeButtons");
       expBox.innerHTML = [
         { val: true, title: "《탐험대장》 확장 포함", sub: "6인 고유 리더 · 전용 시작 덱 · 확장 유물/아이템 합류" },
@@ -2650,6 +2807,12 @@
       `).join("");
     }
 
+    function selectDraftTempleMap(mapId) {
+      sfx("card");
+      draftTempleMap = mapId;
+      renderSettingsModalContent();
+    }
+
     function selectDraftExp(val) {
       sfx("card");
       draftUseExpansion = val;
@@ -2683,6 +2846,7 @@
 
     function confirmAndLaunchSettings() {
       sfx("temple");
+      configTempleMap = draftTempleMap;
       configUseExpansion = draftUseExpansion;
       configLeaderId = draftLeaderId;
       configMoonStaff = draftMoonStaff;
@@ -3095,34 +3259,34 @@
         `<span class="transition ${i < G.workers ? "opacity-100" : "opacity-20"}">${iconSvg("meeple_player", 18)}</span>`
       ).join("");
 
-      // 상단 고정 개인판 우상(Idol) 4홈 슬롯 버튼
+      // 상단 고정 개인판 우상(Idol) 4홈 슬롯 버튼 (초컴팩트 1줄 규격 · 클릭 시 5택1 모달 오픈!)
       const idolBox = document.getElementById("hudIdolSlotBox");
       const freeIdols = G.idolsOwned - G.idolsSlotted;
       const canSlot = G.isPlayerTurn && !G.playerPassed && freeIdols > 0 && G.idolsSlotted < 4;
-      const slotRewards = ["동전1,나침반1", "석판+1", "화살촉+1", "루비+1"];
-      const baseSlotTxt = slotRewards[G.idolsSlotted] || "";
-      const nextRewardTxt = G.leaderId === "explorer" && baseSlotTxt ? `${baseSlotTxt},나침반+1` : baseSlotTxt;
 
       idolBox.innerHTML = `
         <button onclick="onSlotIdolBonus(this)" ${!canSlot ? "disabled" : ""}
-          class="px-2.5 py-1 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition ${
+          class="px-2 py-0.5 rounded-lg border text-xs font-extrabold flex items-center gap-1 transition whitespace-nowrap ${
             canSlot
-              ? "bg-[#282012] hover:bg-[#382d19] border-[#e6c173] text-[#f7d57e] cursor-pointer"
+              ? "bg-[#282012] hover:bg-[#382d19] border-[#e6c173] text-[#f7d57e] cursor-pointer shadow-sm"
               : "bg-[#131720] border-white/10 text-slate-400 cursor-default"
-          }" title="개인판 우상 홈 4칸 (빈 홈 보너스 총 10점 · 끼우면 즉시 자원 획득)">
-          ${iconSvg("idol", 15)}
-          <span>우상 ${G.idolsOwned} · 홈 ${G.idolsSlotted}/4</span>
-          ${canSlot ? `<span class="text-[#6ee7b7]">(${nextRewardTxt})</span>` : ""}
+          }" title="개인판 우상 홈 4칸 (빈 홈 보너스 총 10점 · 클릭하여 5가지 보너스 중 1개 선택)">
+          ${iconSvg("idol", 14)}
+          <span>우상 ${freeIdols} (${G.idolsSlotted}/4)</span>
         </button>
       `;
 
       const dot = document.getElementById("hudTurnDot");
       const prompt = document.getElementById("hudPromptText");
       const travelActs = document.getElementById("hudTravelActions");
+      const travelTargetTxt = document.getElementById("hudTravelTargetText");
 
       if (pendingSite) {
         dot.className = "w-2 h-2 rounded-full bg-[#e6c173] animate-pulse shrink-0";
-        prompt.textContent = `[${pendingSite.site.name}] 이동 지불 — 아래 빛나는 손패 카드를 터치하세요`;
+        prompt.textContent = "이동지불";
+        if (travelTargetTxt) {
+          travelTargetTxt.textContent = `[${pendingSite.site.name}] 이동 카드를 손패에서 터치`;
+        }
         travelActs.classList.remove("hidden");
         travelActs.classList.add("flex");
         const canCoinPlane = G.res.coins >= 2 && (!pendingSite.site.discardExtra || G.hand.length >= 1);
@@ -3132,10 +3296,10 @@
         travelActs.classList.remove("flex");
         if (G.isPlayerTurn && !G.playerPassed) {
           dot.className = "w-2 h-2 rounded-full bg-emerald-400 shrink-0";
-          prompt.textContent = "내 차례 — 주요 행동 1개 선택 (번개 자유 행동 무제한)";
+          prompt.textContent = "내 턴";
         } else {
           dot.className = "w-2 h-2 rounded-full bg-rose-500 animate-ping shrink-0";
-          prompt.textContent = G.playerPassed ? `패스 완료 — 오토마 타일 진행 중 (남은 ${G.automa.deck.length}장)` : "오토마 차례 진행 중...";
+          prompt.textContent = G.playerPassed ? `패스(${G.automa.deck.length})` : "봇 턴";
         }
       }
 
@@ -3246,7 +3410,17 @@
         G.marketArts.map((c, i) => buildShopCard(c, "artifact", i)).join("") +
         G.marketItems.map((c, i) => buildShopCard(c, "item", i)).join("");
 
-      // 4. 제3열: 신전 정상 3종 보물 타일(+2/+6/+11점) & 새의 신전 8층 트랙
+      // 4. 제3열: 신전 정상 3종 보물 타일(+2/+6/+11점) & 새의 신전 / 뱀의 신전 8층 트랙
+      const isSnakeMap = G.templeMap === "snake";
+      const tTitleEl = document.getElementById("templeHeaderTitle");
+      if (tTitleEl) {
+        tTitleEl.textContent = isSnakeMap ? "뱀의 신전 (8층 · 우상 다리)" : "새의 신전 (8층 트랙)";
+      }
+      const secIconT = document.getElementById("secIconTemple");
+      if (secIconT) {
+        secIconT.innerHTML = iconSvg(isSnakeMap ? "temple_snake" : "temple", 18);
+      }
+
       const tBar = document.getElementById("templeTreasureBar");
       tBar.innerHTML = `
         <div class="flex items-center justify-between text-xs px-0.5">
@@ -3278,7 +3452,7 @@
         if (st.level === 0) {
           return `
             <div class="bg-[#0d1017] border border-white/5 rounded-xl px-2.5 py-1.5 flex items-center justify-between text-xs">
-              <span class="text-slate-400 font-semibold">0층 출발점</span>
+              <span class="text-slate-400 font-semibold">${st.name}</span>
               <div class="flex items-center gap-1 flex-wrap justify-end">
                 ${G.glass === 0 ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-sky-950 border border-sky-400/50 text-sky-200 font-bold">${iconSvg("glass", 12)}<span>나</span></span>` : ""}
                 ${G.book === 0 ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-purple-950 border border-purple-400/50 text-purple-200 font-bold">${iconSvg("book", 12)}<span>나</span></span>` : ""}
@@ -3302,7 +3476,7 @@
               }">
               <div class="min-w-0">
                 <div class="text-xs font-extrabold text-[#f7d57e] flex items-center gap-1 flex-wrap">
-                  ${iconSvg("temple", 14)}<span>8층 정상 (+${displaySummitPts}점)</span>
+                  ${iconSvg(isSnakeMap ? "temple_snake" : "temple", 14)}<span>8층 정상 (+${displaySummitPts}점)</span>
                   ${bonusLeft > 0 ? `<span class="px-1.5 py-0.5 rounded bg-[#282012] border border-[#c99b42]/50 text-[#6ee7b7] text-xs font-bold">보너스(${bonusLeft})</span>` : ""}
                 </div>
                 <div class="flex flex-wrap items-center gap-1 mt-1">${renderCostPills(st.gCost, 12)}</div>
@@ -3316,7 +3490,8 @@
         }
 
         const nextG = st.level === G.glass + 1;
-        const canG = G.isPlayerTurn && !G.playerPassed && nextG && canPay(st.gCost);
+        const hasIdolForBridge = !st.reqIdolSacrifice || (G.idolsOwned - G.idolsSlotted) >= 1;
+        const canG = G.isPlayerTurn && !G.playerPassed && nextG && canPay(st.gCost) && hasIdolForBridge;
         const nextB = st.level === G.book + 1;
         const canB = G.isPlayerTurn && !G.playerPassed && nextB && G.book < G.glass && canPay(st.bCost);
 
@@ -3330,6 +3505,11 @@
           }
         }
 
+        const specialGlassPills = [
+          st.reqIdolSacrifice ? `<span class="inline-flex items-center gap-0.5 px-1 py-0.5 rounded bg-amber-950/90 border border-[#e6c173]/60 text-xs font-bold text-[#f7d57e]" title="무너진 다리: 미사용 우상 1개 영구 헌납 필수!">${iconSvg("idol", 11)}<span>-1</span></span>` : "",
+          st.gSpawnFear ? `<span class="inline-flex items-center gap-0.5 px-1 py-0.5 rounded bg-purple-950/90 border border-purple-400/50 text-xs font-bold text-purple-200" title="독기의 회랑: 진입 시 나침반+2 & 공포 1장 수용">${iconSvg("fear", 11)}<span>+1</span></span>` : ""
+        ].join("");
+
         return `
           <div class="grid grid-cols-12 gap-1.5">
             <button onclick="onClimbTemple('glass', ${st.level}, this)" ${!canG ? "disabled" : ""}
@@ -3341,7 +3521,7 @@
                 <span class="font-bold text-[#e6c173]">+${st.gPts}</span>
               </div>
               <div class="flex items-center justify-between w-full">
-                <div class="flex items-center gap-0.5 flex-wrap">${renderCostPills(st.gCost, 12)}</div>
+                <div class="flex items-center gap-0.5 flex-wrap">${renderCostPills(st.gCost, 12)}${specialGlassPills}</div>
                 <div class="flex items-center gap-0.5 shrink-0">
                   ${G.glass === st.level ? iconSvg("glass", 15) : ""}
                   ${G.automa.glass === st.level ? iconSvg("meeple_automa", 14) : ""}
@@ -3375,7 +3555,8 @@
       const assBox = document.getElementById("playerAssistantBox");
       if (G.assistants.length === 0) {
         const stacksLeft = G.assistantStacks ? G.assistantStacks.reduce((s, arr) => s + arr.length, 0) : 0;
-        assBox.innerHTML = `<div class="bg-[#141822] border border-dashed border-white/10 rounded-xl px-2.5 py-2 text-xs text-slate-500">조수 없음 (수첩 2·4층 선택 영입 · 풀 ${stacksLeft}명)</div>`;
+        const hireLvTxt = isSnakeMap ? "3·5층" : "2·4층";
+        assBox.innerHTML = `<div class="bg-[#141822] border border-dashed border-white/10 rounded-xl px-2.5 py-2 text-xs text-slate-500">조수 없음 (수첩 ${hireLvTxt} 선택 영입 · 풀 ${stacksLeft}명)</div>`;
       } else {
         assBox.innerHTML = G.assistants.map((ass, idx) => {
           const ready = G.isPlayerTurn && !G.playerPassed && !ass.tapped;
