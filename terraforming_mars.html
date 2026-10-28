@@ -1,0 +1,3593 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0f17">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="테라포밍 마스">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230d121c'/%3E%3Ccircle cx='32' cy='32' r='21' fill='%23c2410c' stroke='%23fdba74' stroke-width='2.5'/%3E%3Cpath d='M18 28c6-4 14-2 20 1s8 1 11-2' stroke='%2334d399' stroke-width='4' stroke-linecap='round' fill='none'/%3E%3Ccircle cx='25' cy='40' r='5' fill='%2338bdf8'/%3E%3C/svg%3E">
+  <title>테라포밍 마스 — 공식 솔로 & 오토마 1:1 디지털 연습 에디션</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    /* 모바일 터치 하이라이트 제거 및 노치 안전 영역 대응 */
+    * { -webkit-tap-highlight-color: transparent; }
+    .safe-top { padding-top: env(safe-area-inset-top, 0px); }
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #090c12; }
+    ::-webkit-scrollbar-thumb { background: #283246; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #ea580c; }
+
+    /* 화성 궤도 SF 테이블탑 배경 */
+    .mars-bg {
+      background-color: #090d14;
+      background-image:
+        radial-gradient(ellipse 85% 50% at 50% -10%, rgba(234, 88, 12, 0.12), transparent 70%),
+        radial-gradient(circle at 85% 85%, rgba(14, 165, 233, 0.08), transparent 50%);
+      color: #e2e8f0;
+    }
+
+    /* 상단 고정 초컴팩트 텔레메트리 HUD */
+    .sticky-hud {
+      background: linear-gradient(180deg, rgba(11, 15, 23, 0.98) 0%, rgba(14, 19, 30, 0.96) 100%);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid rgba(234, 88, 12, 0.32);
+      box-shadow: 0 10px 28px -6px rgba(0, 0, 0, 0.8);
+    }
+
+    /* 보드 패널 프레임 */
+    .board-frame {
+      background: linear-gradient(180deg, #121824 0%, #0d121c 100%);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    /* 전술 타일 버튼 */
+    .tactile-tile {
+      background: linear-gradient(180deg, #1b2333 0%, #141a27 100%);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+    }
+    .tactile-clickable:hover:not(:disabled) {
+      transform: translateY(-2px);
+      border-color: rgba(251, 146, 60, 0.7);
+      box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(251, 146, 60, 0.3);
+    }
+    .tactile-clickable:active:not(:disabled) {
+      transform: translateY(0px) scale(0.99);
+    }
+
+    /* 프로젝트 카드 물성 */
+    .project-card {
+      background: linear-gradient(165deg, #1f283a 0%, #141a27 100%);
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      box-shadow: 0 8px 18px -4px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .project-card:hover:not(.card-locked) {
+      transform: translateY(-8px);
+      border-color: #fb923c;
+      box-shadow: 0 18px 28px -8px rgba(0, 0, 0, 0.9), 0 0 14px rgba(251, 146, 60, 0.22);
+      z-index: 25;
+    }
+
+    /* 육각 그리드 인터랙티브 폴리곤 */
+    .hex-cell {
+      transition: filter 0.16s ease, stroke-width 0.16s ease, opacity 0.16s ease;
+    }
+    .hex-valid {
+      cursor: pointer;
+      animation: hexPulse 1.35s infinite ease-in-out;
+    }
+    .hex-valid:hover {
+      filter: brightness(1.32);
+    }
+    @keyframes hexPulse {
+      0%, 100% { stroke-opacity: 0.95; }
+      50% { stroke-opacity: 0.45; }
+    }
+
+    /* 자원 증감 펄스 */
+    @keyframes counterPulse {
+      0% { transform: scale(1); }
+      40% { transform: scale(1.28); color: #fde047; }
+      100% { transform: scale(1); }
+    }
+    .res-bump { animation: counterPulse 0.36s ease-out; }
+
+    /* 비행 파티클 */
+    .flying-orb {
+      position: fixed;
+      z-index: 9999;
+      pointer-events: none;
+      transition: transform 0.58s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.58s ease;
+    }
+  </style>
+</head>
+<body class="mars-bg min-h-screen flex flex-col select-none">
+
+  <!-- 비행 자원 파티클 레이어 -->
+  <div id="fxLayer" class="fixed inset-0 pointer-events-none z-50"></div>
+
+  <!-- 토스트 알림 영역 -->
+  <div id="toastArea" class="fixed top-36 sm:top-auto sm:bottom-6 right-3 sm:right-5 z-50 flex flex-col gap-2 max-w-xs pointer-events-none"></div>
+
+  <!-- =========================================================
+       [상단 고정 초컴팩트 3줄 텔레메트리 HUD]
+  ========================================================== -->
+  <header class="sticky top-0 z-40 sticky-hud safe-top">
+    <div class="max-w-[1600px] mx-auto px-2.5 sm:px-5 py-1.5 flex flex-col gap-1">
+
+      <!-- 1행: 세대 · 기업 · TR/점수 · 코치 · 옵션 · 규칙 · 음향 · 재시작 (단일 1줄) -->
+      <div class="flex items-center justify-between gap-1.5">
+        <div class="flex items-center gap-1.5 min-w-0">
+          <div id="brandEmblem" class="hidden sm:flex w-6 h-6 rounded-md bg-[#2a160d] border border-orange-500/45 items-center justify-center shrink-0"></div>
+          <span id="hudGenBadge" class="px-1.5 py-0.5 rounded bg-orange-950/80 border border-orange-500/45 text-orange-300 text-xs font-extrabold whitespace-nowrap">1/14세대</span>
+          <button onclick="openSettingsModal()" id="hudCorpBadge" class="px-1.5 py-0.5 rounded bg-[#162032] hover:bg-[#1e2c45] border border-sky-400/40 text-sky-200 text-xs font-bold flex items-center gap-1 truncate cursor-pointer" title="원정 옵션 및 기업 설정"></button>
+        </div>
+
+        <div class="flex items-center gap-1 shrink-0">
+          <!-- 실시간 TR 및 예상 점수 (오토마 모드 시 라이벌 점수 병기) -->
+          <div id="hudScoreBox" class="flex items-center gap-1.5 bg-[#0a0d14] px-2 py-0.5 rounded-lg border border-white/10 text-xs">
+            <span class="text-orange-300 font-bold" id="hudTrText">TR 14</span>
+            <span class="text-slate-600">|</span>
+            <span class="font-black text-amber-300" id="hudPlayerScore">14점</span>
+            <span id="hudRivalScoreWrap" class="hidden items-center gap-1">
+              <span class="text-slate-600">:</span>
+              <span class="font-bold text-rose-400" id="hudRivalScore">20점</span>
+            </span>
+          </div>
+
+          <button onclick="toggleCoach()" id="btnCoachToggle" class="px-1.5 py-1 rounded-lg bg-emerald-950/80 border border-emerald-500/45 text-emerald-300 text-xs font-bold cursor-pointer">코치ON</button>
+          <button onclick="openSettingsModal()" class="px-1.5 py-1 rounded-lg bg-[#261710] hover:bg-[#382116] border border-orange-400/50 text-orange-200 text-xs font-bold cursor-pointer">옵션</button>
+          <button onclick="openInfoModal('rules')" class="px-1.5 py-1 rounded-lg bg-[#161c28] hover:bg-[#21293a] border border-white/10 text-slate-200 text-xs font-semibold cursor-pointer">규칙</button>
+          <button onclick="toggleAudio()" id="btnAudioToggle" class="p-1 rounded-lg bg-[#161c28] border border-white/10 text-slate-200 cursor-pointer" title="효과음 ON/OFF"></button>
+        </div>
+      </div>
+
+      <!-- 2행: 3대 글로벌 파라미터 (기온 · 산소 · 해양) + 현재 단계 배지 (단일 1줄) -->
+      <div class="flex items-center justify-between gap-1 text-xs">
+        <div class="grid grid-cols-3 gap-1 flex-1 min-w-0">
+          <button onclick="switchMobileBoard('meta')" id="hudParamTemp" class="px-1.5 py-0.5 rounded-lg bg-[#1c1317] border border-rose-500/35 flex items-center justify-between gap-1 cursor-pointer truncate"></button>
+          <button onclick="switchMobileBoard('meta')" id="hudParamOxy" class="px-1.5 py-0.5 rounded-lg bg-[#111f24] border border-emerald-500/35 flex items-center justify-between gap-1 cursor-pointer truncate"></button>
+          <button onclick="switchMobileBoard('meta')" id="hudParamOcean" class="px-1.5 py-0.5 rounded-lg bg-[#101c2e] border border-sky-500/35 flex items-center justify-between gap-1 cursor-pointer truncate"></button>
+        </div>
+        <span id="hudPhaseBadge" class="px-2 py-0.5 rounded-lg bg-[#161d2b] border border-white/10 font-bold text-emerald-300 whitespace-nowrap shrink-0">내 행동</span>
+      </div>
+
+      <!-- 3행: 6종 자원 보유량(+생산력) 초컴팩트 단일 1줄 그리드 -->
+      <div class="grid grid-cols-6 gap-1 text-xs">
+        <div id="hudRes_mc" class="flex items-center justify-between px-1.5 py-0.5 rounded bg-[#231d10] border border-amber-400/35" title="메가크레딧 M€ (세대 수입 = TR + M€ 생산력)">
+          <span id="hudIcon_mc" class="shrink-0"></span>
+          <span class="font-extrabold text-amber-300 truncate"><span id="hudVal_mc">42</span><span id="hudProd_mc" class="text-slate-300 font-normal">+0</span></span>
+        </div>
+        <div id="hudRes_steel" class="flex items-center justify-between px-1.5 py-0.5 rounded bg-[#221915] border border-amber-700/45" title="강철 (건물 태그 카드 결제 시 개당 2 M€ 가치)">
+          <span id="hudIcon_steel" class="shrink-0"></span>
+          <span class="font-extrabold text-orange-200 truncate"><span id="hudVal_steel">0</span><span id="hudProd_steel" class="text-slate-400 font-normal">+0</span></span>
+        </div>
+        <div id="hudRes_titanium" class="flex items-center justify-between px-1.5 py-0.5 rounded bg-[#1a1d26] border border-slate-400/35" title="티타늄 (우주 태그 카드 결제 시 개당 3 M€ 가치)">
+          <span id="hudIcon_titanium" class="shrink-0"></span>
+          <span class="font-extrabold text-slate-100 truncate"><span id="hudVal_titanium">0</span><span id="hudProd_titanium" class="text-slate-400 font-normal">+0</span></span>
+        </div>
+        <div id="hudRes_plants" class="flex items-center justify-between px-1.5 py-0.5 rounded bg-[#102218] border border-emerald-500/35" title="식물 (8개 모아 녹지 타일 배치 → 산소 +1%)">
+          <span id="hudIcon_plants" class="shrink-0"></span>
+          <span class="font-extrabold text-emerald-300 truncate"><span id="hudVal_plants">0</span><span id="hudProd_plants" class="text-slate-400 font-normal">+0</span></span>
+        </div>
+        <div id="hudRes_energy" class="flex items-center justify-between px-1.5 py-0.5 rounded bg-[#1e152a] border border-purple-400/35" title="전력 (생산 단계 시작 시 남은 전력이 전부 열로 전환됨!)">
+          <span id="hudIcon_energy" class="shrink-0"></span>
+          <span class="font-extrabold text-purple-300 truncate"><span id="hudVal_energy">0</span><span id="hudProd_energy" class="text-slate-400 font-normal">+0</span></span>
+        </div>
+        <div id="hudRes_heat" class="flex items-center justify-between px-1.5 py-0.5 rounded bg-[#261313] border border-rose-500/35" title="열 (8개 모아 기온 +2°C 상승)">
+          <span id="hudIcon_heat" class="shrink-0"></span>
+          <span class="font-extrabold text-rose-300 truncate"><span id="hudVal_heat">0</span><span id="hudProd_heat" class="text-slate-400 font-normal">+0</span></span>
+        </div>
+      </div>
+
+      <!-- 조건부 타일 배치 안내 바 (타일 배치 중에만 노출, 평소에는 hidden!) -->
+      <div id="hudTileBanner" class="hidden items-center justify-between gap-2 px-2.5 py-1 rounded-lg bg-[#291a0e] border border-orange-400 text-xs">
+        <span id="hudTileBannerText" class="font-bold text-orange-200 truncate">화성 맵의 빛나는 육각 구역을 터치해 타일을 배치하세요</span>
+        <button id="btnCancelTilePlace" onclick="cancelPendingTilePlacement()" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold shrink-0 cursor-pointer">취소</button>
+      </div>
+
+      <!-- 스마트 전술 코치 1줄 힌트 바 (코치 ON일 때만 노출) -->
+      <div id="coachBanner" class="flex items-center justify-between gap-2 px-2.5 py-1 rounded-lg bg-[#0f221d] border border-emerald-500/35 text-xs">
+        <span id="coachBannerText" class="text-emerald-200 font-medium leading-snug"></span>
+      </div>
+
+      <!-- 모바일 전용 3탭 스위처 (xl 이상에서는 숨김) -->
+      <div class="grid grid-cols-3 gap-1 pt-0.5 xl:hidden">
+        <button id="mTabMap" onclick="switchMobileBoard('map')" class="py-1 px-1 rounded-lg text-xs font-extrabold transition">화성 맵</button>
+        <button id="mTabEngine" onclick="switchMobileBoard('engine')" class="py-1 px-1 rounded-lg text-xs font-extrabold transition">기업·표준</button>
+        <button id="mTabMeta" onclick="switchMobileBoard('meta')" class="py-1 px-1 rounded-lg text-xs font-extrabold transition">업적·점수</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- =========================================================
+       [메인 3열 화성 테이블탑]
+  ========================================================== -->
+  <main class="flex-1 max-w-[1600px] w-full mx-auto px-2.5 sm:px-5 py-2.5 grid grid-cols-1 xl:grid-cols-12 gap-3.5 items-start">
+
+    <!-- 제1열 (5/12): 61헥스 화성 벡터 맵 & 식물/열 즉시 변환 바 -->
+    <section id="boardColMap" class="xl:col-span-5 board-frame rounded-2xl p-3 sm:p-4 flex flex-col gap-2.5">
+      <div class="flex items-center justify-between border-b border-white/10 pb-2">
+        <div class="flex items-center gap-1.5">
+          <span id="secIconMap"></span>
+          <h2 id="mapHeaderTitle" class="text-sm font-extrabold text-orange-100">타르시스 화성 표면 (61구역)</h2>
+        </div>
+        <!-- 행성 외곽 특수 도시 (포보스 / 가니메데) -->
+        <div id="offworldHexBox" class="flex items-center gap-1.5"></div>
+      </div>
+
+      <!-- 식물 8 -> 녹지 / 열 8 -> 기온 즉시 변환 액션 바 -->
+      <div id="quickConvertBar" class="grid grid-cols-2 gap-2"></div>
+
+      <!-- 61칸 육각 그리드 인라인 SVG 렌더링 컨테이너 -->
+      <div id="marsHexSvgContainer" class="w-full flex items-center justify-center bg-[#090d15] rounded-xl border border-white/5 p-1 sm:p-2 overflow-hidden"></div>
+
+      <div class="flex flex-wrap items-center justify-between gap-1 text-xs text-slate-400 px-1">
+        <span>파란 테두리: 해양 구역 · 인접 해양당 <strong class="text-amber-300">+2 M€</strong></span>
+        <span>내 타일: <strong class="text-sky-300">하늘색</strong> · 봇/중립: <strong class="text-rose-300">적색/회색</strong></span>
+      </div>
+    </section>
+
+    <!-- 제2열 (4/12): 라이벌 오토마 스테이지(1:1 모드) + 내 기업/태그/파란 액티브 카드 + 표준 프로젝트 6종 -->
+    <section id="boardColEngine" class="xl:col-span-4 flex flex-col gap-3">
+
+      <!-- 1:1 오토마 라이벌 대결 현황판 (솔로 타임어택 모드에서는 자동 숨김) -->
+      <div id="rivalPanel" class="hidden board-frame rounded-2xl p-3.5 flex-col gap-2 border border-rose-500/30">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-1.5">
+            <span id="secIconRival"></span>
+            <h2 class="text-sm font-extrabold text-rose-200">라이벌 기업 오토마</h2>
+            <span id="rivalDiffTag" class="px-2 py-0.5 rounded bg-rose-950 border border-rose-500/40 text-xs font-bold text-rose-300">표준</span>
+          </div>
+          <div class="text-xs font-bold text-slate-300">
+            TR <strong id="rivalTrVal" class="text-rose-300">20</strong> · 타일 <strong id="rivalTileCnt" class="text-slate-100">0</strong>개
+          </div>
+        </div>
+        <div class="bg-[#0b0f17] border border-white/10 rounded-xl p-2.5 flex items-center justify-between gap-2 text-xs">
+          <div class="min-w-0">
+            <div id="rivalActionSub" class="text-slate-400">최근 라이벌 행동</div>
+            <div id="rivalActionTitle" class="font-bold text-slate-100 truncate mt-0.5">대기 중</div>
+          </div>
+          <span id="rivalPassBadge" class="hidden px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-bold shrink-0">세대 패스</span>
+        </div>
+      </div>
+
+      <!-- 내 기업 능력 · 보유 태그 카운터 · 파란색 액티브 카드 발동 패널 -->
+      <div class="board-frame rounded-2xl p-3.5 flex flex-col gap-2.5">
+        <div id="corpSummaryBox"></div>
+        <div id="tagCountersBox" class="flex flex-wrap gap-1 pt-1 border-t border-white/10"></div>
+        <div class="pt-1 border-t border-white/10 space-y-1.5">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-bold text-sky-300">지속 효과 & 파란색 액티브 액션 카드</span>
+            <span class="text-slate-400">세대당 1회 발동</span>
+          </div>
+          <div id="activeBlueCardsBox" class="space-y-1.5 max-h-48 overflow-y-auto pr-0.5"></div>
+        </div>
+      </div>
+
+      <!-- 공식 표준 프로젝트 6종 패널 -->
+      <div class="board-frame rounded-2xl p-3.5 flex flex-col gap-2">
+        <div class="flex items-center justify-between border-b border-white/10 pb-1.5">
+          <h3 class="text-sm font-extrabold text-amber-200">표준 프로젝트 (언제든 M€로 실행)</h3>
+          <span class="text-xs text-slate-400">카드 없이 테라포밍</span>
+        </div>
+        <div id="standardProjectsGrid" class="grid grid-cols-2 gap-1.5"></div>
+      </div>
+    </section>
+
+    <!-- 제3열 (3/12): 업적 & 기업상 (또는 솔로 목표) + 글로벌 트랙 보너스 & 실시간 점수 영수증 -->
+    <section id="boardColMeta" class="xl:col-span-3 flex flex-col gap-3">
+      <div id="maSectionBox" class="board-frame rounded-2xl p-3.5 flex flex-col gap-2.5"></div>
+
+      <div class="board-frame rounded-2xl p-3.5 flex flex-col gap-2.5">
+        <h3 class="text-sm font-extrabold text-orange-200 border-b border-white/10 pb-1.5">임계점 보너스 & 실시간 점수표</h3>
+        <div id="paramThresholdsBox" class="space-y-1.5 text-xs"></div>
+        <div id="liveScoreBreakdownBox" class="bg-[#0a0e16] border border-white/10 rounded-xl p-2.5 space-y-1 text-xs"></div>
+        <div class="flex gap-1.5 pt-1">
+          <button onclick="openInfoModal('deck')" class="flex-1 py-1.5 rounded-lg bg-[#161d2b] hover:bg-[#1f293d] border border-white/10 text-xs font-bold text-slate-200 cursor-pointer">사용 카드 목록</button>
+          <button onclick="openInfoModal('log')" class="flex-1 py-1.5 rounded-lg bg-[#161d2b] hover:bg-[#1f293d] border border-white/10 text-xs font-bold text-slate-200 cursor-pointer">테라포밍 일지</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- =========================================================
+       [하단 고정 플레이어 손패 카드 도크]
+  ========================================================== -->
+  <footer class="sticky bottom-0 z-30 bg-[#0b0f17]/95 backdrop-blur-xl border-t border-orange-500/25 shadow-[0_-10px_28px_rgba(0,0,0,0.85)] safe-bottom">
+    <div class="max-w-[1600px] mx-auto px-2.5 sm:px-5 py-2 sm:py-2.5 space-y-2">
+
+      <!-- 모바일 전용 손패 접기/펼치기 & 세대 패스 퀵바 -->
+      <div class="flex lg:hidden items-center justify-between gap-1.5">
+        <button id="btnMobileHandToggle" onclick="toggleMobileHand()" class="px-2.5 py-1.5 rounded-xl bg-[#171e2c] border border-white/10 text-xs font-bold text-slate-100 flex items-center gap-1.5 cursor-pointer">
+          <span id="mobileHandLabel">내 손패 0장 (접기)</span>
+        </button>
+        <div class="flex items-center gap-1.5">
+          <button onclick="onOpenSellPatents()" class="px-2.5 py-1.5 rounded-xl bg-[#1b2232] border border-amber-400/35 text-amber-200 text-xs font-bold cursor-pointer">특허매각</button>
+          <button id="btnEndGenMobile" onclick="onPassGeneration()" class="py-1.5 px-3 rounded-xl bg-orange-500 text-slate-950 text-xs font-extrabold shadow cursor-pointer">세대 종료</button>
+        </div>
+      </div>
+
+      <!-- 손패 카드 가로 스크롤 리스트 & 데스크톱 우측 제어부 -->
+      <div id="dockMainBody" class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2 lg:gap-4">
+        <div id="playerHandContainer" class="flex items-stretch gap-2.5 overflow-x-auto pb-1 pt-2 px-1 min-h-[124px] sm:min-h-[138px] flex-1 snap-x"></div>
+
+        <div class="hidden lg:flex flex-col items-end gap-2 shrink-0 border-l border-white/10 pl-4">
+          <div class="flex items-center gap-2 text-xs text-slate-400">
+            <span>덱 <strong id="footerDeckCnt" class="text-slate-200">0</strong></span>
+            <span>·</span>
+            <span>발동됨 <strong id="footerPlayedCnt" class="text-sky-300">0</strong></span>
+            <span>·</span>
+            <span>버림 <strong id="footerDiscardCnt" class="text-slate-400">0</strong></span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="btnSellPatents" onclick="onOpenSellPatents()" class="py-2 px-3 rounded-xl bg-[#182030] hover:bg-[#222d42] border border-amber-400/40 text-amber-200 text-xs font-bold cursor-pointer">특허 매각 (+1 M€/장)</button>
+            <button id="btnEndGen" onclick="onPassGeneration()" class="w-36 py-2.5 px-4 rounded-xl bg-orange-500 hover:bg-orange-400 text-slate-950 text-xs sm:text-sm font-extrabold shadow-md cursor-pointer">세대 종료 (패스)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- =========================================================
+       [모달 1: 초기 기업·서곡·10장 선택 & 매 세대 연구 단계(4장 중 구매) & 특허 매각 모달]
+  ========================================================== -->
+  <div id="draftModalOverlay" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-2.5 sm:p-4">
+    <div class="board-frame rounded-2xl max-w-4xl w-full p-4 sm:p-6 space-y-4 border border-orange-500/45 max-h-[92vh] overflow-y-auto">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
+        <div>
+          <h3 id="draftModalTitle" class="text-base sm:text-lg font-extrabold text-orange-100">초기 프로젝트 브리핑</h3>
+          <p id="draftModalSub" class="text-xs text-slate-300 mt-0.5">기업과 서곡 카드를 고르고, 손패로 가져갈 프로젝트 카드를 선택하세요 (장당 3 M€).</p>
+        </div>
+        <div id="draftCostSummary" class="px-3 py-1.5 rounded-xl bg-[#231c10] border border-amber-400/50 text-xs font-extrabold text-amber-300"></div>
+      </div>
+
+      <!-- 초기 세팅 전용: 기업 선택 섹션 -->
+      <div id="draftCorpSection" class="space-y-2">
+        <div class="text-xs font-bold text-sky-300">1. 내 기업(Corporation) 선택</div>
+        <div id="draftCorpGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5"></div>
+      </div>
+
+      <!-- 초기 세팅 전용 (서곡 ON 시): 서곡 카드 4장 중 2장 무료 선택 섹션 -->
+      <div id="draftPreludeSection" class="hidden space-y-2">
+        <div class="text-xs font-bold text-pink-300">2. 《서곡(Prelude)》 카드 4장 중 2장 선택 (비용 무료 · 게임 시작 즉시 발동!)</div>
+        <div id="draftPreludeGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+      </div>
+
+      <!-- 프로젝트 카드 체크 선택 그리드 -->
+      <div class="space-y-2">
+        <div id="draftCardsHeader" class="text-xs font-bold text-amber-300">프로젝트 카드 선택 (유지할 카드 터치 · 장당 3 M€)</div>
+        <div id="draftCardsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2"></div>
+      </div>
+
+      <div class="pt-2 border-t border-white/10 flex items-center justify-end gap-2">
+        <button id="btnCancelDraftModal" onclick="closeDraftModalIfSell()" class="hidden px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 cursor-pointer">취소</button>
+        <button id="btnConfirmDraft" onclick="confirmDraftSelection()" class="w-full sm:w-auto px-6 py-3 rounded-xl bg-orange-500 hover:bg-orange-400 text-slate-950 font-extrabold text-sm shadow-lg cursor-pointer">선택 확정 및 진행</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       [모달 2: 강철·티타늄·열 복합 결제 스마트 계산기 모달]
+  ========================================================== -->
+  <div id="payModalOverlay" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="board-frame rounded-2xl max-w-md w-full p-5 space-y-4 border border-amber-400/50">
+      <div class="flex items-center justify-between border-b border-white/10 pb-3">
+        <div>
+          <h3 id="payCardTitle" class="text-base font-extrabold text-slate-100">카드 비용 지불</h3>
+          <p id="payCardCostBadge" class="text-xs text-amber-300 font-bold mt-0.5"></p>
+        </div>
+        <button onclick="closePayModal()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 cursor-pointer">취소</button>
+      </div>
+      <div id="payControlsBox" class="space-y-2.5 text-xs"></div>
+      <div id="paySummaryText" class="p-3 rounded-xl bg-[#0a0e16] border border-white/10 text-xs text-slate-200"></div>
+      <button id="btnConfirmPayCard" onclick="confirmHybridCardPlay()" class="w-full py-3 rounded-xl bg-orange-500 hover:bg-orange-400 text-slate-950 font-extrabold text-sm cursor-pointer">결제 및 카드 발동</button>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       [모달 3: 게임 시작 전 원정 옵션 설정 모달 (솔로/오토마 1:1 · 서곡 ON/OFF · 맵 3종)]
+  ========================================================== -->
+  <div id="settingsModalOverlay" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+    <div class="board-frame rounded-2xl max-w-2xl w-full p-4 sm:p-6 space-y-4 border border-orange-500/50 max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-white/10 pb-3">
+        <div>
+          <h3 class="text-base sm:text-lg font-extrabold text-orange-100">화성 테라포밍 프로젝트 설정</h3>
+          <p class="text-xs text-slate-400 mt-0.5">공식 1인 솔로 타임어택 또는 오토마 1:1 경쟁 · 서곡 확장 · 화성 3대 맵 선택</p>
+        </div>
+        <button onclick="closeSettingsModal()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 cursor-pointer">닫기</button>
+      </div>
+
+      <div class="space-y-3.5 text-xs">
+        <!-- 1. 플레이 모드 (공식 솔로 타임어택 vs 오토마 1:1 대결) -->
+        <div class="space-y-1.5">
+          <div class="font-bold text-orange-300">1. 플레이 방식 선택 (공식 솔로 vs 오토마 1:1 대결)</div>
+          <div id="gameModeButtons" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+        </div>
+
+        <!-- 오토마 1:1 선택 시 난이도 설정 -->
+        <div id="automaDiffSection" class="hidden space-y-1.5 bg-[#0a0e16] border border-rose-500/30 rounded-xl p-3">
+          <div class="font-bold text-rose-300">1-1. 라이벌 오토마 난이도</div>
+          <div id="automaDiffButtons" class="grid grid-cols-3 gap-2"></div>
+        </div>
+
+        <!-- 2. 서곡(Prelude) 확장 포함 여부 -->
+        <div class="space-y-1.5">
+          <div class="font-bold text-orange-300">2. 《서곡 (Prelude)》 확장 포함 여부</div>
+          <div id="preludeModeButtons" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+        </div>
+
+        <!-- 3. 화성 보드판 맵 3종 선택 (타르시스 / 헬라스 / 엘리시움) -->
+        <div class="space-y-1.5">
+          <div class="font-bold text-orange-300">3. 화성 작전 구역 (맵) 선택</div>
+          <div id="marsMapButtons" class="grid grid-cols-1 sm:grid-cols-3 gap-2"></div>
+        </div>
+
+        <!-- 4. 기업 배정 방식 (공식 후보 선택 vs 연습용 전체 기업 자유 선택) -->
+        <div class="space-y-1.5">
+          <div class="font-bold text-orange-300">4. 시작 기업 배정 방식</div>
+          <div id="corpPrefButtons" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+        </div>
+      </div>
+
+      <button id="btnLaunchMars" onclick="applySettingsAndStart()" class="w-full py-3 rounded-xl bg-orange-500 hover:bg-orange-400 text-slate-950 font-extrabold text-sm shadow-lg cursor-pointer">이 설정으로 새 테라포밍 시작</button>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       [모달 4: 세대 생산 결산 & 최종 승리/패배 영수증 모달]
+  ========================================================== -->
+  <div id="summaryModalOverlay" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="board-frame rounded-2xl max-w-md w-full p-5 sm:p-6 text-center space-y-4 border border-orange-400/50">
+      <div id="sumEmblemBox" class="w-12 h-12 mx-auto rounded-2xl bg-[#26160c] border border-orange-400/50 flex items-center justify-center"></div>
+      <div class="space-y-1">
+        <h3 id="sumHeading" class="text-xl font-black text-orange-100"></h3>
+        <p id="sumSubtext" class="text-xs text-slate-300 leading-relaxed"></p>
+      </div>
+      <div id="sumReceiptBox" class="bg-[#090d14] border border-white/10 rounded-xl p-3.5 text-left text-xs space-y-1.5 max-h-72 overflow-y-auto"></div>
+      <button id="sumNextBtn" class="w-full py-3 rounded-xl bg-orange-500 hover:bg-orange-400 text-slate-950 font-extrabold text-sm cursor-pointer">다음 세대 연구 단계로</button>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       [모달 5: 마스터 규칙서 / 발동 카드 목록 / 일지 모달]
+  ========================================================== -->
+  <div id="infoModalOverlay" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="board-frame rounded-2xl max-w-2xl w-full p-5 sm:p-6 space-y-4 max-h-[86vh] flex flex-col">
+      <div class="flex items-center justify-between border-b border-white/10 pb-3">
+        <h3 id="infoModalHeading" class="text-base font-extrabold text-orange-100"></h3>
+        <button onclick="closeInfoModal()" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 cursor-pointer">닫기</button>
+      </div>
+      <div id="infoModalContent" class="overflow-y-auto space-y-3 text-xs text-slate-300 leading-relaxed pr-1"></div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================
+    // 1. 커스텀 벡터 SVG 아이콘 시스템 (유니코드 이모지 0개)
+    // =========================================================
+    function iconSvg(name, size = 16) {
+      const base = `width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" class="inline-block shrink-0"`;
+      switch (name) {
+        case "mars":
+          return `<svg ${base}><circle cx="12" cy="12" r="9" fill="#c2410c" stroke="#fdba74" stroke-width="1.6"/><path d="M6.5 10.5c3-2 6.5-1 9.5.5s3.5.5 4.8-1" stroke="#34d399" stroke-width="2" stroke-linecap="round"/><circle cx="9.5" cy="15.5" r="2.2" fill="#38bdf8"/></svg>`;
+        case "mc":
+          return `<svg ${base}><rect x="2.5" y="4" width="19" height="16" rx="4" fill="#f59e0b" stroke="#fef08a" stroke-width="1.5"/><path d="M7.5 15V9l3 3.5L13.5 9v6M17.5 10.5a2.2 2.2 0 100 3" stroke="#1e1b18" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+        case "steel":
+          return `<svg ${base}><rect x="3" y="5" width="18" height="14" rx="2.5" fill="#78350f" stroke="#fdba74" stroke-width="1.5"/><path d="M7 9h10M9 9v6M7 15h10" stroke="#fde68a" stroke-width="1.9" stroke-linecap="round"/></svg>`;
+        case "titanium":
+          return `<svg ${base}><polygon points="12,2.5 21,19.5 3,19.5" fill="#334155" stroke="#e2e8f0" stroke-width="1.5" stroke-linejoin="round"/><polygon points="12,8 16.2,16.5 7.8,16.5" fill="#fde047"/></svg>`;
+        case "plants":
+          return `<svg ${base}><path d="M12 20V11" stroke="#4ade80" stroke-width="2" stroke-linecap="round"/><path d="M12 13C7.5 13 5 9.5 6 5.5c4 .5 6 3 6 7.5z" fill="#16a34a" stroke="#bbf7d0" stroke-width="1.3"/><path d="M12 11c4.5 0 7-3.5 6-7.5-4 .5-6 3-6 7.5z" fill="#22c55e" stroke="#bbf7d0" stroke-width="1.3"/></svg>`;
+        case "energy":
+          return `<svg ${base}><rect x="3" y="3" width="18" height="18" rx="4" fill="#581c87" stroke="#d8b4fe" stroke-width="1.4"/><polygon points="13.2,5 7.5,13 12,13 10.8,19 16.5,11 12,11" fill="#facc15"/></svg>`;
+        case "heat":
+          return `<svg ${base}><rect x="3" y="3" width="18" height="18" rx="4" fill="#7f1d1d" stroke="#fca5a5" stroke-width="1.4"/><path d="M8 17V7l-2 2.5M12 17V7l-2 2.5M16 17V7l-2 2.5" stroke="#fde047" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+        case "temp":
+          return `<svg ${base}><path d="M10 14.5V5a2 2 0 114 0v9.5a4 4 0 11-4 0z" fill="#991b1b" stroke="#fca5a5" stroke-width="1.5"/><circle cx="12" cy="17.2" r="2" fill="#fde047"/></svg>`;
+        case "oxygen":
+          return `<svg ${base}><circle cx="12" cy="12" r="8.8" fill="#065f46" stroke="#6ee7b7" stroke-width="1.5"/><circle cx="10.5" cy="11.5" r="3.2" stroke="#ecfdf5" stroke-width="1.7"/><path d="M15 13.5h2.5l-2.5 3h2.5" stroke="#a7f3d0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+        case "ocean":
+          return `<svg ${base}><polygon points="12,2.5 20.5,7.3 20.5,16.7 12,21.5 3.5,16.7 3.5,7.3" fill="#0284c7" stroke="#bae6fd" stroke-width="1.5"/><path d="M6.5 11.5c2-1.8 4 1.8 6 0s3.5-1.8 5 0M6.5 15c2-1.8 4 1.8 6 0s3.5-1.8 5 0" stroke="#e0f2fe" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+        case "greenery":
+          return `<svg ${base}><polygon points="12,2.5 20.5,7.3 20.5,16.7 12,21.5 3.5,16.7 3.5,7.3" fill="#15803d" stroke="#86efac" stroke-width="1.5"/><circle cx="12" cy="11" r="4.2" fill="#4ade80"/><path d="M12 13v4.5" stroke="#dcfce7" stroke-width="1.7" stroke-linecap="round"/></svg>`;
+        case "city":
+          return `<svg ${base}><polygon points="12,2.5 20.5,7.3 20.5,16.7 12,21.5 3.5,16.7 3.5,7.3" fill="#334155" stroke="#cbd5e1" stroke-width="1.5"/><path d="M7.5 16V10h3v6m3 0V7.5h3V16M6 16h12" stroke="#f8fafc" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+        case "tr":
+          return `<svg ${base}><polygon points="12,2 21,7 21,17 12,22 3,17 3,7" fill="#9a3412" stroke="#fdba74" stroke-width="1.5"/><circle cx="12" cy="12" r="4" fill="#fde047"/></svg>`;
+        case "vp":
+          return `<svg ${base}><circle cx="12" cy="12" r="9" fill="#78350f" stroke="#fde047" stroke-width="1.5"/><polygon points="12,5.5 14,9.8 18.6,10.4 15.2,13.6 16.1,18.2 12,16 7.9,18.2 8.8,13.6 5.4,10.4 10,9.8" fill="#fef08a"/></svg>`;
+        case "card":
+          return `<svg ${base}><rect x="5" y="3.5" width="14" height="17" rx="2.2" fill="#1e293b" stroke="#93c5fd" stroke-width="1.5"/><path d="M8.5 8.5h7M8.5 12h7M8.5 15.5h4.5" stroke="#bfdbfe" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+        case "tag_building":
+          return `<svg ${base}><circle cx="12" cy="12" r="9" fill="#78350f" stroke="#fdba74" stroke-width="1.4"/><path d="M8 16V9.5l4-2.5 4 2.5V16H8z" fill="#fde68a"/></svg>`;
+        case "tag_space":
+          return `<svg ${base}><circle cx="12" cy="12" r="9" fill="#0f172a" stroke="#94a3b8" stroke-width="1.4"/><polygon points="12,5.5 13.8,10.2 18.5,12 13.8,13.8 12,18.5 10.2,13.8 5.5,12 10.2,10.2" fill="#fde047"/></svg>`;
+        case "tag_science":
+          return `<svg ${base}><circle cx="12" cy="12" r="9" fill="#f8fafc" stroke="#64748b" stroke-width="1.4"/><ellipse cx="12" cy="12" rx="6.5" ry="2.6" transform="rotate(30 12 12)" stroke="#0f172a" stroke-width="1.4"/><ellipse cx="12" cy="12" rx="6.5" ry="2.6" transform="rotate(-30 12 12)" stroke="#0f172a" stroke-width="1.4"/><circle cx="12" cy="12" r="1.6" fill="#0284c7"/></svg>`;
+        case "tag_plant":
+          return `<svg ${base}><circle cx="12" cy="12" r="9" fill="#14532d" stroke="#86efac" stroke-width="1.4"/><path d="M12 16.5c-3.5 0-5-2.8-4.2-6 3 .4 4.2 2.5 4.2 6zm0-1c3.5 0 5-2.8 4.2-6-3 .4-4.2 2.5-4.2 6z" fill="#4ade80"/></svg>`;
+        case "tag_microbe":
+          return `<svg ${base}><circle cx="12" cy="12" r="9" fill="#365314" stroke="#bef264" stroke-width="1.4"/><circle cx="9.5" cy="10.5" r="2" fill="#d9f99d"/><circle cx="14.5" cy="11" r="1.6" fill="#bef264"/><circle cx="12" cy="14.8" r="1.8" fill="#ecfccb"/></svg>`;
+        case "tag_animal":
+          return `<svg ${base}><circle cx="12" cy="12" r="9" fill="#3f6212" stroke="#a3e635" stroke-width="1.4"/><circle cx="12" cy="13.8" r="2.6" fill="#ecfccb"/><circle cx="8.8" cy="9.8" r="1.2" fill="#ecfccb"/><circle cx="12" cy="8.5" r="1.2" fill="#ecfccb"/><circle cx="15.2" cy="9.8" r="1.2" fill="#ecfccb"/></svg>`;
+        case "tag_power":
+          return `<svg ${base}><circle cx="12" cy="12" r="9" fill="#581c87" stroke="#d8b4fe" stroke-width="1.4"/><polygon points="13,5.5 8,12.5 12,12.5 11,18.5 16,11.5 12,11.5" fill="#fde047"/></svg>`;
+        case "tag_earth":
+          return `<svg ${base}><circle cx="12" cy="12" r="9" fill="#0369a1" stroke="#7dd3fc" stroke-width="1.4"/><path d="M8 9c2-1 4 0 5 2s-1 4-3 5-3-2-2-7zm7 1c1.5.5 2 2.5 1 4" fill="#4ade80"/></svg>`;
+        case "tag_jovian":
+          return `<svg ${base}><circle cx="12" cy="12" r="9" fill="#9a3412" stroke="#fdba74" stroke-width="1.4"/><path d="M4 10.5h16M4.5 13.8h15" stroke="#fde68a" stroke-width="1.6"/><circle cx="14.5" cy="13.8" r="1.7" fill="#ef4444"/></svg>`;
+        case "tag_city":
+          return `<svg ${base}><circle cx="12" cy="12" r="9" fill="#334155" stroke="#cbd5e1" stroke-width="1.4"/><path d="M8 16v-5h3v5m2 0V8.5h3V16" stroke="#f8fafc" stroke-width="1.7"/></svg>`;
+        case "tag_event":
+          return `<svg ${base}><circle cx="12" cy="12" r="9" fill="#991b1b" stroke="#fca5a5" stroke-width="1.4"/><path d="M12 6.5v7m0 3.2v.5" stroke="#fef08a" stroke-width="2.2" stroke-linecap="round"/></svg>`;
+        case "rival":
+          return `<svg ${base}><circle cx="12" cy="8.5" r="3.6" fill="#e11d48" stroke="#fecdd3" stroke-width="1.4"/><path d="M6 19.5c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5" fill="#881337" stroke="#fda4af" stroke-width="1.4"/></svg>`;
+        case "sound_on":
+          return `<svg ${base}><polygon points="4,9 9,9 14,5 14,19 9,15 4,15" fill="#94a3b8"/><path d="M17 8.5a5 5 0 010 7" stroke="#fb923c" stroke-width="1.8" stroke-linecap="round"/></svg>`;
+        case "sound_off":
+          return `<svg ${base}><polygon points="4,9 9,9 14,5 14,19 9,15 4,15" fill="#475569"/><path d="M17 9.5l4 5m0-5l-4 5" stroke="#f43f5e" stroke-width="1.8" stroke-linecap="round"/></svg>`;
+        default:
+          return `<svg ${base}><circle cx="12" cy="12" r="7" fill="#475569"/></svg>`;
+      }
+    }
+
+    // =========================================================
+    // 2. 폴리포닉 효과음 & 비행 자원 파티클 엔진
+    // =========================================================
+    let audioOn = true;
+    let audioCtx = null;
+
+    function sfx(kind) {
+      if (!audioOn) return;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === "suspended") audioCtx.resume();
+        const t = audioCtx.currentTime;
+        const tone = (f1, f2, dur, wave = "sine", vol = 0.09, delay = 0) => {
+          const o = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          o.type = wave;
+          o.frequency.setValueAtTime(f1, t + delay);
+          if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + delay + dur);
+          g.gain.setValueAtTime(vol, t + delay);
+          g.gain.exponentialRampToValueAtTime(0.001, t + delay + dur);
+          o.connect(g);
+          g.connect(audioCtx.destination);
+          o.start(t + delay);
+          o.stop(t + delay + dur);
+        };
+        if (kind === "card") tone(480, 290, 0.07, "sine", 0.08);
+        else if (kind === "coin") tone(820, 1180, 0.1, "sine", 0.08);
+        else if (kind === "tile") { tone(240, 140, 0.09, "triangle", 0.14); tone(520, 660, 0.12, "sine", 0.07, 0.04); }
+        else if (kind === "param") { tone(440, 440, 0.14, "sine", 0.09, 0); tone(554, 554, 0.16, "sine", 0.09, 0.05); tone(659, 659, 0.22, "sine", 0.1, 0.1); }
+        else if (kind === "rival") tone(180, 130, 0.11, "triangle", 0.12);
+      } catch (e) {
+        // 브라우저 오디오 자동재생 제한 시 무시
+      }
+    }
+
+    function toggleAudio() {
+      audioOn = !audioOn;
+      document.getElementById("btnAudioToggle").innerHTML = iconSvg(audioOn ? "sound_on" : "sound_off", 15);
+    }
+
+    function spawnResourceOrb(resKey, sourceEl) {
+      const targetEl = document.getElementById(`hudRes_${resKey}`);
+      const layer = document.getElementById("fxLayer");
+      if (!targetEl || !layer) return;
+      const tRect = targetEl.getBoundingClientRect();
+      const sRect = sourceEl
+        ? sourceEl.getBoundingClientRect()
+        : { left: window.innerWidth * 0.45, top: window.innerHeight * 0.5, width: 20, height: 20 };
+
+      const orb = document.createElement("div");
+      orb.className = "flying-orb flex items-center justify-center w-6 h-6 rounded-full bg-[#1b2333] border border-amber-400 shadow-lg";
+      orb.innerHTML = iconSvg(resKey, 14);
+      orb.style.left = `${sRect.left + sRect.width / 2 - 12}px`;
+      orb.style.top = `${sRect.top + sRect.height / 2 - 12}px`;
+      layer.appendChild(orb);
+
+      requestAnimationFrame(() => {
+        const dx = (tRect.left + tRect.width / 2) - (sRect.left + sRect.width / 2);
+        const dy = (tRect.top + tRect.height / 2) - (sRect.top + sRect.height / 2);
+        orb.style.transform = `translate(${dx}px, ${dy}px) scale(0.75)`;
+        orb.style.opacity = "0.25";
+      });
+
+      setTimeout(() => {
+        orb.remove();
+        const valSpan = document.getElementById(`hudVal_${resKey}`);
+        if (valSpan) {
+          valSpan.classList.remove("res-bump");
+          void valSpan.offsetWidth;
+          valSpan.classList.add("res-bump");
+        }
+      }, 590);
+    }
+
+    // =========================================================
+    // 3. 3대 공식 61칸 육각 그리드 맵 생성 엔진 (타르시스 · 헬라스 · 엘리시움)
+    // =========================================================
+    // 축 좌표계 (q, r): r = -4 ~ +4 (총 9행: 5-6-7-8-9-8-7-6-5 = 정확히 61칸!)
+    function generateBase61Coords() {
+      const coords = [];
+      for (let r = -4; r <= 4; r++) {
+        const qMin = Math.max(-4, -4 - r);
+        const qMax = Math.min(4, 4 - r);
+        for (let q = qMin; q <= qMax; q++) {
+          coords.push({ q, r, id: `h_${q}_${r}` });
+        }
+      }
+      return coords;
+    }
+
+    function getHexKey(q, r) {
+      return `h_${q}_${r}`;
+    }
+
+    function getNeighborIds(q, r) {
+      const dirs = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
+      return dirs.map(([dq, dr]) => `h_${q + dq}_${r + dr}`);
+    }
+
+    // 맵별 해양 전용 구역(12곳), 특수 구역, 지형 배치 보너스 정의
+    const MARS_MAPS = {
+      tharsis: {
+        id: "tharsis",
+        name: "타르시스 (기본판 표준)",
+        shortName: "타르시스",
+        desc: "적도 식물 벨트 · 녹티스 시티 구역 · 표준 업적/기업상",
+        oceans: new Set([
+          "h_-2_-2", "h_1_-4", "h_3_-4", "h_4_-4",
+          "h_4_-1", "h_-1_0", "h_0_0", "h_1_0",
+          "h_2_1", "h_3_1", "h_4_0", "h_1_4"
+        ]),
+        specials: {
+          "h_-2_0": { kind: "noctis", label: "녹티스" }
+        },
+        bonuses: {
+          "h_0_-4": { steel: 2 }, "h_1_-4": { steel: 2 }, "h_3_-4": { cards: 1 }, "h_4_-4": { cards: 2 },
+          "h_-2_-2": { titanium: 2 }, "h_3_-3": { steel: 1 }, "h_-3_-2": { cards: 1 }, "h_0_-2": { steel: 1 },
+          "h_-4_0": { plants: 2 }, "h_-3_0": { plants: 2 }, "h_-2_0": { plants: 2 }, "h_-1_0": { plants: 2 },
+          "h_0_0": { plants: 2 }, "h_1_0": { plants: 2 }, "h_2_0": { plants: 2 }, "h_3_0": { plants: 2 }, "h_4_0": { plants: 2 },
+          "h_-4_1": { plants: 1 }, "h_-3_1": { plants: 2 }, "h_-2_1": { plants: 1 }, "h_-1_1": { plants: 1 },
+          "h_0_1": { plants: 1 }, "h_1_1": { plants: 1 }, "h_2_1": { plants: 1 }, "h_3_1": { plants: 1 },
+          "h_-3_-1": { plants: 1 }, "h_-2_-1": { plants: 1 }, "h_2_-1": { plants: 1 }, "h_3_-1": { plants: 1 }, "h_4_-1": { plants: 2 },
+          "h_-4_3": { steel: 1 }, "h_2_2": { cards: 1 }, "h_-2_4": { titanium: 1 }, "h_0_4": { steel: 2 }, "h_2_3": { titanium: 2 }
+        },
+        milestones: [
+          { id: "m_terraformer", name: "테라포머", desc: "TR 35 이상 (서곡 포함 시 29 이상)", check: (G, p) => p.tr >= (G.usePrelude ? 29 : 35) },
+          { id: "m_mayor", name: "시장", desc: "보유 도시 타일 3개 이상", check: (G, p) => p.cityCount >= 3 },
+          { id: "m_gardener", name: "원예가", desc: "보유 녹지 타일 3개 이상", check: (G, p) => p.greeneryCount >= 3 },
+          { id: "m_builder", name: "건축가", desc: "건물 태그 8개 이상 보유", check: (G, p) => (p.tags.building || 0) >= 8 },
+          { id: "m_planner", name: "전략가", desc: "손패에 카드 12장 이상 보유", check: (G, p) => p.handCount >= 12 }
+        ],
+        awards: [
+          { id: "a_landlord", name: "지주", desc: "화성 위 총 보유 타일 최다", metric: (G, p) => p.totalTiles },
+          { id: "a_banker", name: "은행가", desc: "M€ 생산력 최고", metric: (G, p) => p.prod.mc },
+          { id: "a_scientist", name: "과학자", desc: "과학 태그 최다", metric: (G, p) => p.tags.science || 0 },
+          { id: "a_thermalist", name: "열관리사", desc: "보유 열(Heat) 토큰 최다", metric: (G, p) => p.res.heat },
+          { id: "a_miner", name: "광부", desc: "보유 강철+티타늄 토큰 합계 최다", metric: (G, p) => p.res.steel + p.res.titanium }
+        ]
+      },
+
+      hellas: {
+        id: "hellas",
+        name: "헬라스 (남극해 & 열 분지)",
+        shortName: "헬라스",
+        desc: "남동쪽 헬라스 분지 · 남극점 6 M€ 해양 보너스 칸 수록!",
+        oceans: new Set([
+          "h_-2_-2", "h_-1_-2", "h_0_-2",
+          "h_1_1", "h_2_1", "h_3_1",
+          "h_0_2", "h_1_2", "h_2_2",
+          "h_0_3", "h_1_3", "h_-1_3"
+        ]),
+        specials: {
+          "h_0_4": { kind: "south_pole", label: "남극(-6M€→해양)" }
+        },
+        bonuses: {
+          "h_0_-4": { plants: 2 }, "h_1_-4": { plants: 2 }, "h_2_-4": { plants: 2 }, "h_3_-4": { plants: 1 },
+          "h_-1_-3": { plants: 2 }, "h_0_-3": { plants: 2 }, "h_1_-3": { plants: 1 }, "h_2_-3": { steel: 1 },
+          "h_-3_-1": { steel: 2 }, "h_3_-2": { titanium: 1 }, "h_4_-2": { titanium: 2 },
+          "h_-2_0": { heat: 2 }, "h_-1_0": { heat: 2 }, "h_0_0": { heat: 3 },
+          "h_1_1": { plants: 1 }, "h_2_1": { cards: 1 }, "h_1_2": { heat: 2 }, "h_-3_3": { cards: 2 },
+          "h_-2_4": { steel: 1 }, "h_0_4": { oceanTriggerCost: 6 }
+        },
+        milestones: [
+          { id: "m_diversifier", name: "다각화가", desc: "서로 다른 종류의 태그 7종 이상", check: (G, p) => Object.values(p.tags).filter(v => v > 0).length >= 7 },
+          { id: "m_energizer", name: "에너지전문가", desc: "전력 생산력 5 이상 달성", check: (G, p) => p.prod.energy >= 5 },
+          { id: "m_polar", name: "극지탐험가", desc: "남단 2개 행(r>=3)에 타일 3개 배치", check: (G, p) => p.southTiles >= 3 },
+          { id: "m_rim", name: "우주개척자", desc: "우주 태그 4개 이상 보유", check: (G, p) => (p.tags.space || 0) >= 4 },
+          { id: "m_mayor_h", name: "식민지시장", desc: "도시 타일 3개 이상 보유", check: (G, p) => p.cityCount >= 3 }
+        ],
+        awards: [
+          { id: "a_cultivator", name: "경작자", desc: "보유 녹지 타일 최다", metric: (G, p) => p.greeneryCount },
+          { id: "a_magnate", name: "산업거물", desc: "발동한 녹색 카드 수 최다", metric: (G, p) => p.greenCardCount },
+          { id: "a_spacebaron", name: "우주남작", desc: "보유 우주 태그 수 최다", metric: (G, p) => p.tags.space || 0 },
+          { id: "a_contractor", name: "도급업자", desc: "보유 건물 태그 수 최다", metric: (G, p) => p.tags.building || 0 },
+          { id: "a_banker_h", name: "자본가", desc: "M€ 생산력 최고", metric: (G, p) => p.prod.mc }
+        ]
+      },
+
+      elysium: {
+        id: "elysium",
+        name: "엘리시움 (올림푸스 산)",
+        shortName: "엘리시움",
+        desc: "올림푸스 산(카드 3장 드로우!) · 북부 대양 지대 수록",
+        oceans: new Set([
+          "h_1_-4", "h_2_-4", "h_3_-4", "h_4_-4",
+          "h_0_-3", "h_1_-3", "h_2_-3", "h_3_-3",
+          "h_1_-2", "h_2_-2", "h_3_-2", "h_4_-2"
+        ]),
+        specials: {
+          "h_-4_0": { kind: "olympus", label: "올림푸스(+3장)" }
+        },
+        bonuses: {
+          "h_0_-4": { ocean_adj: 0, cards: 1 }, "h_2_-4": { cards: 1 }, "h_4_-4": { titanium: 1 },
+          "h_-2_-2": { titanium: 2 }, "h_-3_-1": { steel: 2 },
+          "h_-4_0": { cards: 3 },
+          "h_-3_0": { plants: 1 }, "h_-2_0": { plants: 2 }, "h_-1_0": { plants: 2 }, "h_0_0": { plants: 2 }, "h_1_0": { plants: 2 }, "h_2_0": { plants: 1 },
+          "h_-3_1": { plants: 2 }, "h_-1_1": { plants: 1 }, "h_1_1": { plants: 1 }, "h_3_0": { plants: 2 },
+          "h_3_1": { titanium: 2 }, "h_-4_3": { steel: 2 }, "h_-1_3": { steel: 1 }, "h_1_3": { cards: 2 }, "h_0_4": { steel: 2 }
+        },
+        milestones: [
+          { id: "m_generalist", name: "박식가", desc: "6종 모든 자원 생산력이 각 +1 이상", check: (G, p) => ["mc", "steel", "titanium", "plants", "energy", "heat"].every(k => p.prod[k] >= 1) },
+          { id: "m_specialist", name: "전문가", desc: "아무 자원 생산력 1종이 +6 이상", check: (G, p) => Object.values(p.prod).some(v => v >= 6) },
+          { id: "m_ecologist", name: "생태학자", desc: "식물+미생물+동물 태그 합계 4개 이상", check: (G, p) => ((p.tags.plant || 0) + (p.tags.microbe || 0) + (p.tags.animal || 0)) >= 4 },
+          { id: "m_legend", name: "전설", desc: "발동한 빨간색 이벤트 카드 4장 이상", check: (G, p) => p.eventCardCount >= 4 },
+          { id: "m_tycoon", name: "재벌", desc: "파란색+빨간색 카드 합계 8장 이상", check: (G, p) => (p.blueCardCount + p.eventCardCount) >= 8 }
+        ],
+        awards: [
+          { id: "a_celebrity", name: "유명인", desc: "원래 비용 20 M€ 이상 발동 카드 최다", metric: (G, p) => p.expensiveCardCount },
+          { id: "a_industrialist", name: "산업가", desc: "보유 강철+전력 토큰 합계 최다", metric: (G, p) => p.res.steel + p.res.energy },
+          { id: "a_desert", name: "사막개척자", desc: "남반구(r>=1) 배치 타일 수 최다", metric: (G, p) => p.southHalfTiles },
+          { id: "a_estate", name: "해변부동산왕", desc: "해양에 인접한 본인 타일 수 최다", metric: (G, p) => p.oceanAdjTiles },
+          { id: "a_benefactor", name: "수혜자", desc: "테라포밍 등급(TR) 최고", metric: (G, p) => p.tr }
+        ]
+      }
+    };
+
+    // =========================================================
+    // 4. 공식 기업(Corporations) 10종 & 서곡(Prelude) 12종 & 프로젝트 카드 DB
+    // =========================================================
+    const TAG_LABELS = {
+      building: "건물", space: "우주", science: "과학", plant: "식물",
+      microbe: "미생물", animal: "동물", power: "전력", earth: "지구",
+      jovian: "목성", city: "도시", event: "이벤트"
+    };
+
+    const CORPORATIONS = [
+      {
+        id: "beginner",
+        name: "초보 입문 기업",
+        mc: 42,
+        freeInitialCards: true,
+        tags: [],
+        desc: "시작 자금 42 M€ · 초기 카드 10장을 장당 3 M€ 비용 없이 전부 무료로 가져갑니다! (연습 입문 추천)",
+        effectDesc: "특수 패시브 없음 (넉넉한 초기 손패 10장으로 자유 빌드 연습)"
+      },
+      {
+        id: "ecoline",
+        name: "이코라인 (Ecoline)",
+        mc: 36,
+        prod: { plants: 2 },
+        res: { plants: 3 },
+        tags: ["plant"],
+        plantGreeneryCost: 7,
+        desc: "36 M€ · 식물 생산력 +2, 식물 +3개 시작",
+        effectDesc: "[고유 능력] 녹지 변환 시 식물 8개 대신 7개만 소모합니다!"
+      },
+      {
+        id: "helion",
+        name: "헬리온 (Helion)",
+        mc: 42,
+        prod: { heat: 3 },
+        tags: ["space"],
+        heatAsMc: true,
+        desc: "42 M€ · 열 생산력 +3 시작",
+        effectDesc: "[고유 능력] 보유한 열(Heat) 토큰을 언제든 1 M€처럼 비용 지불에 섞어 쓸 수 있습니다!"
+      },
+      {
+        id: "tharsis_rep",
+        name: "타르시스 공화국",
+        mc: 40,
+        tags: ["building"],
+        firstActionCity: true,
+        desc: "40 M€ · 첫 행동 보너스: 도시 타일 1개 무료 배치!",
+        effectDesc: "[고유 능력] 화성에 도시가 놓일 때마다 M€ 생산력 +1, 내 도시 배치 시 +3 M€ 즉시 캐시백!"
+      },
+      {
+        id: "credicor",
+        name: "크레디코르 (CrediCor)",
+        mc: 57,
+        tags: [],
+        desc: "57 M€ 막대한 자본금으로 시작",
+        effectDesc: "[고유 능력] 원래 비용 20 M€ 이상인 카드나 표준 프로젝트(녹지/도시) 실행 시 +4 M€ 즉시 환급!"
+      },
+      {
+        id: "phobolog",
+        name: "포보로그 (PhoboLog)",
+        mc: 23,
+        res: { titanium: 10 },
+        tags: ["space"],
+        titaniumExtraVal: 1,
+        desc: "23 M€ · 티타늄 +10개(개당 4 M€ 가치 = 40 M€ 상당!) 시작",
+        effectDesc: "[고유 능력] 보유한 티타늄의 가치가 영구적으로 +1 상승하여 개당 4 M€로 계산됩니다!"
+      },
+      {
+        id: "interplanetary",
+        name: "인터플래네터리 시네마틱스",
+        mc: 30,
+        res: { steel: 20 },
+        tags: ["building"],
+        desc: "30 M€ · 강철 +20개(건물 결제 시 40 M€ 상당!) 시작",
+        effectDesc: "[고유 능력] 빨간색 이벤트 카드를 사용할 때마다 미디어 수익으로 +2 M€를 돌려받습니다!"
+      },
+      {
+        id: "saturn",
+        name: "새턴 시스템즈",
+        mc: 42,
+        prod: { titanium: 1, mc: 1 },
+        tags: ["jovian"],
+        desc: "42 M€ · 티타늄 생산력 +1, M€ 생산력 +1 (시작 목성 태그 포함)",
+        effectDesc: "[고유 능력] 목성(Jovian) 태그가 놓일 때마다 M€ 생산력이 +1씩 영구 증가합니다!"
+      },
+      {
+        id: "point_luna",
+        name: "포인트 루나 (서곡 기업)",
+        mc: 38,
+        prod: { titanium: 1 },
+        res: { cards: 1 },
+        tags: ["space", "earth"],
+        desc: "38 M€ · 티타늄 생산력 +1 & 시작 카드 1장 드로우",
+        effectDesc: "[고유 능력] 지구(Earth) 태그 카드를 발동할 때마다 카드 1장을 즉시 뽑습니다!"
+      },
+      {
+        id: "unmi",
+        name: "유엔 화성 기구 (UNMI)",
+        mc: 40,
+        tags: ["earth"],
+        hasCorpAction: true,
+        desc: "40 M€ · 매 세대 TR 추가 부스트 가능",
+        effectDesc: "[전용 액션] 이번 세대에 내 TR이 1이라도 올랐다면, 3 M€를 내고 TR +1을 추가로 올립니다! (세대 1회)"
+      }
+    ];
+
+    // 《서곡(Prelude)》 공식 대표 카드 12종 (4장 뽑아 2장 무료 선택 발동)
+    const PRELUDE_CARDS = [
+      { id: "pre_1", name: "연합 우주 은행", tags: ["earth"], prod: { mc: 4 }, res: { mc: 3 }, desc: "M€ 생산력 +4, 즉시 +3 M€" },
+      { id: "pre_2", name: "수수께끼의 대수층", tags: [], placeOcean: 2, desc: "해양 타일 2개 즉시 무료 배치! (TR+2)" },
+      { id: "pre_3", name: "생태계 구역 실험", tags: ["plant"], placeGreenery: 1, res: { cards: 1 }, desc: "녹지 타일 1개 무료 배치(산소+1%) & 카드 1장 드로우" },
+      { id: "pre_4", name: "거대 소행성 채굴", tags: ["space"], prod: { titanium: 2 }, res: { titanium: 4 }, desc: "티타늄 생산력 +2, 티타늄 +4개" },
+      { id: "pre_5", name: "금속 제련 회사", tags: ["building"], prod: { mc: 1, steel: 1, titanium: 1 }, desc: "M€·강철·티타늄 생산력 각 +1" },
+      { id: "pre_6", name: "모홀 굴착 사업", tags: ["building"], prod: { heat: 3 }, res: { heat: 3 }, desc: "열 생산력 +3, 열 +3개" },
+      { id: "pre_7", name: "전력망 확충", tags: ["power"], prod: { energy: 3 }, desc: "전력 생산력 +3" },
+      { id: "pre_8", name: "초기 정착지 건설", tags: ["building", "city"], prod: { plants: 1 }, placeCity: 1, desc: "식물 생산력 +1 & 도시 타일 1개 무료 배치" },
+      { id: "pre_9", name: "극지방 해빙 폭격", tags: [], placeOcean: 1, raiseTemp: 2, desc: "해양 1개 배치 + 기온 2단계(+4°C) 상승!" },
+      { id: "pre_10", name: "연구 네트워크", tags: ["science"], prod: { mc: 1 }, res: { cards: 3 }, desc: "M€ 생산력 +1 & 카드 3장 즉시 뽑기" },
+      { id: "pre_11", name: "공급물자 기부", tags: [], res: { steel: 5, titanium: 2, plants: 3 }, desc: "강철+5, 티타늄+2, 식물+3 즉시 수령" },
+      { id: "pre_12", name: "생물권 지원단", tags: ["plant"], prod: { mc: -1, plants: 3 }, desc: "M€ 생산력 -1, 식물 생산력 +3" }
+    ];
+
+    // 공식 프로젝트 카드 60종 데이터베이스
+    // color: "green" (생산/기반시설) | "blue" (지속 할인/패시브/액티브 액션) | "red" (일회성 이벤트)
+    const PROJECT_CARDS = [
+      // --- [녹색 기반시설 & 생산력 카드] ---
+      { id: "c_01", color: "green", name: "소행성 광산", cost: 13, vp: 1, tags: ["space"], prod: { titanium: 2 }, desc: "티타늄 생산력 +2" },
+      { id: "c_02", color: "green", name: "티타늄 광산", cost: 7, vp: 0, tags: ["building"], prod: { titanium: 1 }, desc: "티타늄 생산력 +1" },
+      { id: "c_03", color: "green", name: "건자재 공장", cost: 6, vp: 0, tags: ["building"], prod: { steel: 1 }, desc: "강철 생산력 +1" },
+      { id: "c_04", color: "green", name: "노천 광산", cost: 23, vp: 2, tags: ["building"], reqProd: { energy: 2 }, prod: { energy: -2, mc: 4, steel: 1 }, desc: "[전력생산-2] M€생산+4, 강철생산+1" },
+      { id: "c_05", color: "green", name: "대규모 채굴장", cost: 25, vp: 0, tags: ["building"], reqProd: { energy: 2 }, prod: { energy: -2, steel: 2, titanium: 1 }, raiseOxy: 2, desc: "[전력생산-2] 강철생산+2, 티타늄생산+1, 산소+2%" },
+      { id: "c_06", color: "green", name: "지열 발전소", cost: 11, vp: 0, tags: ["power", "building"], prod: { energy: 2 }, desc: "전력 생산력 +2" },
+      { id: "c_07", color: "green", name: "태양광 발전소", cost: 11, vp: 1, tags: ["power", "building"], prod: { energy: 1 }, desc: "전력 생산력 +1" },
+      { id: "c_08", color: "green", name: "핵융합 발전", cost: 14, vp: 0, tags: ["power", "building", "science"], reqTags: { power: 2 }, prod: { energy: 3 }, desc: "[전력태그 2+] 전력 생산력 +3" },
+      { id: "c_09", color: "green", name: "거대 우주 거울", cost: 17, vp: 0, tags: ["power", "space"], prod: { energy: 3 }, desc: "전력 생산력 +3" },
+      { id: "c_10", color: "green", name: "심층 우물 난방", cost: 13, vp: 0, tags: ["power", "building"], prod: { energy: 1 }, raiseTemp: 1, desc: "전력 생산력 +1 & 기온 +2°C" },
+      { id: "c_11", color: "green", name: "모홀 지역", cost: 20, vp: 0, tags: ["building"], prod: { heat: 4 }, placeSpecialOnOcean: "모홀", desc: "해양 구역 위에 특수 타일 배치 & 열 생산력 +4!" },
+      { id: "c_12", color: "green", name: "탄산염 공정", cost: 6, vp: 0, tags: ["building"], reqProd: { energy: 1 }, prod: { energy: -1, heat: 3 }, desc: "[전력생산-1] 열 생산력 +3" },
+      { id: "c_13", color: "green", name: "온실 단지", cost: 6, vp: 0, tags: ["plant", "building"], resPlantsPerCity: true, desc: "화성 위 모든 도시 1개당 식물 +1개 즉시 획득" },
+      { id: "c_14", color: "green", name: "지의류 (Lichen)", cost: 7, vp: 0, tags: ["plant"], reqTempMin: -24, prod: { plants: 1 }, desc: "[기온 -24°C 이상] 식물 생산력 +1" },
+      { id: "c_15", color: "green", name: "적응형 지의류", cost: 9, vp: 0, tags: ["plant"], prod: { plants: 1 }, desc: "조건 없이 식물 생산력 +1" },
+      { id: "c_16", color: "green", name: "덤불 (Bushes)", cost: 10, vp: 0, tags: ["plant"], reqTempMin: -10, prod: { plants: 2 }, res: { plants: 2 }, desc: "[기온 -10°C 이상] 식물 생산력 +2, 식물 +2" },
+      { id: "c_17", color: "green", name: "잔디밭 (Grass)", cost: 11, vp: 0, tags: ["plant"], reqTempMin: -16, prod: { plants: 1 }, res: { plants: 3 }, desc: "[기온 -16°C 이상] 식물 생산력 +1, 식물 +3" },
+      { id: "c_18", color: "green", name: "삼림 조성 (Trees)", cost: 13, vp: 1, tags: ["plant"], reqTempMin: -4, prod: { plants: 3 }, res: { plants: 1 }, desc: "[기온 -4°C 이상] 식물 생산력 +3, 식물 +1" },
+      { id: "c_19", color: "green", name: "해초 양식 (Kelp Farming)", cost: 17, vp: 1, tags: ["plant"], reqOceansMin: 6, prod: { mc: 2, plants: 3 }, res: { plants: 2 }, desc: "[해양 6개 이상] M€생산+2, 식물생산+3, 식물+2" },
+      { id: "c_20", color: "green", name: "조류 (Algae)", cost: 10, vp: 0, tags: ["plant"], reqOceansMin: 5, prod: { plants: 2 }, res: { plants: 1 }, desc: "[해양 5개 이상] 식물 생산력 +2, 식물 +1" },
+      { id: "c_21", color: "green", name: "툰드라 농경", cost: 16, vp: 2, tags: ["plant"], reqTempMin: -6, prod: { mc: 2, plants: 1 }, res: { plants: 1 }, desc: "[기온 -6°C 이상] M€생산+2, 식물생산+1, 식물+1" },
+      { id: "c_22", color: "green", name: "녹티스 시티", cost: 18, vp: 0, tags: ["city", "building"], reqProd: { energy: 1 }, prod: { energy: -1, mc: 3 }, placeNoctis: true, desc: "[전력생산-1] M€생산+3 & 녹티스 구역(또는 일반칸) 도시 배치" },
+      { id: "c_23", color: "green", name: "개방형 도시 (Open City)", cost: 23, vp: 1, tags: ["city", "building"], reqOxyMin: 12, reqProd: { energy: 1 }, prod: { energy: -1, mc: 4 }, res: { plants: 2 }, placeCity: 1, desc: "[산소 12%+, 전력생산-1] M€생산+4, 식물+2 & 도시 배치" },
+      { id: "c_24", color: "green", name: "쿠폴라 시티", cost: 16, vp: 0, tags: ["city", "building"], reqOxyMax: 9, reqProd: { energy: 1 }, prod: { energy: -1, mc: 3 }, placeCity: 1, desc: "[산소 9% 이하, 전력생산-1] M€생산+3 & 도시 배치" },
+      { id: "c_25", color: "green", name: "돔 시티 (Domed Crater)", cost: 24, vp: 1, tags: ["city", "building"], reqOxyMax: 7, reqProd: { energy: 1 }, prod: { energy: -1, mc: 3 }, res: { plants: 3 }, placeCity: 1, desc: "[산소 7% 이하, 전력생산-1] M€생산+3, 식물+3 & 도시 배치" },
+      { id: "c_26", color: "green", name: "지하 도시", cost: 18, vp: 0, tags: ["city", "building"], reqProd: { energy: 2 }, prod: { energy: -2, steel: 2 }, placeCity: 1, desc: "[전력생산-2] 강철생산+2 & 도시 타일 배치" },
+      { id: "c_27", color: "green", name: "포보스 우주 기지", cost: 25, vp: 3, tags: ["city", "space"], prod: { titanium: 1 }, placeOffworld: "phobos", desc: "티타늄 생산력 +1 & 포보스 궤도 도시 배치 (+3점)" },
+      { id: "c_28", color: "green", name: "가니메데 식민지", cost: 20, vp: 0, tags: ["city", "space", "jovian"], vpPerTag: "jovian", placeOffworld: "ganymede", desc: "가니메데 도시 배치 & 보유 목성 태그당 +1점!" },
+      { id: "c_29", color: "green", name: "이오 채굴 산업", cost: 41, vp: 0, tags: ["space", "jovian"], vpPerTag: "jovian", prod: { titanium: 2, mc: 2 }, desc: "티타늄생산+2, M€생산+2 & 보유 목성 태그당 +1점!" },
+      { id: "c_30", color: "green", name: "테라포밍 가니메데", cost: 33, vp: 2, tags: ["space", "jovian"], trPerTag: "jovian", desc: "이 카드를 포함한 내 목성 태그 1개당 TR +1 즉시 상승!" },
+      { id: "c_31", color: "green", name: "달 광산 빔", cost: 13, vp: 0, tags: ["earth", "power"], prod: { mc: -2, heat: 2, energy: 2 }, desc: "M€생산-2, 열생산+2, 전력생산+2" },
+      { id: "c_32", color: "green", name: "스폰서십 후원", cost: 6, vp: 0, tags: ["earth"], prod: { mc: 2 }, desc: "M€ 생산력 +2" },
+      { id: "c_33", color: "green", name: "취득 기업 합병", cost: 10, vp: 0, tags: ["earth"], prod: { mc: 3 }, desc: "M€ 생산력 +3" },
+      { id: "c_34", color: "green", name: "카르텔 무역망", cost: 8, vp: 0, tags: ["earth"], mcProdPerTag: "earth", desc: "이 카드를 포함한 내 지구 태그 1개당 M€ 생산력 +1" },
+      { id: "c_35", color: "green", name: "인공 호수", cost: 15, vp: 1, tags: ["building"], reqTempMin: -6, placeOceanOnLand: true, desc: "[기온 -6°C 이상] 일반 육지 구역에 해양 타일 1개 배치!" },
+      { id: "c_36", color: "green", name: "맹그로브 숲", cost: 12, vp: 1, tags: ["plant"], reqTempMin: 4, placeGreeneryOnOcean: true, desc: "[기온 +4°C 이상] 해양 전용 구역에 녹지 타일 배치!" },
+      { id: "c_37", color: "green", name: "보호 계곡", cost: 23, vp: 0, tags: ["plant", "building"], prod: { mc: 2 }, placeGreeneryOnOcean: true, desc: "M€ 생산력 +2 & 해양 구역에 녹지 타일 배치" },
+      { id: "c_38", color: "green", name: "농장 단지 (Farming)", cost: 16, vp: 2, tags: ["plant"], reqTempMin: 4, prod: { mc: 2, plants: 2 }, res: { plants: 2 }, desc: "[기온 +4°C 이상] M€생산+2, 식물생산+2, 식물+2" },
+
+      // --- [파란색 지속 할인 / 패시브 / 액티브 토큰 카드] ---
+      { id: "c_39", color: "blue", name: "지구 캐터펄트", cost: 23, vp: 2, tags: ["earth"], discountAll: 2, desc: "[지속] 앞으로 모든 카드 사용 비용이 -2 M€ 할인됩니다!" },
+      { id: "c_40", color: "blue", name: "연구 전초기지", cost: 18, vp: 1, tags: ["science", "city", "building"], discountAll: 1, placeCityIsolated: true, desc: "[지속] 모든 카드 -1 M€ 할인 & 다른 타일과 인접하지 않은 곳에 도시 배치" },
+      { id: "c_41", color: "blue", name: "우주 정거장", cost: 10, vp: 1, tags: ["space"], discountTag: { space: 2 }, desc: "[지속] 우주 태그 카드 비용 -2 M€ 할인" },
+      { id: "c_42", color: "blue", name: "양자 추출기", cost: 13, vp: 0, tags: ["science", "power"], reqTags: { science: 4 }, prod: { energy: 4 }, discountTag: { space: 2 }, desc: "[과학태그 4+] 전력생산+4 & 우주 카드 -2 M€ 할인" },
+      { id: "c_43", color: "blue", name: "반중력 기술", cost: 14, vp: 3, tags: ["science"], reqTags: { science: 7 }, discountAll: 2, desc: "[과학태그 7+] 모든 카드 비용 -2 M€ 할인 & +3점!" },
+      { id: "c_44", color: "blue", name: "화성 대학교", cost: 8, vp: 1, tags: ["science", "building"], passiveScienceDraw: true, desc: "[지속] 과학 태그가 달린 카드를 낼 때마다 카드 1장 무료 드로우!" },
+      { id: "c_45", color: "blue", name: "올림푸스 학술회의", cost: 10, vp: 1, tags: ["science", "earth", "building"], passiveScienceDraw: true, desc: "[지속] 과학 태그 카드를 낼 때마다 연구 성과로 카드 1장 드로우!" },
+      { id: "c_46", color: "blue", name: "표준 기술 연구", cost: 6, vp: 0, tags: ["science"], stdProjectRebate: 3, desc: "[지속] 표준 프로젝트(특허 매각 제외) 실행 시마다 +3 M€ 즉시 환급!" },
+      { id: "c_47", color: "blue", name: "최적 공기제동", cost: 7, vp: 0, tags: ["space"], spaceEventRebate: true, desc: "[지속] 우주 이벤트(빨간색+우주) 발동 시마다 +3 M€ & 열 +3개 추가 획득!" },
+      { id: "c_48", color: "blue", name: "AI 센트럴", cost: 21, vp: 1, tags: ["science", "building"], reqTags: { science: 3 }, prod: { energy: -1 }, reqProd: { energy: 1 }, blueAction: "draw2", desc: "[과학3+, 전력생산-1] 액션: 매 세대 공짜로 카드 2장 뽑기!" },
+      { id: "c_49", color: "blue", name: "개발 센터", cost: 11, vp: 0, tags: ["science", "building"], blueAction: "energy_to_card", desc: "[액션] 전력 1개 소비 → 카드 1장 뽑기" },
+      { id: "c_50", color: "blue", name: "대수층 펌핑", cost: 18, vp: 0, tags: ["building"], blueAction: "pump_ocean", desc: "[액션] 8 M€(강철 사용 가능!) 지불 → 해양 타일 1개 배치" },
+      { id: "c_51", color: "blue", name: "유로파 식수 수입", cost: 12, vp: 0, tags: ["jovian", "space"], vpPerTag: "jovian", blueAction: "europa_ocean", desc: "[액션] 12 M€(티타늄 가능!) → 해양 배치 · 목성 태그당 +1점" },
+      { id: "c_52", color: "blue", name: "제철소 (Steelworks)", cost: 15, vp: 0, tags: ["building"], blueAction: "steelworks", desc: "[액션] 전력 4개 소비 → 강철 +2개 획득 & 산소 +1% 상승!" },
+      { id: "c_53", color: "blue", name: "온실가스 박테리아", cost: 8, vp: 0, tags: ["microbe", "science"], tokenType: "microbe", blueAction: "ghg_microbe", desc: "[액션] 미생물+1 적재 또는 미생물 2개 소모해 기온 +2°C 상승!" },
+      { id: "c_54", color: "blue", name: "산소 생성 박테리아", cost: 13, vp: 0, tags: ["microbe", "science"], tokenType: "microbe", blueAction: "oxy_microbe", desc: "[액션] 미생물+1 적재 또는 미생물 3개 소모해 산소 +1% 상승!" },
+      { id: "c_55", color: "blue", name: "조류 번식지 (Birds)", cost: 10, vp: 0, tags: ["animal"], reqOxyMin: 13, tokenType: "animal", vpPerToken: 1, blueAction: "add_token", desc: "[산소 13% 이상] 액션: 매 세대 동물 토큰 +1 적재 (개당 +1점!)" },
+      { id: "c_56", color: "blue", name: "어류 방류 (Fish)", cost: 9, vp: 0, tags: ["animal"], reqTempMin: 2, tokenType: "animal", vpPerToken: 1, blueAction: "add_token", desc: "[기온 +2°C 이상] 액션: 매 세대 동물 토큰 +1 적재 (개당 +1점!)" },
+      { id: "c_57", color: "blue", name: "생태 보호 구역", cost: 12, vp: 0, tags: ["animal", "plant"], reqGreeneryAny: true, tokenType: "animal", vpPerToken: 0.5, passiveBioToken: true, placeSpecialAdjGreenery: "생태구역", desc: "녹지 인접 특수타일 배치 · 식물/동물 태그 낼 때마다 동물 토큰+1 (2개당 1점)" },
+      { id: "c_58", color: "blue", name: "물리학 연구 단지", cost: 12, vp: 0, tags: ["science", "building"], tokenType: "science_res", vpPerToken: 2, blueAction: "physics_complex", desc: "[액션] 전력 6개 소비 → 과학 토큰 +1 적재 (토큰 1개당 무려 +2점!)" },
+
+      // --- [빨간색 일회성 이벤트 카드] ---
+      { id: "c_59", color: "red", name: "거대 얼음 소행성", cost: 36, vp: 0, tags: ["space", "event"], raiseTemp: 2, placeOcean: 2, desc: "기온 2단계(+4°C) 상승 & 해양 타일 2개 연속 배치!" },
+      { id: "c_60", color: "red", name: "데이모스 추락!", cost: 31, vp: 0, tags: ["space", "event"], raiseTemp: 3, res: { steel: 4 }, desc: "기온 3단계(+6°C) 폭등 & 강철 +4개 획득!" },
+      { id: "c_61", color: "red", name: "얼음 소행성 견인", cost: 23, vp: 0, tags: ["space", "event"], placeOcean: 2, desc: "해양 타일 2개 연속 배치!" },
+      { id: "c_62", color: "red", name: "혜성 충돌 (Comet)", cost: 21, vp: 0, tags: ["space", "event"], raiseTemp: 1, placeOcean: 1, desc: "기온 +2°C 상승 & 해양 타일 1개 배치" },
+      { id: "c_63", color: "red", name: "소행성 낙하", cost: 14, vp: 0, tags: ["space", "event"], raiseTemp: 1, res: { titanium: 2 }, desc: "기온 +2°C 상승 & 티타늄 +2개 획득" },
+      { id: "c_64", color: "red", name: "대형 호송선단", cost: 36, vp: 2, tags: ["earth", "space", "event"], placeOcean: 1, res: { cards: 2, plants: 5 }, desc: "해양 1개 배치 + 카드 2장 드로우 + 식물 5개 획득!" },
+      { id: "c_65", color: "red", name: "질소 부화 소행성", cost: 31, vp: 0, tags: ["space", "event"], gainTr: 2, raiseTemp: 1, prodPlantBoost: true, desc: "TR +2, 기온 +2°C & 식물 생산력 +1 (식물태그 3개면 +4!)" },
+      { id: "c_66", color: "red", name: "수입 수소", cost: 16, vp: 0, tags: ["earth", "space", "event"], placeOcean: 1, res: { plants: 3 }, desc: "해양 타일 1개 배치 & 식물 +3개 획득" },
+      { id: "c_67", color: "red", name: "지하 핵실험", cost: 10, vp: -2, tags: ["earth", "event"], raiseTemp: 2, placeSpecialLand: "핵실험지", desc: "육지에 핵실험 타일 배치 & 저렴하게 기온 2단계(+4°C) 상승! (-2점)" },
+      { id: "c_68", color: "red", name: "용암 분출", cost: 18, vp: 0, tags: ["event"], raiseTemp: 2, placeSpecialLand: "용암류", desc: "용암류 타일 배치 & 기온 2단계(+4°C) 상승" },
+      { id: "c_69", color: "red", name: "기술 시연회", cost: 5, vp: 0, tags: ["science", "space", "event"], res: { cards: 2 }, desc: "카드 2장 즉시 뽑기" },
+      { id: "c_70", color: "red", name: "정부 보조금", cost: 0, vp: -2, tags: ["event"], res: { mc: 14 }, desc: "비용 0 M€ → 즉시 현금 +14 M€ 대출 수령! (종료 -2점)" }
+    ];
+
+    // =========================================================
+    // 5. 게임 상태 관리 · 설정 모달 · 초기 드래프트 & 연구 구매 엔진
+    // =========================================================
+    let G = {};
+    let configMode = "solo";           // "solo"(공식 타임어택 솔로) | "automa"(오토마 1:1 대결)
+    let configAutomaDiff = "normal";   // "easy" | "normal" | "hard"
+    let configUsePrelude = true;       // 《서곡》 확장 포함 여부
+    let configMapId = "tharsis";       // "tharsis" | "hellas" | "elysium"
+    let configCorpPick = "all";        // "draft3"(무작위 3개 기업 후보) | "all"(연습용 전체 기업 자유 선택)
+
+    let draftCfgMode = "solo";
+    let draftCfgDiff = "normal";
+    let draftCfgPrelude = true;
+    let draftCfgMap = "tharsis";
+    let draftCfgCorpPick = "all";
+
+    let coachOn = true;
+    let mobileBoardTab = "map";
+    let mobileHandCollapsed = false;
+
+    // 드래프트/연구/특허매각 모달 상태
+    let draftState = null;
+    // 복합 결제 모달 상태
+    let payState = null;
+
+    const AUTOMA_DIFFS = {
+      easy: { id: "easy", name: "초급", stepBonus: 0, vpPerGen: 1, desc: "입문용 — 라이벌이 천천히 타일을 놓으며 업적 압박이 완만합니다." },
+      normal: { id: "normal", name: "표준", stepBonus: 1, vpPerGen: 2, desc: "표준 — 실제 2인플 템포로 글로벌 지표·땅따먹기·업적을 경쟁합니다." },
+      hard: { id: "hard", name: "숙련", stepBonus: 2, vpPerGen: 3, desc: "고수용 — 매 세대 빠르게 녹지·도시를 확장하며 고득점을 노립니다." }
+    };
+
+    function shuffleList(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function pushToast(msg, isError = false) {
+      const area = document.getElementById("toastArea");
+      if (!area) return;
+      const el = document.createElement("div");
+      el.className = `px-3.5 py-2 rounded-xl border text-xs font-semibold shadow-2xl ${
+        isError
+          ? "bg-[#2c1218]/95 border-rose-500/50 text-rose-200"
+          : "bg-[#141c2b]/95 border-orange-400/50 text-slate-100"
+      }`;
+      el.textContent = msg;
+      area.appendChild(el);
+      setTimeout(() => {
+        el.style.opacity = "0";
+        el.style.transition = "opacity 0.25s ease";
+        setTimeout(() => el.remove(), 260);
+      }, 2400);
+    }
+
+    function pushLog(msg) {
+      if (!G.logs) return;
+      G.logs.unshift(`[${G.gen}세대] ${msg}`);
+      if (G.logs.length > 80) G.logs.pop();
+    }
+
+    function toggleCoach() {
+      coachOn = !coachOn;
+      sfx("card");
+      renderGame();
+    }
+
+    function getMapDef() {
+      return MARS_MAPS[G.mapId] || MARS_MAPS.tharsis;
+    }
+
+    function initEmptyHexBoard(mapId) {
+      const mapDef = MARS_MAPS[mapId] || MARS_MAPS.tharsis;
+      const coords = generateBase61Coords();
+      const hexes = {};
+      coords.forEach(c => {
+        hexes[c.id] = {
+          id: c.id,
+          q: c.q,
+          r: c.r,
+          isOceanSpace: mapDef.oceans.has(c.id),
+          special: mapDef.specials[c.id] || null,
+          bonus: mapDef.bonuses[c.id] ? { ...mapDef.bonuses[c.id] } : null,
+          tile: null // { kind: "ocean"|"greenery"|"city"|"special", owner: "player"|"rival"|"neutral", label?: string }
+        };
+      });
+      return hexes;
+    }
+
+    // 공식 1인 솔로 세팅: 시작 전 중립 도시 2개와 인접 중립 녹지 2개를 배치 (산소 농도는 올리지 않음!)
+    function placeOfficialSoloNeutralTiles() {
+      const allLand = Object.values(G.hexes).filter(h => !h.isOceanSpace && (!h.special || h.special.kind !== "noctis"));
+      const shuffled = shuffleList(allLand);
+      let placedCities = 0;
+
+      for (const h of shuffled) {
+        if (placedCities >= 2) break;
+        if (h.tile) continue;
+        const adjCity = getNeighborIds(h.q, h.r).some(nid => G.hexes[nid]?.tile?.kind === "city");
+        if (adjCity) continue;
+
+        h.tile = { kind: "city", owner: "neutral", label: "중립도시" };
+        placedCities += 1;
+
+        const adjCands = shuffleList(getNeighborIds(h.q, h.r))
+          .map(nid => G.hexes[nid])
+          .filter(nh => nh && !nh.tile && !nh.isOceanSpace && (!nh.special || nh.special.kind !== "noctis"));
+        if (adjCands.length > 0) {
+          adjCands[0].tile = { kind: "greenery", owner: "neutral", label: "중립녹지" };
+        }
+      }
+    }
+
+    function startNewMarsGame() {
+      const isSolo = configMode === "solo";
+      const maxGen = isSolo ? (configUsePrelude ? 12 : 14) : 99;
+      const deckPool = shuffleList(PROJECT_CARDS.map(c => ({ ...c, tokens: 0, actionUsed: false })));
+      const preludePool = shuffleList(PRELUDE_CARDS.map(p => ({ ...p })));
+
+      G = {
+        mode: configMode,
+        automaDiff: configAutomaDiff,
+        usePrelude: configUsePrelude,
+        mapId: configMapId,
+        gen: 1,
+        maxGen,
+        phase: "setup", // "setup" | "research" | "action" | "ended"
+        ended: false,
+
+        // 3대 글로벌 파라미터
+        temp: -30,   // -30°C ~ +8°C (2°C 스텝)
+        oxy: 0,      // 0% ~ 14%
+        oceans: 0,   // 0 ~ 9개
+
+        hexes: initEmptyHexBoard(configMapId),
+        offworld: {
+          phobos: null,   // null | "player" | "rival"
+          ganymede: null
+        },
+
+        // 플레이어 상태
+        corp: CORPORATIONS[0],
+        tr: isSolo ? 14 : 20,
+        trRaisedThisGen: false,
+        corpActionUsed: false,
+        firstActionPendingCity: false,
+
+        res: { mc: 42, steel: 0, titanium: 0, plants: 0, energy: 0, heat: 0 },
+        prod: { mc: 0, steel: 0, titanium: 0, plants: 0, energy: 0, heat: 0 },
+        tags: { building: 0, space: 0, science: 0, plant: 0, microbe: 0, animal: 0, power: 0, earth: 0, jovian: 0, city: 0, event: 0 },
+
+        deck: deckPool.slice(10),
+        initialOffer: deckPool.slice(0, 10),
+        preludeOffer: preludePool.slice(0, 4),
+        hand: [],
+        played: [],      // 발동 완료된 녹색/파란색/이벤트 카드
+        discard: [],
+
+        // 타일 배치 대기열 (연속 해양 2개, 서곡 타일 배치 등을 순차 처리)
+        tileQueue: [],
+        afterTileFinishAction: false,
+
+        // 업적(선착 3개) & 기업상(개설 3개) — 오토마 1:1 대결 모드에서 활성화
+        claimedMilestones: {}, // { milestoneId: "player" | "rival" }
+        fundedAwards: {},      // { awardId: "player" | "rival" }
+
+        // 라이벌 오토마 상태 (1:1 대결 모드용)
+        playerPassed: false,
+        rivalPassed: isSolo,
+        actionsTakenInTurn: 0,
+        rival: {
+          tr: 20,
+          bonusVp: 0,
+          cityCount: 0,
+          greeneryCount: 0,
+          totalTiles: 0,
+          southTiles: 0,
+          southHalfTiles: 0,
+          oceanAdjTiles: 0,
+          greenCardCount: 0,
+          blueCardCount: 0,
+          eventCardCount: 0,
+          expensiveCardCount: 0,
+          handCount: 5,
+          res: { mc: 35, steel: 2, titanium: 1, plants: 2, energy: 2, heat: 3 },
+          prod: { mc: 2, steel: 1, titanium: 1, plants: 1, energy: 1, heat: 2 },
+          tags: { building: 1, space: 1, science: 1, plant: 1, power: 1, earth: 1, jovian: 0, microbe: 0, animal: 0, city: 0, event: 0 },
+          actionsLeftThisGen: 4,
+          lastSub: "화성 궤도 진입 완료",
+          lastTitle: "초기 프로젝트 수립 대기 중"
+        },
+
+        logs: [
+          `[초기화] ${MARS_MAPS[configMapId].name} · ${isSolo ? `공식 솔로(${maxGen}세대 타임어택)` : `오토마 1:1 대결(${AUTOMA_DIFFS[configAutomaDiff].name})`}${configUsePrelude ? " + 《서곡》 확장" : " (기본판)"}`
+        ]
+      };
+
+      if (isSolo) {
+        placeOfficialSoloNeutralTiles();
+      }
+
+      document.getElementById("summaryModalOverlay").classList.add("hidden");
+      document.getElementById("payModalOverlay").classList.add("hidden");
+      document.getElementById("settingsModalOverlay").classList.add("hidden");
+      document.getElementById("infoModalOverlay").classList.add("hidden");
+
+      openInitialDraftModal();
+      renderGame();
+    }
+
+    // ---------------------------------------------------------
+    // 초기 브리핑(기업+서곡+10장) & 연구 단계(4장 구매) & 특허 매각 모달
+    // ---------------------------------------------------------
+    function openInitialDraftModal() {
+      const corpCandidates = configCorpPick === "all"
+        ? CORPORATIONS
+        : [CORPORATIONS[0], ...shuffleList(CORPORATIONS.slice(1)).slice(0, 2)];
+
+      draftState = {
+        mode: "setup",
+        corpCandidates,
+        selectedCorpId: corpCandidates[0].id,
+        preludeCandidates: G.usePrelude ? G.preludeOffer : [],
+        selectedPreludeIds: G.usePrelude ? [G.preludeOffer[0].id, G.preludeOffer[1].id] : [],
+        cardCandidates: G.initialOffer,
+        selectedCardIds: corpCandidates[0].freeInitialCards ? G.initialOffer.map(c => c.id) : []
+      };
+      renderDraftModal();
+      document.getElementById("draftModalOverlay").classList.remove("hidden");
+    }
+
+    function openResearchDraftModal() {
+      const drawn = [];
+      for (let i = 0; i < 4; i++) {
+        const c = drawOneCardRaw();
+        if (c) drawn.push(c);
+      }
+      G.phase = "research";
+      draftState = {
+        mode: "research",
+        corpCandidates: [],
+        selectedCorpId: G.corp.id,
+        preludeCandidates: [],
+        selectedPreludeIds: [],
+        cardCandidates: drawn,
+        selectedCardIds: []
+      };
+      renderDraftModal();
+      document.getElementById("draftModalOverlay").classList.remove("hidden");
+    }
+
+    function onOpenSellPatents() {
+      if (G.phase !== "action" || G.playerPassed || G.tileQueue.length > 0) return;
+      if (G.hand.length === 0) {
+        pushToast("매각할 손패 카드가 없습니다.", true);
+        return;
+      }
+      draftState = {
+        mode: "sell",
+        corpCandidates: [],
+        selectedCorpId: G.corp.id,
+        preludeCandidates: [],
+        selectedPreludeIds: [],
+        cardCandidates: [...G.hand],
+        selectedCardIds: []
+      };
+      renderDraftModal();
+      document.getElementById("draftModalOverlay").classList.remove("hidden");
+    }
+
+    function closeDraftModalIfSell() {
+      if (draftState && draftState.mode === "sell") {
+        draftState = null;
+        document.getElementById("draftModalOverlay").classList.add("hidden");
+      }
+    }
+
+    function selectDraftCorp(corpId) {
+      if (!draftState || draftState.mode !== "setup") return;
+      const prevCorp = CORPORATIONS.find(c => c.id === draftState.selectedCorpId);
+      sfx("card");
+      draftState.selectedCorpId = corpId;
+      const corp = CORPORATIONS.find(c => c.id === corpId);
+      if (corp?.freeInitialCards) {
+        draftState.selectedCardIds = draftState.cardCandidates.map(c => c.id);
+      } else {
+        // 초보 입문 기업(10장 전량 무료)에서 일반 기업으로 전환 시 자동 전체 선택을 해제하고, 예산 한도를 초과한 카드는 정리
+        if (prevCorp?.freeInitialCards) {
+          draftState.selectedCardIds = [];
+        }
+        while (corp && draftState.selectedCardIds.length * 3 > corp.mc) {
+          draftState.selectedCardIds.pop();
+        }
+      }
+      renderDraftModal();
+    }
+
+    function toggleDraftPrelude(preId) {
+      if (!draftState || draftState.mode !== "setup") return;
+      sfx("card");
+      const idx = draftState.selectedPreludeIds.indexOf(preId);
+      if (idx >= 0) {
+        draftState.selectedPreludeIds.splice(idx, 1);
+      } else {
+        if (draftState.selectedPreludeIds.length >= 2) {
+          draftState.selectedPreludeIds.shift();
+        }
+        draftState.selectedPreludeIds.push(preId);
+      }
+      renderDraftModal();
+    }
+
+    function toggleDraftCard(cardId) {
+      if (!draftState) return;
+      const selCorp = CORPORATIONS.find(c => c.id === draftState.selectedCorpId);
+      if (draftState.mode === "setup" && selCorp?.freeInitialCards) {
+        pushToast("초보 입문 기업은 초기 카드 10장을 전량 무료로 가져갑니다!");
+        return;
+      }
+      sfx("card");
+      const idx = draftState.selectedCardIds.indexOf(cardId);
+      if (idx >= 0) {
+        draftState.selectedCardIds.splice(idx, 1);
+      } else {
+        const unitCost = 3;
+        const maxBudget = draftState.mode === "setup"
+          ? selCorp.mc
+          : draftState.mode === "research"
+          ? G.res.mc + (G.corp.heatAsMc ? G.res.heat : 0)
+          : 999;
+        if (draftState.mode !== "sell" && (draftState.selectedCardIds.length + 1) * unitCost > maxBudget) {
+          pushToast("보유 메가크레딧(M€)을 초과하여 카드를 구매할 수 없습니다!", true);
+          return;
+        }
+        draftState.selectedCardIds.push(cardId);
+      }
+      renderDraftModal();
+    }
+
+    function renderCardTagBadges(tags) {
+      if (!tags || tags.length === 0) return "";
+      return tags.map(t => `<span title="${TAG_LABELS[t] || t}">${iconSvg(`tag_${t}`, 15)}</span>`).join("");
+    }
+
+    function renderDraftModal() {
+      if (!draftState) return;
+      const isSetup = draftState.mode === "setup";
+      const isSell = draftState.mode === "sell";
+
+      const titleEl = document.getElementById("draftModalTitle");
+      const subEl = document.getElementById("draftModalSub");
+      const sumEl = document.getElementById("draftCostSummary");
+      const corpSec = document.getElementById("draftCorpSection");
+      const preSec = document.getElementById("draftPreludeSection");
+      const cancelBtn = document.getElementById("btnCancelDraftModal");
+      const confirmBtn = document.getElementById("btnConfirmDraft");
+      const cardsHdr = document.getElementById("draftCardsHeader");
+
+      cancelBtn.classList.toggle("hidden", !isSell);
+
+      if (isSetup) {
+        const selCorp = CORPORATIONS.find(c => c.id === draftState.selectedCorpId) || CORPORATIONS[0];
+        const cardCost = selCorp.freeInitialCards ? 0 : draftState.selectedCardIds.length * 3;
+        const remainMc = selCorp.mc - cardCost;
+
+        titleEl.textContent = "화성 테라포밍 초기 브리핑 (1세대 준비)";
+        subEl.textContent = "기업을 선택하고, 초기 10장 중 손패로 가져갈 카드를 고르세요. (무리하게 많이 사기보다 당장 쓸 핵심 카드 2~5장 선택 추천!)";
+        sumEl.textContent = `시작 자금 ${selCorp.mc} M€ - 카드 구매 ${cardCost} M€ = 잔여 ${remainMc} M€`;
+
+        corpSec.classList.remove("hidden");
+        document.getElementById("draftCorpGrid").innerHTML = draftState.corpCandidates.map(cp => {
+          const active = cp.id === draftState.selectedCorpId;
+          return `
+            <button onclick="selectDraftCorp('${cp.id}')" class="p-3 rounded-xl border text-left space-y-1 transition cursor-pointer ${
+              active ? "bg-[#1a2940] border-sky-400 shadow-md" : "bg-[#121722] border-white/10 hover:bg-[#192131]"
+            }">
+              <div class="flex items-center justify-between gap-2">
+                <span class="font-extrabold text-xs sm:text-sm ${active ? "text-sky-200" : "text-slate-100"}">${cp.name}</span>
+                <div class="flex items-center gap-1">${renderCardTagBadges(cp.tags)}<span class="px-1.5 py-0.5 rounded bg-amber-950/90 border border-amber-400/40 text-amber-300 text-xs font-bold">${cp.mc} M€</span></div>
+              </div>
+              <div class="text-xs text-slate-300">${cp.desc}</div>
+              <div class="text-xs text-emerald-300 font-medium">${cp.effectDesc}</div>
+            </button>
+          `;
+        }).join("");
+
+        if (G.usePrelude) {
+          preSec.classList.remove("hidden");
+          document.getElementById("draftPreludeGrid").innerHTML = draftState.preludeCandidates.map(pr => {
+            const active = draftState.selectedPreludeIds.includes(pr.id);
+            return `
+              <button onclick="toggleDraftPrelude('${pr.id}')" class="p-2.5 rounded-xl border text-left space-y-1 transition cursor-pointer ${
+                active ? "bg-[#2b1629] border-pink-400 shadow-md" : "bg-[#121722] border-white/10 hover:bg-[#1b2232]"
+              }">
+                <div class="flex items-center justify-between">
+                  <span class="font-extrabold text-xs sm:text-sm ${active ? "text-pink-200" : "text-slate-200"}">${pr.name}</span>
+                  <div class="flex items-center gap-1">${renderCardTagBadges(pr.tags)}<span class="text-xs font-bold ${active ? "text-pink-300" : "text-slate-500"}">${active ? "선택됨" : "무료"}</span></div>
+                </div>
+                <div class="text-xs text-slate-300">${pr.desc}</div>
+              </button>
+            `;
+          }).join("");
+        } else {
+          preSec.classList.add("hidden");
+        }
+
+        cardsHdr.textContent = selCorp.freeInitialCards
+          ? "초기 프로젝트 카드 10장 (초보 입문 기업 혜택: 10장 전량 0 M€ 무료 수령!)"
+          : `초기 프로젝트 카드 10장 중 구매 선택 (${draftState.selectedCardIds.length}장 선택 · 장당 3 M€)`;
+        confirmBtn.textContent = G.usePrelude && draftState.selectedPreludeIds.length !== 2
+          ? "서곡 카드 2장을 선택해 주세요"
+          : `브리핑 확정 및 1세대 작전 개시 (잔여 ${remainMc} M€)`;
+        confirmBtn.disabled = (G.usePrelude && draftState.selectedPreludeIds.length !== 2) || remainMc < 0;
+      } else if (isSell) {
+        corpSec.classList.add("hidden");
+        preSec.classList.add("hidden");
+        const gainMc = draftState.selectedCardIds.length;
+        titleEl.textContent = "특허 매각 (표준 프로젝트)";
+        subEl.textContent = "손패에서 필요 없는 카드를 버리고 장당 +1 M€를 즉시 확보합니다.";
+        sumEl.textContent = `매각 ${draftState.selectedCardIds.length}장 → +${gainMc} M€ 수령`;
+        cardsHdr.textContent = `매각할 손패 카드를 터치하세요 (${draftState.selectedCardIds.length}장 선택됨)`;
+        confirmBtn.textContent = draftState.selectedCardIds.length > 0 ? `${draftState.selectedCardIds.length}장 매각 (+${gainMc} M€)` : "매각할 카드를 선택하세요";
+        confirmBtn.disabled = draftState.selectedCardIds.length === 0;
+      } else {
+        corpSec.classList.add("hidden");
+        preSec.classList.add("hidden");
+        const buyCost = draftState.selectedCardIds.length * 3;
+        const availPool = G.res.mc + (G.corp.heatAsMc ? G.res.heat : 0);
+        titleEl.textContent = `${G.gen}세대 연구 단계 (카드 구매)`;
+        subEl.textContent = "새로 뽑은 4장의 프로젝트 카드 중 손패로 가져올 카드를 선택하세요 (장당 3 M€, 0장 구매도 가능).";
+        sumEl.textContent = `구매 비용 ${buyCost} M€ (가용 ${availPool} M€)`;
+        cardsHdr.textContent = `이번 세대 연구 카드 4장 (${draftState.selectedCardIds.length}장 선택 · 장당 3 M€)`;
+        confirmBtn.textContent = `${draftState.selectedCardIds.length}장 구매 확정 (-${buyCost} M€) & 행동 시작`;
+        confirmBtn.disabled = buyCost > availPool;
+      }
+
+      document.getElementById("draftCardsGrid").innerHTML = draftState.cardCandidates.map(c => {
+        const picked = draftState.selectedCardIds.includes(c.id);
+        const topBar = c.color === "green" ? "bg-emerald-500" : c.color === "blue" ? "bg-sky-500" : "bg-rose-500";
+        return `
+          <button onclick="toggleDraftCard('${c.id}')" class="p-2.5 rounded-xl border text-left flex flex-col justify-between gap-1.5 relative overflow-hidden transition cursor-pointer ${
+            picked ? "bg-[#251f13] border-amber-400 shadow-md" : "bg-[#121722] border-white/10 hover:bg-[#192131]"
+          }">
+            <div class="absolute top-0 left-0 right-0 h-1 ${topBar}"></div>
+            <div class="flex items-center justify-between gap-1 pt-0.5">
+              <span class="px-1.5 py-0.5 rounded bg-black/50 border border-white/10 text-xs font-extrabold text-amber-300">발동비용 ${c.cost}</span>
+              <div class="flex items-center gap-1">${renderCardTagBadges(c.tags)}</div>
+            </div>
+            <div>
+              <div class="font-extrabold text-xs sm:text-sm text-slate-100">${c.name}</div>
+              <div class="text-xs text-slate-300 mt-0.5 leading-snug">${c.desc}</div>
+            </div>
+            <div class="flex items-center justify-between border-t border-white/10 pt-1 text-xs">
+              <span class="${c.vp ? "text-amber-300 font-bold" : "text-slate-500"}">${c.vp ? `종료 ${c.vp > 0 ? `+${c.vp}` : c.vp}점` : (c.vpPerTag || c.vpPerToken ? "조건부 승점" : "기반 카드")}</span>
+              <span class="font-extrabold ${picked ? "text-amber-300" : "text-slate-400"}">${
+                isSell ? (picked ? "매각 선택 (+1 M€)" : "보유 유지") : (picked ? "구매 선택됨" : "패스 (버림)")
+              }</span>
+            </div>
+          </button>
+        `;
+      }).join("");
+    }
+
+    function payMcOrHelionHeat(amount) {
+      if (amount <= 0) return;
+      if (G.res.mc >= amount) {
+        G.res.mc -= amount;
+      } else if (G.corp.heatAsMc) {
+        const rem = amount - G.res.mc;
+        G.res.mc = 0;
+        G.res.heat = Math.max(0, G.res.heat - rem);
+      }
+    }
+
+    function confirmDraftSelection() {
+      if (!draftState) return;
+      sfx("coin");
+
+      if (draftState.mode === "setup") {
+        const corp = CORPORATIONS.find(c => c.id === draftState.selectedCorpId) || CORPORATIONS[0];
+        if (G.usePrelude && draftState.selectedPreludeIds.length !== 2) return;
+
+        const cardCost = corp.freeInitialCards ? 0 : draftState.selectedCardIds.length * 3;
+        if (cardCost > corp.mc) return;
+
+        G.corp = corp;
+        G.res.mc = corp.mc - cardCost;
+        if (corp.res) {
+          Object.entries(corp.res).forEach(([k, v]) => {
+            if (k === "cards") drawPlayerCards(v);
+            else G.res[k] = (G.res[k] || 0) + v;
+          });
+        }
+        if (corp.prod) {
+          Object.entries(corp.prod).forEach(([k, v]) => { G.prod[k] += v; });
+        }
+        if (corp.tags) {
+          corp.tags.forEach(t => {
+            G.tags[t] = (G.tags[t] || 0) + 1;
+          });
+        }
+
+        // 선택된 초기 카드 손패 이동, 미선택 카드 버림 더미로 이동
+        draftState.cardCandidates.forEach(c => {
+          if (draftState.selectedCardIds.includes(c.id)) G.hand.push(c);
+          else G.discard.push(c);
+        });
+
+        G.phase = "action";
+        document.getElementById("draftModalOverlay").classList.add("hidden");
+
+        // 서곡 카드 2장 무료 즉시 발동!
+        if (G.usePrelude) {
+          draftState.selectedPreludeIds.forEach(pid => {
+            const pr = draftState.preludeCandidates.find(x => x.id === pid);
+            if (pr) applyPreludeCard(pr);
+          });
+        }
+
+        // 타르시스 공화국 첫 행동 무료 도시 배치 큐 등록
+        if (corp.firstActionCity) {
+          pushLog("[타르시스 공화국] 기업 시작 특전: 무료 도시 타일 1개를 배치하세요!");
+          queueTilePlacement("city", "player", { label: "타르시스 첫 도시" });
+        }
+
+        draftState = null;
+        pushLog(`[${corp.name}] 출범 완료! (초기 손패 ${G.hand.length}장 · 자금 ${G.res.mc} M€)`);
+        renderGame();
+      } else if (draftState.mode === "research") {
+        const buyCost = draftState.selectedCardIds.length * 3;
+        payMcOrHelionHeat(buyCost);
+        draftState.cardCandidates.forEach(c => {
+          if (draftState.selectedCardIds.includes(c.id)) G.hand.push(c);
+          else G.discard.push(c);
+        });
+        const boughtCnt = draftState.selectedCardIds.length;
+        draftState = null;
+        G.phase = "action";
+        document.getElementById("draftModalOverlay").classList.add("hidden");
+        pushLog(`연구 단계: 카드 ${boughtCnt}장 구매 (-${buyCost} M€) → 행동 단계 개시!`);
+        renderGame();
+      } else if (draftState.mode === "sell") {
+        const cnt = draftState.selectedCardIds.length;
+        if (cnt <= 0) return;
+        const soldSet = new Set(draftState.selectedCardIds);
+        const kept = [];
+        G.hand.forEach(c => {
+          if (soldSet.has(c.id)) G.discard.push(c);
+          else kept.push(c);
+        });
+        G.hand = kept;
+        draftState = null;
+        document.getElementById("draftModalOverlay").classList.add("hidden");
+        gainPlayerRes({ mc: cnt });
+        pushLog(`[특허 매각] 카드 ${cnt}장 처분 → +${cnt} M€ 확보`);
+        finishPlayerAction();
+      }
+    }
+
+    function applyPreludeCard(pr) {
+      if (pr.tags) {
+        pr.tags.forEach(t => {
+          G.tags[t] = (G.tags[t] || 0) + 1;
+          if (t === "jovian" && G.corp.id === "saturn") G.prod.mc += 1;
+          if (t === "earth" && G.corp.id === "point_luna") drawPlayerCards(1);
+        });
+      }
+      if (pr.prod) {
+        Object.entries(pr.prod).forEach(([k, v]) => { G.prod[k] += v; });
+      }
+      if (pr.res) {
+        Object.entries(pr.res).forEach(([k, v]) => {
+          if (k === "cards") drawPlayerCards(v);
+          else gainPlayerRes({ [k]: v });
+        });
+      }
+      if (pr.raiseTemp) raiseTemperature(pr.raiseTemp, "player");
+      if (pr.placeOcean) {
+        for (let i = 0; i < pr.placeOcean; i++) queueTilePlacement("ocean", "player", { label: `서곡: ${pr.name}` });
+      }
+      if (pr.placeGreenery) {
+        for (let i = 0; i < pr.placeGreenery; i++) queueTilePlacement("greenery", "player", { label: `서곡: ${pr.name}` });
+      }
+      if (pr.placeCity) {
+        for (let i = 0; i < pr.placeCity; i++) queueTilePlacement("city", "player", { label: `서곡: ${pr.name}` });
+      }
+      pushLog(`[서곡 발동] ${pr.name} (${pr.desc})`);
+    }
+
+    // =========================================================
+    // 6. 자원·드로우·글로벌 파라미터 연쇄 & 61헥스 타일 배치 엔진
+    // =========================================================
+    function drawOneCardRaw() {
+      if (G.deck.length === 0 && G.discard.length > 0) {
+        G.deck = shuffleList(G.discard);
+        G.discard = [];
+      }
+      return G.deck.length > 0 ? G.deck.shift() : null;
+    }
+
+    function drawPlayerCards(cnt, srcEl = null) {
+      for (let i = 0; i < cnt; i++) {
+        const c = drawOneCardRaw();
+        if (c) {
+          G.hand.push(c);
+          pushToast(`카드 드로우: [${c.name}]`);
+        }
+      }
+      if (cnt > 0 && srcEl) spawnResourceOrb("mc", srcEl);
+    }
+
+    function gainPlayerRes(obj, srcEl = null) {
+      if (!obj) return;
+      Object.entries(obj).forEach(([k, v]) => {
+        if (v > 0) {
+          G.res[k] = (G.res[k] || 0) + v;
+          spawnResourceOrb(k, srcEl);
+        }
+      });
+    }
+
+    function gainPlayerTr(steps = 1) {
+      if (steps <= 0) return;
+      G.tr += steps;
+      G.trRaisedThisGen = true;
+    }
+
+    // 기온 상승 및 공식 임계점 보너스 (-24°C 열생산+1, -20°C 열생산+1, 0°C 무료 해양 배치!)
+    function raiseTemperature(steps, who = "player") {
+      for (let i = 0; i < steps; i++) {
+        if (G.temp >= 8) break;
+        G.temp += 2;
+        sfx("param");
+        if (who === "player") {
+          gainPlayerTr(1);
+          pushLog(`기온 상승 → ${G.temp > 0 ? `+${G.temp}` : G.temp}°C 달성! (내 TR +1)`);
+          if (G.temp === -24 || G.temp === -20) {
+            G.prod.heat += 1;
+            pushLog(`[임계점 보너스] 기온 ${G.temp}°C 돌파 → 내 열 생산력 +1!`);
+            pushToast(`기온 ${G.temp}°C 보너스: 열 생산력 +1!`);
+          } else if (G.temp === 0) {
+            pushLog(`[임계점 보너스] 기온 0°C 해빙점 돌파 → 해양 타일 1개 무료 배치!`);
+            pushToast(`기온 0°C 달성 보너스: 무료 해양 배치!`);
+            queueTilePlacement("ocean", "player", { label: "0°C 해빙 보너스 해양" });
+          }
+        } else {
+          G.rival.tr += 1;
+          pushLog(`[라이벌] 기온 상승 → ${G.temp > 0 ? `+${G.temp}` : G.temp}°C (라이벌 TR +1)`);
+          if (G.temp === 0 && G.oceans < 9) {
+            placeRivalTileAuto("ocean");
+          }
+        }
+      }
+    }
+
+    // 산소 농도 상승 및 공식 임계점 보너스 (8% 도달 시 기온 +2°C 연쇄 상승!)
+    function raiseOxygen(steps, who = "player") {
+      for (let i = 0; i < steps; i++) {
+        if (G.oxy >= 14) break;
+        G.oxy += 1;
+        sfx("param");
+        if (who === "player") {
+          gainPlayerTr(1);
+          pushLog(`산소 농도 상승 → ${G.oxy}% 달성! (내 TR +1)`);
+          if (G.oxy === 8) {
+            pushLog(`[임계점 연쇄 보너스] 산소 8% 달성 → 기온 +2°C 무료 상승 발동!`);
+            pushToast(`산소 8% 보너스: 기온 +2°C 연쇄 상승!`);
+            raiseTemperature(1, "player");
+          }
+        } else {
+          G.rival.tr += 1;
+          pushLog(`[라이벌] 산소 농도 상승 → ${G.oxy}% (라이벌 TR +1)`);
+          if (G.oxy === 8) raiseTemperature(1, "rival");
+        }
+      }
+    }
+
+    // 타일 배치 유효 육각 칸 판별 엔진
+    function getValidHexIdsForPlacement(req) {
+      const availCash = req.owner === "player"
+        ? G.res.mc + (G.corp?.heatAsMc ? G.res.heat : 0)
+        : 999;
+      // 헬라스 남극점(-6 M€ 해양 보너스) 공식 규칙: 배치 비용을 지불할 수 없으면 해당 칸에 타일을 놓을 수 없음
+      const canAffordHex = h => !h.bonus?.oceanTriggerCost || availCash >= h.bonus.oceanTriggerCost;
+      const all = Object.values(G.hexes).filter(canAffordHex);
+      const isFreeNonNoctisLand = h => !h.tile && !h.isOceanSpace && (!h.special || h.special.kind !== "noctis");
+
+      if (req.kind === "ocean") {
+        if (G.oceans >= 9) return [];
+        return all.filter(h => !h.tile && h.isOceanSpace).map(h => h.id);
+      }
+      if (req.kind === "ocean_land") {
+        if (G.oceans >= 9) return [];
+        return all.filter(isFreeNonNoctisLand).map(h => h.id);
+      }
+      if (req.kind === "special_ocean") {
+        return all.filter(h => !h.tile && h.isOceanSpace).map(h => h.id);
+      }
+      if (req.kind === "greenery_ocean") {
+        return all.filter(h => !h.tile && h.isOceanSpace).map(h => h.id);
+      }
+      if (req.kind === "greenery") {
+        // 공식 녹지 규칙: 내 소유 타일이 화성에 있고 그 옆에 빈 육지가 있다면 반드시 인접 구역에 놓아야 함!
+        const freeLand = all.filter(isFreeNonNoctisLand);
+        const myHexes = all.filter(h => h.tile && h.tile.owner === req.owner);
+        if (myHexes.length > 0) {
+          const adjToMine = freeLand.filter(h =>
+            getNeighborIds(h.q, h.r).some(nid => G.hexes[nid]?.tile?.owner === req.owner)
+          );
+          if (adjToMine.length > 0) return adjToMine.map(h => h.id);
+        }
+        return freeLand.map(h => h.id);
+      }
+      if (req.kind === "noctis") {
+        if (G.hexes["h_-2_0"] && G.hexes["h_-2_0"].special?.kind === "noctis" && !G.hexes["h_-2_0"].tile) {
+          return ["h_-2_0"];
+        }
+        return getValidHexIdsForPlacement({ kind: "city", owner: req.owner });
+      }
+      if (req.kind === "city") {
+        // 공식 도시 규칙: 다른 어떤 도시와도 인접할 수 없음!
+        const nonAdjCities = all.filter(h =>
+          isFreeNonNoctisLand(h) &&
+          !getNeighborIds(h.q, h.r).some(nid => G.hexes[nid]?.tile?.kind === "city")
+        );
+        return nonAdjCities.length > 0 ? nonAdjCities.map(h => h.id) : all.filter(isFreeNonNoctisLand).map(h => h.id);
+      }
+      if (req.kind === "city_isolated") {
+        // 연구 전초기지: 다른 어떤 타일과도 인접하지 않은 육지 칸
+        const isolated = all.filter(h =>
+          isFreeNonNoctisLand(h) &&
+          !getNeighborIds(h.q, h.r).some(nid => !!G.hexes[nid]?.tile)
+        );
+        return isolated.length > 0 ? isolated.map(h => h.id) : getValidHexIdsForPlacement({ kind: "city", owner: req.owner });
+      }
+      if (req.kind === "special_greenery_adj") {
+        const adjGreen = all.filter(h =>
+          isFreeNonNoctisLand(h) &&
+          getNeighborIds(h.q, h.r).some(nid => G.hexes[nid]?.tile?.kind === "greenery")
+        );
+        return adjGreen.length > 0 ? adjGreen.map(h => h.id) : all.filter(isFreeNonNoctisLand).map(h => h.id);
+      }
+      // 일반 육지 특수 타일 (핵실험지, 용암류 등)
+      return all.filter(isFreeNonNoctisLand).map(h => h.id);
+    }
+
+    function queueTilePlacement(kind, owner = "player", opts = {}) {
+      if ((kind === "ocean" || kind === "ocean_land") && G.oceans >= 9) {
+        pushLog("[해양 포화] 이미 해양 타일 9개가 모두 배치되어 추가 해양 배치는 생략됩니다.");
+        return;
+      }
+      const req = { kind, owner, label: opts.label || "", cancellable: !!opts.cancellable, onCancelRefund: opts.onCancelRefund || null };
+      const validIds = getValidHexIdsForPlacement(req);
+      if (validIds.length === 0) return;
+
+      G.tileQueue.push(req);
+      mobileBoardTab = "map"; // 모바일에서 타일 배치 시 자동으로 화성 맵 탭으로 이동!
+    }
+
+    function cancelPendingTilePlacement() {
+      const cur = G.tileQueue[0];
+      if (!cur || !cur.cancellable) {
+        pushToast("이미 발동된 카드/보너스 타일 배치는 취소할 수 없습니다. 빛나는 칸을 터치하세요!", true);
+        return;
+      }
+      G.tileQueue.shift();
+      if (cur.onCancelRefund) cur.onCancelRefund();
+      G.afterTileFinishAction = false;
+      renderGame();
+    }
+
+    function onAnyCityPlacedOnMars(cityOwner) {
+      if (G.corp.id === "tharsis_rep") {
+        G.prod.mc += 1;
+        if (cityOwner === "player") {
+          gainPlayerRes({ mc: 3 });
+          pushLog("[타르시스 공화국 패시브] 내 도시 건설 → M€ 생산력 +1 & +3 M€ 캐시백!");
+        } else {
+          pushLog("[타르시스 공화국 패시브] 화성에 신규 도시 건설됨 → 내 M€ 생산력 +1!");
+        }
+      }
+    }
+
+    function onClickMarsHex(hexId) {
+      if (G.tileQueue.length === 0 || G.ended) return;
+      const req = G.tileQueue[0];
+      const validIds = getValidHexIdsForPlacement(req);
+      if (!validIds.includes(hexId)) return;
+
+      const hex = G.hexes[hexId];
+      if (!hex) return;
+
+      G.tileQueue.shift();
+      sfx("tile");
+
+      // 실제 타일 종류 정규화 저장
+      const actualKind = (req.kind === "ocean" || req.kind === "ocean_land")
+        ? "ocean"
+        : (req.kind === "greenery" || req.kind === "greenery_ocean")
+        ? "greenery"
+        : (req.kind === "city" || req.kind === "noctis" || req.kind === "city_isolated")
+        ? "city"
+        : "special";
+
+      hex.tile = {
+        kind: actualKind,
+        owner: actualKind === "ocean" ? "ocean" : "player",
+        label: req.label || ""
+      };
+
+      // 1) 인접 해양 타일 캐시백 (+2 M€ / 인접 해양)
+      const adjOceans = getNeighborIds(hex.q, hex.r).filter(nid => G.hexes[nid]?.tile?.kind === "ocean").length;
+      if (adjOceans > 0) {
+        const cash = adjOceans * 2;
+        gainPlayerRes({ mc: cash });
+        pushLog(`[해양 인접 보너스] 인접 해양 ${adjOceans}곳 → +${cash} M€ 즉시 획득!`);
+        pushToast(`해양 인접 캐시백 +${cash} M€!`);
+      }
+
+      // 2) 칸 고유 지형 배치 보너스 지급
+      if (hex.bonus) {
+        if (hex.bonus.steel) gainPlayerRes({ steel: hex.bonus.steel });
+        if (hex.bonus.titanium) gainPlayerRes({ titanium: hex.bonus.titanium });
+        if (hex.bonus.plants) gainPlayerRes({ plants: hex.bonus.plants });
+        if (hex.bonus.heat) gainPlayerRes({ heat: hex.bonus.heat });
+        if (hex.bonus.cards) drawPlayerCards(hex.bonus.cards);
+        // 헬라스 남극점 특수 구역: 6 M€(헬리온은 열 포함) 지불 후 해양 1개 보너스 배치
+        if (hex.bonus.oceanTriggerCost) {
+          const avail = G.res.mc + (G.corp.heatAsMc ? G.res.heat : 0);
+          if (avail >= hex.bonus.oceanTriggerCost) {
+            payMcOrHelionHeat(hex.bonus.oceanTriggerCost);
+            if (G.oceans < 9) {
+              pushLog(`[헬라스 남극점] 6 M€ 지불 → 남극 해빙 해양 타일 1개 보너스 배치!`);
+              queueTilePlacement("ocean", "player", { label: "남극점 해양" });
+            } else {
+              pushLog(`[헬라스 남극점] 6 M€ 배치 비용 지불 완료 (해양 포화 상태)`);
+            }
+          }
+        }
+      }
+
+      // 3) 타일 종류별 글로벌 효과 발동
+      if (actualKind === "ocean") {
+        G.oceans = Math.min(9, G.oceans + 1);
+        gainPlayerTr(1);
+        pushLog(`해양 타일 배치 완료 (${G.oceans}/9) → 내 TR +1!`);
+      } else if (actualKind === "greenery") {
+        pushLog(`녹지 타일 배치 완료!`);
+        raiseOxygen(1, "player");
+      } else if (actualKind === "city") {
+        pushLog(`도시 타일 배치 완료!`);
+        onAnyCityPlacedOnMars("player");
+      } else {
+        pushLog(`특수 타일 [${req.label || "시설"}] 배치 완료!`);
+      }
+
+      if (G.tileQueue.length === 0 && G.afterTileFinishAction) {
+        G.afterTileFinishAction = false;
+        finishPlayerAction();
+      } else {
+        renderGame();
+      }
+    }
+
+    // =========================================================
+    // 7. 프로젝트 카드 요구 조건 · 할인 · 복합 결제 · 효과 엔진
+    // =========================================================
+    function getCardEffectiveCost(card) {
+      let disc = 0;
+      G.played.forEach(pc => {
+        if (pc.discountAll) disc += pc.discountAll;
+        if (pc.discountTag && card.tags) {
+          Object.entries(pc.discountTag).forEach(([tg, val]) => {
+            if (card.tags.includes(tg)) disc += val;
+          });
+        }
+      });
+      return Math.max(0, card.cost - disc);
+    }
+
+    function getTitaniumUnitValue() {
+      return 3 + (G.corp.titaniumExtraVal || 0);
+    }
+
+    function checkCardRequirement(card) {
+      if (card.reqTempMin !== undefined && G.temp < card.reqTempMin) {
+        return { ok: false, reason: `기온 ${card.reqTempMin > 0 ? `+${card.reqTempMin}` : card.reqTempMin}°C↑ 필요` };
+      }
+      if (card.reqOxyMin !== undefined && G.oxy < card.reqOxyMin) {
+        return { ok: false, reason: `산소 ${card.reqOxyMin}%↑ 필요` };
+      }
+      if (card.reqOxyMax !== undefined && G.oxy > card.reqOxyMax) {
+        return { ok: false, reason: `산소 ${card.reqOxyMax}%↓ 제한 초과` };
+      }
+      if (card.reqOceansMin !== undefined && G.oceans < card.reqOceansMin) {
+        return { ok: false, reason: `해양 ${card.reqOceansMin}개↑ 필요` };
+      }
+      if (card.reqTags) {
+        for (const [tg, cnt] of Object.entries(card.reqTags)) {
+          if ((G.tags[tg] || 0) < cnt) {
+            return { ok: false, reason: `${TAG_LABELS[tg]} 태그 ${cnt}개 필요` };
+          }
+        }
+      }
+      if (card.reqProd) {
+        for (const [rk, cnt] of Object.entries(card.reqProd)) {
+          if ((G.prod[rk] || 0) < cnt) {
+            return { ok: false, reason: `전력 생산력 ${cnt} 필요` };
+          }
+        }
+      }
+      if (card.reqGreeneryAny) {
+        const anyG = Object.values(G.hexes).some(h => h.tile?.kind === "greenery");
+        if (!anyG) return { ok: false, reason: "화성에 녹지 1개↑ 필요" };
+      }
+      if (card.placeOffworld && G.offworld[card.placeOffworld]) {
+        return { ok: false, reason: "해당 궤도 도시 이미 건설됨" };
+      }
+      return { ok: true, reason: "" };
+    }
+
+    function getMaxPurchasingPowerForCard(card) {
+      const canSteel = card.tags?.includes("building");
+      const canTi = card.tags?.includes("space");
+      let total = G.res.mc;
+      if (canSteel) total += G.res.steel * 2;
+      if (canTi) total += G.res.titanium * getTitaniumUnitValue();
+      if (G.corp.heatAsMc) total += G.res.heat;
+      return total;
+    }
+
+    function onClickHandCard(idx) {
+      if (G.phase !== "action" || G.playerPassed || G.ended) return;
+      if (G.tileQueue.length > 0) {
+        pushToast("먼저 화성 맵에 대기 중인 타일을 배치해 주세요!", true);
+        return;
+      }
+      const card = G.hand[idx];
+      if (!card) return;
+
+      const req = checkCardRequirement(card);
+      if (!req.ok) {
+        pushToast(`[발동 불가] ${req.reason}`, true);
+        return;
+      }
+
+      const effCost = getCardEffectiveCost(card);
+      if (getMaxPurchasingPowerForCard(card) < effCost) {
+        pushToast(`비용(${effCost} M€ 상당)이 부족합니다.`, true);
+        return;
+      }
+
+      const canSteel = card.tags?.includes("building") && G.res.steel > 0;
+      const canTi = card.tags?.includes("space") && G.res.titanium > 0;
+      const canHeat = G.corp.heatAsMc && G.res.heat > 0;
+
+      // 복합 지불 수단(강철/티타늄/헬리온 열)이 있고 비용이 0보다 크면 스마트 복합 결제 팝업 오픈!
+      if (effCost > 0 && (canSteel || canTi || (canHeat && G.res.mc < effCost))) {
+        openHybridPayModal(idx, card, effCost);
+      } else {
+        G.res.mc -= effCost;
+        executePlayHandCard(idx, effCost, `${effCost} M€`);
+      }
+    }
+
+    function openHybridPayModal(handIdx, card, effCost) {
+      const canSteel = card.tags?.includes("building");
+      const canTi = card.tags?.includes("space");
+      const tiVal = getTitaniumUnitValue();
+
+      // 잔돈 손해가 없도록 자동 최적 배분 초기값 산출
+      let rem = effCost;
+      let useTi = canTi ? Math.min(G.res.titanium, Math.floor(rem / tiVal)) : 0;
+      rem -= useTi * tiVal;
+      let useSteel = canSteel ? Math.min(G.res.steel, Math.floor(rem / 2)) : 0;
+      rem -= useSteel * 2;
+
+      // 만약 M€(+열)가 모자라면 티타늄/강철 1개 더 투입해 커버
+      const availCash = G.res.mc + (G.corp.heatAsMc ? G.res.heat : 0);
+      if (rem > availCash) {
+        if (canSteel && useSteel < G.res.steel) { useSteel += 1; rem = Math.max(0, rem - 2); }
+        if (rem > availCash && canTi && useTi < G.res.titanium) { useTi += 1; rem = Math.max(0, rem - tiVal); }
+      }
+
+      let useHeat = 0;
+      let useMc = Math.min(G.res.mc, rem);
+      if (rem > useMc && G.corp.heatAsMc) {
+        useHeat = Math.min(G.res.heat, rem - useMc);
+      }
+
+      payState = { handIdx, card, effCost, canSteel, canTi, tiVal, useSteel, useTi, useHeat };
+      renderHybridPayModal();
+      document.getElementById("payModalOverlay").classList.remove("hidden");
+    }
+
+    function adjustPayToken(kind, delta) {
+      if (!payState) return;
+      sfx("card");
+      if (kind === "steel") {
+        payState.useSteel = Math.max(0, Math.min(G.res.steel, payState.useSteel + delta));
+      } else if (kind === "titanium") {
+        payState.useTi = Math.max(0, Math.min(G.res.titanium, payState.useTi + delta));
+      } else if (kind === "heat") {
+        payState.useHeat = Math.max(0, Math.min(G.res.heat, payState.useHeat + delta));
+      }
+      renderHybridPayModal();
+    }
+
+    function renderHybridPayModal() {
+      if (!payState) return;
+      const { card, effCost, canSteel, canTi, tiVal, useSteel, useTi, useHeat } = payState;
+      document.getElementById("payCardTitle").textContent = `[${card.name}] 복합 결제`;
+      document.getElementById("payCardCostBadge").textContent =
+        effCost < card.cost ? `할인 적용 비용: ${effCost} M€ (원래 ${card.cost} M€)` : `필요 비용: ${effCost} M€`;
+
+      const coveredByMetals = useSteel * 2 + useTi * tiVal + useHeat;
+      const neededMc = Math.max(0, effCost - coveredByMetals);
+      const valid = neededMc <= G.res.mc;
+      const overpay = Math.max(0, (coveredByMetals + neededMc) - effCost);
+
+      const rows = [];
+      if (canSteel) {
+        rows.push(`
+          <div class="flex items-center justify-between bg-[#141b29] p-2.5 rounded-xl border border-white/10">
+            <div class="flex items-center gap-2">${iconSvg("steel", 18)}<span>강철 사용 (개당 2 M€ · 보유 ${G.res.steel})</span></div>
+            <div class="flex items-center gap-2">
+              <button onclick="adjustPayToken('steel', -1)" class="w-7 h-7 rounded-lg bg-slate-800 font-bold text-slate-200 cursor-pointer">-</button>
+              <span class="w-6 text-center font-extrabold text-orange-300">${useSteel}</span>
+              <button onclick="adjustPayToken('steel', 1)" class="w-7 h-7 rounded-lg bg-slate-800 font-bold text-slate-200 cursor-pointer">+</button>
+            </div>
+          </div>
+        `);
+      }
+      if (canTi) {
+        rows.push(`
+          <div class="flex items-center justify-between bg-[#141b29] p-2.5 rounded-xl border border-white/10">
+            <div class="flex items-center gap-2">${iconSvg("titanium", 18)}<span>티타늄 사용 (개당 ${tiVal} M€ · 보유 ${G.res.titanium})</span></div>
+            <div class="flex items-center gap-2">
+              <button onclick="adjustPayToken('titanium', -1)" class="w-7 h-7 rounded-lg bg-slate-800 font-bold text-slate-200 cursor-pointer">-</button>
+              <span class="w-6 text-center font-extrabold text-slate-100">${useTi}</span>
+              <button onclick="adjustPayToken('titanium', 1)" class="w-7 h-7 rounded-lg bg-slate-800 font-bold text-slate-200 cursor-pointer">+</button>
+            </div>
+          </div>
+        `);
+      }
+      if (G.corp.heatAsMc && G.res.heat > 0) {
+        rows.push(`
+          <div class="flex items-center justify-between bg-[#141b29] p-2.5 rounded-xl border border-white/10">
+            <div class="flex items-center gap-2">${iconSvg("heat", 18)}<span>헬리온 열 사용 (개당 1 M€ · 보유 ${G.res.heat})</span></div>
+            <div class="flex items-center gap-2">
+              <button onclick="adjustPayToken('heat', -1)" class="w-7 h-7 rounded-lg bg-slate-800 font-bold text-slate-200 cursor-pointer">-</button>
+              <span class="w-6 text-center font-extrabold text-rose-300">${useHeat}</span>
+              <button onclick="adjustPayToken('heat', 1)" class="w-7 h-7 rounded-lg bg-slate-800 font-bold text-slate-200 cursor-pointer">+</button>
+            </div>
+          </div>
+        `);
+      }
+      document.getElementById("payControlsBox").innerHTML = rows.join("");
+
+      document.getElementById("paySummaryText").innerHTML = `
+        <div class="flex justify-between"><span>현금 M€ 지불액 (보유 ${G.res.mc} M€)</span><strong class="${valid ? "text-amber-300" : "text-rose-400"}">${neededMc} M€</strong></div>
+        ${overpay > 0 ? `<div class="text-amber-300 mt-1">안내: 광물 가치 초과분(${overpay} M€)은 거스름돈이 반환되지 않습니다 (공식 규칙).</div>` : ""}
+      `;
+      const btn = document.getElementById("btnConfirmPayCard");
+      btn.disabled = !valid;
+      btn.className = `w-full py-3 rounded-xl font-extrabold text-sm ${
+        valid ? "bg-orange-500 hover:bg-orange-400 text-slate-950 cursor-pointer" : "bg-slate-800 text-slate-500 cursor-not-allowed"
+      }`;
+    }
+
+    function closePayModal() {
+      payState = null;
+      document.getElementById("payModalOverlay").classList.add("hidden");
+    }
+
+    function confirmHybridCardPlay() {
+      if (!payState) return;
+      const { handIdx, effCost, tiVal, useSteel, useTi, useHeat } = payState;
+      const covered = useSteel * 2 + useTi * tiVal + useHeat;
+      const neededMc = Math.max(0, effCost - covered);
+      if (neededMc > G.res.mc) return;
+
+      G.res.steel -= useSteel;
+      G.res.titanium -= useTi;
+      G.res.heat -= useHeat;
+      G.res.mc -= neededMc;
+
+      const parts = [];
+      if (neededMc > 0) parts.push(`${neededMc} M€`);
+      if (useSteel > 0) parts.push(`강철 ${useSteel}`);
+      if (useTi > 0) parts.push(`티타늄 ${useTi}`);
+      if (useHeat > 0) parts.push(`열 ${useHeat}`);
+
+      closePayModal();
+      executePlayHandCard(handIdx, effCost, parts.join("+") || "0 M€");
+    }
+
+    function executePlayHandCard(handIdx, paidCost, payLabel) {
+      const card = G.hand.splice(handIdx, 1)[0];
+      if (!card) return;
+      sfx("card");
+      G.played.push(card);
+
+      // 1) 태그 등록 (주의: 빨간색 이벤트 카드는 공식 규칙대로 발동 순간에만 적용되고 지속 보유 태그 카운트에는 남지 않음!)
+      const isEvent = card.color === "red";
+      if (!isEvent && card.tags) {
+        card.tags.forEach(t => {
+          G.tags[t] = (G.tags[t] || 0) + 1;
+        });
+      } else if (isEvent) {
+        G.tags.event = (G.tags.event || 0) + 1;
+      }
+
+      // 2) 기업 & 기존 파란색 카드 패시브 시너지 발동!
+      if (G.corp.id === "credicor" && card.cost >= 20) {
+        gainPlayerRes({ mc: 4 });
+        pushLog("[크레디코르 패시브] 20 M€ 이상 프로젝트 진행 → +4 M€ 환급!");
+      }
+      if (isEvent && G.corp.id === "interplanetary") {
+        gainPlayerRes({ mc: 2 });
+        pushLog("[인터플래네터리 패시브] 이벤트 중계 수익 → +2 M€ 획득!");
+      }
+      if (card.tags?.includes("earth") && G.corp.id === "point_luna") {
+        drawPlayerCards(1);
+        pushLog("[포인트 루나 패시브] 지구 태그 발동 → 카드 1장 무료 드로우!");
+      }
+      if (!isEvent && card.tags?.includes("jovian") && G.corp.id === "saturn") {
+        const jCnt = card.tags.filter(t => t === "jovian").length;
+        G.prod.mc += jCnt;
+        pushLog(`[새턴 시스템즈 패시브] 목성 태그 추가 → M€ 생산력 +${jCnt}!`);
+      }
+
+      // 과학 태그 드로우 패시브 (화성 대학교 / 올림푸스 학술회의)
+      if (card.tags?.includes("science")) {
+        const sciDraws = G.played.filter(pc => pc.id !== card.id && pc.passiveScienceDraw).length + (card.passiveScienceDraw ? 1 : 0);
+        if (sciDraws > 0) {
+          drawPlayerCards(sciDraws);
+          pushLog(`[과학 연구 시너지] 과학 태그 발동으로 카드 ${sciDraws}장 무료 드로우!`);
+        }
+      }
+      // 우주 이벤트 리베이트 (최적 공기제동)
+      if (isEvent && card.tags?.includes("space")) {
+        const aeroCnt = G.played.filter(pc => pc.spaceEventRebate).length;
+        if (aeroCnt > 0) {
+          gainPlayerRes({ mc: 3 * aeroCnt, heat: 3 * aeroCnt });
+          pushLog(`[최적 공기제동] 우주 이벤트 보너스 → +${3 * aeroCnt} M€, 열 +${3 * aeroCnt}!`);
+        }
+      }
+      // 생태 보호 구역 토큰 적재 패시브
+      if (card.tags && (card.tags.includes("plant") || card.tags.includes("animal"))) {
+        const ecoCard = G.played.find(pc => pc.passiveBioToken);
+        if (ecoCard) {
+          ecoCard.tokens = (ecoCard.tokens || 0) + 1;
+          pushLog(`[생태 보호 구역] 생물 태그 시너지로 동물 토큰 +1 적재! (누적 ${ecoCard.tokens}개)`);
+        }
+      }
+
+      // 3) 카드 고유 효과 실행
+      if (card.prod) {
+        Object.entries(card.prod).forEach(([k, v]) => { G.prod[k] += v; });
+      }
+      if (card.mcProdPerTag) {
+        const cnt = G.tags[card.mcProdPerTag] || 0;
+        G.prod.mc += cnt;
+      }
+      if (card.prodPlantBoost) {
+        const boost = (G.tags.plant || 0) >= 3 ? 4 : 1;
+        G.prod.plants += boost;
+      }
+      if (card.res) {
+        Object.entries(card.res).forEach(([k, v]) => {
+          if (k === "cards") drawPlayerCards(v);
+          else gainPlayerRes({ [k]: v });
+        });
+      }
+      if (card.resPlantsPerCity) {
+        const citiesOnMars = Object.values(G.hexes).filter(h => h.tile?.kind === "city").length +
+          (G.offworld.phobos ? 1 : 0) + (G.offworld.ganymede ? 1 : 0);
+        if (citiesOnMars > 0) gainPlayerRes({ plants: citiesOnMars });
+      }
+      if (card.gainTr) gainPlayerTr(card.gainTr);
+      if (card.trPerTag) {
+        const cnt = G.tags[card.trPerTag] || 0;
+        if (cnt > 0) gainPlayerTr(cnt);
+      }
+      if (card.raiseTemp) raiseTemperature(card.raiseTemp, "player");
+      if (card.raiseOxy) raiseOxygen(card.raiseOxy, "player");
+
+      if (card.placeOffworld) {
+        G.offworld[card.placeOffworld] = "player";
+        onAnyCityPlacedOnMars("player");
+        pushLog(`[궤도 도시] ${card.name} 건설 완료!`);
+      }
+      if (card.placeOcean) {
+        for (let i = 0; i < card.placeOcean; i++) queueTilePlacement("ocean", "player", { label: card.name });
+      }
+      if (card.placeOceanOnLand) queueTilePlacement("ocean_land", "player", { label: card.name });
+      if (card.placeGreeneryOnOcean) queueTilePlacement("greenery_ocean", "player", { label: card.name });
+      if (card.placeCity) {
+        for (let i = 0; i < card.placeCity; i++) queueTilePlacement("city", "player", { label: card.name });
+      }
+      if (card.placeNoctis) queueTilePlacement("noctis", "player", { label: "녹티스 시티" });
+      if (card.placeCityIsolated) queueTilePlacement("city_isolated", "player", { label: "연구 전초기지" });
+      if (card.placeSpecialOnOcean) queueTilePlacement("special_ocean", "player", { label: card.placeSpecialOnOcean });
+      if (card.placeSpecialLand) queueTilePlacement("special_land", "player", { label: card.placeSpecialLand });
+      if (card.placeSpecialAdjGreenery) queueTilePlacement("special_greenery_adj", "player", { label: card.placeSpecialAdjGreenery });
+
+      pushLog(`카드 발동: [${card.name}] (지불: ${payLabel})`);
+
+      if (G.tileQueue.length > 0) {
+        G.afterTileFinishAction = true;
+        renderGame();
+      } else {
+        finishPlayerAction();
+      }
+    }
+
+    // ---------------------------------------------------------
+    // 식물/열 즉시 변환 · 파란 카드 액션 · 표준 프로젝트 6종 · 업적/기업상
+    // ---------------------------------------------------------
+    function getGreeneryPlantCost() {
+      return G.corp.plantGreeneryCost || 8;
+    }
+
+    function onConvertPlantsToGreenery() {
+      if (G.phase !== "action" || G.playerPassed || G.tileQueue.length > 0) return;
+      const req = getGreeneryPlantCost();
+      if (G.res.plants < req) {
+        pushToast(`녹지 조성에 식물 ${req}개가 필요합니다.`, true);
+        return;
+      }
+      G.res.plants -= req;
+      G.afterTileFinishAction = true;
+      queueTilePlacement("greenery", "player", {
+        label: "식물 녹지",
+        cancellable: true,
+        onCancelRefund: () => { G.res.plants += req; }
+      });
+      renderGame();
+    }
+
+    function onConvertHeatToTemp() {
+      if (G.phase !== "action" || G.playerPassed || G.tileQueue.length > 0) return;
+      if (G.temp >= 8) {
+        pushToast("이미 화성 목표 기온(+8°C)이 달성되었습니다!", true);
+        return;
+      }
+      if (G.res.heat < 8) {
+        pushToast("기온 상승에 열(Heat) 토큰 8개가 필요합니다.", true);
+        return;
+      }
+      G.res.heat -= 8;
+      raiseTemperature(1, "player");
+      if (G.tileQueue.length > 0) {
+        G.afterTileFinishAction = true;
+        renderGame();
+      } else {
+        finishPlayerAction();
+      }
+    }
+
+    function onUseUnmiAction() {
+      if (G.phase !== "action" || G.playerPassed || G.tileQueue.length > 0) return;
+      if (G.corp.id !== "unmi" || G.corpActionUsed || !G.trRaisedThisGen) return;
+      const avail = G.res.mc + (G.corp.heatAsMc ? G.res.heat : 0);
+      if (avail < 3) {
+        pushToast("UNMI 액션 발동에 3 M€가 필요합니다.", true);
+        return;
+      }
+      payMcOrHelionHeat(3);
+      G.corpActionUsed = true;
+      sfx("param");
+      gainPlayerTr(1);
+      pushLog("[UNMI 전용 액션] 3 M€ 지불 → 추가 TR +1 달성!");
+      finishPlayerAction();
+    }
+
+    function onUseBlueCardAction(cardId) {
+      if (G.phase !== "action" || G.playerPassed || G.tileQueue.length > 0) return;
+      const card = G.played.find(c => c.id === cardId && c.blueAction);
+      if (!card || card.actionUsed) return;
+
+      const act = card.blueAction;
+      if (act === "draw2") {
+        card.actionUsed = true;
+        sfx("card");
+        drawPlayerCards(2);
+        pushLog(`[${card.name}] 액션 발동 → 카드 2장 무료 드로우!`);
+      } else if (act === "energy_to_card") {
+        if (G.res.energy < 1) { pushToast("전력 1개가 필요합니다.", true); return; }
+        G.res.energy -= 1;
+        card.actionUsed = true;
+        sfx("card");
+        drawPlayerCards(1);
+        pushLog(`[${card.name}] 전력 1개 소비 → 카드 1장 드로우!`);
+      } else if (act === "pump_ocean") {
+        if (G.oceans >= 9) { pushToast("해양 9개가 이미 모두 배치되었습니다.", true); return; }
+        const maxPool = G.res.mc + G.res.steel * 2 + (G.corp.heatAsMc ? G.res.heat : 0);
+        if (maxPool < 8) { pushToast("8 M€(강철 사용 가능)가 필요합니다.", true); return; }
+        const useSt = Math.min(G.res.steel, 4);
+        G.res.steel -= useSt;
+        payMcOrHelionHeat(Math.max(0, 8 - useSt * 2));
+        card.actionUsed = true;
+        G.afterTileFinishAction = true;
+        queueTilePlacement("ocean", "player", { label: "대수층 펌핑" });
+        pushLog(`[대수층 펌핑] 해양 타일 1개 배치 개시!`);
+        renderGame();
+        return;
+      } else if (act === "europa_ocean") {
+        if (G.oceans >= 9) { pushToast("해양 9개가 이미 모두 배치되었습니다.", true); return; }
+        const tv = getTitaniumUnitValue();
+        const maxPool = G.res.mc + G.res.titanium * tv + (G.corp.heatAsMc ? G.res.heat : 0);
+        if (maxPool < 12) { pushToast("12 M€(티타늄 사용 가능)가 필요합니다.", true); return; }
+        const useTi = Math.min(G.res.titanium, Math.floor(12 / tv));
+        G.res.titanium -= useTi;
+        payMcOrHelionHeat(Math.max(0, 12 - useTi * tv));
+        card.actionUsed = true;
+        G.afterTileFinishAction = true;
+        queueTilePlacement("ocean", "player", { label: "유로파 식수" });
+        pushLog(`[유로파 식수 수입] 해양 타일 1개 배치 개시!`);
+        renderGame();
+        return;
+      } else if (act === "steelworks") {
+        if (G.res.energy < 4) { pushToast("전력 4개가 필요합니다.", true); return; }
+        G.res.energy -= 4;
+        card.actionUsed = true;
+        gainPlayerRes({ steel: 2 });
+        raiseOxygen(1, "player");
+        pushLog(`[제철소] 전력 4개 소모 → 강철 +2 & 산소 +1%!`);
+      } else if (act === "ghg_microbe") {
+        card.actionUsed = true;
+        if ((card.tokens || 0) >= 2 && G.temp < 8) {
+          card.tokens -= 2;
+          raiseTemperature(1, "player");
+          pushLog(`[온실가스 박테리아] 미생물 2개 소모 → 기온 +2°C 상승!`);
+        } else {
+          card.tokens = (card.tokens || 0) + 1;
+          sfx("coin");
+          pushLog(`[온실가스 박테리아] 미생물 토큰 +1 배양 (현재 ${card.tokens}개)`);
+        }
+      } else if (act === "oxy_microbe") {
+        card.actionUsed = true;
+        if ((card.tokens || 0) >= 3 && G.oxy < 14) {
+          card.tokens -= 3;
+          raiseOxygen(1, "player");
+          pushLog(`[산소 생성 박테리아] 미생물 3개 소모 → 산소 +1% 상승!`);
+        } else {
+          card.tokens = (card.tokens || 0) + 1;
+          sfx("coin");
+          pushLog(`[산소 생성 박테리아] 미생물 토큰 +1 배양 (현재 ${card.tokens}개)`);
+        }
+      } else if (act === "add_token") {
+        card.actionUsed = true;
+        card.tokens = (card.tokens || 0) + 1;
+        sfx("coin");
+        pushLog(`[${card.name}] 동물 토큰 +1 적재! (누적 +${card.tokens}점)`);
+      } else if (act === "physics_complex") {
+        if (G.res.energy < 6) { pushToast("전력 6개가 필요합니다.", true); return; }
+        G.res.energy -= 6;
+        card.actionUsed = true;
+        card.tokens = (card.tokens || 0) + 1;
+        sfx("param");
+        pushLog(`[물리학 연구 단지] 전력 6개 소비 → 과학 토큰 +1 적재! (누적 +${card.tokens * 2}점)`);
+      }
+
+      if (G.tileQueue.length > 0) {
+        G.afterTileFinishAction = true;
+        renderGame();
+      } else {
+        finishPlayerAction();
+      }
+    }
+
+    // 공식 표준 프로젝트 실행 (특허 매각 제외 5종 + 상단 특허 매각 버튼 연동)
+    const STANDARD_PROJECTS = [
+      { id: "sp_power", name: "발전소 건설", cost: 11, icon: "energy", desc: "전력 생산력 +1" },
+      { id: "sp_asteroid", name: "소행성 유도", cost: 14, icon: "temp", desc: "기온 +2°C (TR+1)" },
+      { id: "sp_aquifer", name: "대수층 개방", cost: 18, icon: "ocean", desc: "해양 1개 배치 (TR+1)" },
+      { id: "sp_greenery", name: "녹지 조성", cost: 23, icon: "greenery", desc: "녹지 배치 (산소+1%)" },
+      { id: "sp_city", name: "도시 건설", cost: 25, icon: "city", desc: "도시 배치 & M€생산+1" },
+      { id: "sp_sell", name: "특허 매각", cost: 0, icon: "card", desc: "손패 버리고 +1 M€/장" }
+    ];
+
+    function executeStandardProject(spId) {
+      if (G.phase !== "action" || G.playerPassed || G.tileQueue.length > 0) return;
+      if (spId === "sp_sell") {
+        onOpenSellPatents();
+        return;
+      }
+      const sp = STANDARD_PROJECTS.find(x => x.id === spId);
+      if (!sp) return;
+
+      if (spId === "sp_asteroid" && G.temp >= 8) { pushToast("이미 기온이 최대치(+8°C)입니다.", true); return; }
+      if (spId === "sp_aquifer" && G.oceans >= 9) { pushToast("이미 해양 9개가 모두 배치되었습니다.", true); return; }
+
+      const avail = G.res.mc + (G.corp.heatAsMc ? G.res.heat : 0);
+      if (avail < sp.cost) {
+        pushToast(`${sp.name} 실행에 ${sp.cost} M€가 필요합니다.`, true);
+        return;
+      }
+
+      payMcOrHelionHeat(sp.cost);
+
+      // 패시브 환급: 표준 기술 연구(+3 M€), 크레디코르(20 M€ 이상 표준 프로젝트 +4 M€)
+      let rebate = G.played.reduce((s, pc) => s + (pc.stdProjectRebate || 0), 0);
+      if (G.corp.id === "credicor" && sp.cost >= 20) rebate += 4;
+      if (rebate > 0) gainPlayerRes({ mc: rebate });
+
+      if (spId === "sp_power") {
+        sfx("coin");
+        G.prod.energy += 1;
+        pushLog(`[표준 프로젝트] 발전소 건설 (-${sp.cost} M€) → 전력 생산력 +1`);
+        finishPlayerAction();
+      } else if (spId === "sp_asteroid") {
+        pushLog(`[표준 프로젝트] 소행성 유도 (-${sp.cost} M€) → 기온 +2°C`);
+        raiseTemperature(1, "player");
+        if (G.tileQueue.length > 0) { G.afterTileFinishAction = true; renderGame(); }
+        else finishPlayerAction();
+      } else if (spId === "sp_aquifer") {
+        G.afterTileFinishAction = true;
+        queueTilePlacement("ocean", "player", { label: "표준 대수층" });
+        renderGame();
+      } else if (spId === "sp_greenery") {
+        G.afterTileFinishAction = true;
+        queueTilePlacement("greenery", "player", { label: "표준 녹지" });
+        renderGame();
+      } else if (spId === "sp_city") {
+        G.prod.mc += 1;
+        G.afterTileFinishAction = true;
+        queueTilePlacement("city", "player", { label: "표준 도시" });
+        renderGame();
+      }
+    }
+
+    // 업적(Milestone, 8 M€ -> 5점, 선착 3개) 및 기업상(Award, 8/14/20 M€ -> 1위 5점, 최대 3개)
+    function buildStatsSnapshotFor(who) {
+      if (who === "rival") return G.rival;
+      const hexList = Object.values(G.hexes);
+      const myTiles = hexList.filter(h => h.tile?.owner === "player");
+      const cityCount = myTiles.filter(h => h.tile.kind === "city").length +
+        (G.offworld.phobos === "player" ? 1 : 0) + (G.offworld.ganymede === "player" ? 1 : 0);
+      const greeneryCount = myTiles.filter(h => h.tile.kind === "greenery").length;
+      const southTiles = myTiles.filter(h => h.r >= 3).length;
+      const southHalfTiles = myTiles.filter(h => h.r >= 1).length;
+      const oceanAdjTiles = myTiles.filter(h => getNeighborIds(h.q, h.r).some(nid => G.hexes[nid]?.tile?.kind === "ocean")).length;
+
+      return {
+        tr: G.tr,
+        cityCount,
+        greeneryCount,
+        totalTiles: myTiles.length + (G.offworld.phobos === "player" ? 1 : 0) + (G.offworld.ganymede === "player" ? 1 : 0),
+        southTiles,
+        southHalfTiles,
+        oceanAdjTiles,
+        tags: G.tags,
+        res: G.res,
+        prod: G.prod,
+        handCount: G.hand.length,
+        greenCardCount: G.played.filter(c => c.color === "green").length,
+        blueCardCount: G.played.filter(c => c.color === "blue").length,
+        eventCardCount: G.played.filter(c => c.color === "red").length,
+        expensiveCardCount: G.played.filter(c => c.cost >= 20).length
+      };
+    }
+
+    function onClaimMilestone(mId) {
+      if (G.mode !== "automa" || G.phase !== "action" || G.playerPassed || G.tileQueue.length > 0) return;
+      if (Object.keys(G.claimedMilestones).length >= 3 || G.claimedMilestones[mId]) return;
+      const mapDef = getMapDef();
+      const ms = mapDef.milestones.find(x => x.id === mId);
+      if (!ms) return;
+      const snap = buildStatsSnapshotFor("player");
+      if (!ms.check(G, snap)) {
+        pushToast(`업적 조건 미충족: ${ms.desc}`, true);
+        return;
+      }
+      const avail = G.res.mc + (G.corp.heatAsMc ? G.res.heat : 0);
+      if (avail < 8) {
+        pushToast("업적 달성 선언에 8 M€가 필요합니다.", true);
+        return;
+      }
+      payMcOrHelionHeat(8);
+      G.claimedMilestones[mId] = "player";
+      sfx("param");
+      pushLog(`[업적 선점!] '${ms.name}' 달성 선언 (-8 M€ → 종료 +5점 확정!)`);
+      pushToast(`업적 [${ms.name}] 달성! (+5점)`);
+      finishPlayerAction();
+    }
+
+    function onFundAward(aId) {
+      if (G.mode !== "automa" || G.phase !== "action" || G.playerPassed || G.tileQueue.length > 0) return;
+      const fundedCnt = Object.keys(G.fundedAwards).length;
+      if (fundedCnt >= 3 || G.fundedAwards[aId]) return;
+      const awardCosts = [8, 14, 20];
+      const cost = awardCosts[fundedCnt];
+      const avail = G.res.mc + (G.corp.heatAsMc ? G.res.heat : 0);
+      if (avail < cost) {
+        pushToast(`기업상 제정에 ${cost} M€가 필요합니다.`, true);
+        return;
+      }
+      const mapDef = getMapDef();
+      const aw = mapDef.awards.find(x => x.id === aId);
+      payMcOrHelionHeat(cost);
+      G.fundedAwards[aId] = "player";
+      sfx("param");
+      pushLog(`[기업상 제정!] '${aw.name}' 개설 완료 (-${cost} M€ · 종료 시 1위에게 +5점!)`);
+      pushToast(`기업상 [${aw.name}] 개설 완료!`);
+      finishPlayerAction();
+    }
+
+    // =========================================================
+    // 8. 턴 진행 · 오토마 1:1 라이벌 인공지능 · 생산 단계 & 결산 엔진
+    // =========================================================
+    function isAllParametersMaxed() {
+      return G.temp >= 8 && G.oxy >= 14 && G.oceans >= 9;
+    }
+
+    function finishPlayerAction() {
+      if (G.mode === "solo") {
+        renderGame();
+        return;
+      }
+      // 오토마 1:1 대결 모드: 플레이어 행동 후 라이벌이 아직 패스하지 않았다면 1행동 응수
+      if (!G.rivalPassed) {
+        runRivalStep();
+      }
+      renderGame();
+    }
+
+    function placeRivalTileAuto(kind) {
+      const validIds = getValidHexIdsForPlacement({ kind, owner: "rival" });
+      if (validIds.length === 0) return false;
+
+      // 라이벌 지능형 위치 선정: 녹지는 라이벌 도시 옆 우선, 도시는 녹지 옆 또는 식물 보너스 칸 우선
+      let chosenId = validIds[0];
+      if (kind === "greenery") {
+        const nearRivalCity = validIds.find(hid => {
+          const h = G.hexes[hid];
+          return getNeighborIds(h.q, h.r).some(nid => G.hexes[nid]?.tile?.kind === "city" && G.hexes[nid]?.tile?.owner === "rival");
+        });
+        chosenId = nearRivalCity || validIds[Math.floor(Math.random() * validIds.length)];
+      } else if (kind === "city") {
+        let bestScore = -1;
+        validIds.forEach(hid => {
+          const h = G.hexes[hid];
+          const adjGreens = getNeighborIds(h.q, h.r).filter(nid => G.hexes[nid]?.tile?.kind === "greenery").length;
+          const plantBonus = h.bonus?.plants || 0;
+          const sc = adjGreens * 3 + plantBonus;
+          if (sc > bestScore) { bestScore = sc; chosenId = hid; }
+        });
+      } else {
+        chosenId = validIds[Math.floor(Math.random() * validIds.length)];
+      }
+
+      const hex = G.hexes[chosenId];
+      hex.tile = {
+        kind,
+        owner: kind === "ocean" ? "ocean" : "rival",
+        label: kind === "city" ? "봇도시" : kind === "greenery" ? "봇녹지" : ""
+      };
+
+      if (kind === "ocean") {
+        G.oceans = Math.min(9, G.oceans + 1);
+        G.rival.tr += 1;
+      } else {
+        G.rival.totalTiles += 1;
+        if (hex.r >= 3) G.rival.southTiles += 1;
+        if (hex.r >= 1) G.rival.southHalfTiles += 1;
+        if (getNeighborIds(hex.q, hex.r).some(nid => G.hexes[nid]?.tile?.kind === "ocean")) {
+          G.rival.oceanAdjTiles += 1;
+        }
+        if (kind === "greenery") {
+          G.rival.greeneryCount += 1;
+          raiseOxygen(1, "rival");
+        } else if (kind === "city") {
+          G.rival.cityCount += 1;
+          onAnyCityPlacedOnMars("rival");
+        }
+      }
+      return true;
+    }
+
+    function runRivalStep() {
+      if (G.mode !== "automa" || G.rivalPassed || G.ended) return;
+
+      if (G.rival.actionsLeftThisGen <= 0) {
+        G.rivalPassed = true;
+        G.rival.lastSub = "이번 세대 행동 완료";
+        G.rival.lastTitle = "세대 종료(패스) 선언";
+        pushLog("[라이벌 오토마] 이번 세대 행동을 마치고 패스했습니다.");
+        return;
+      }
+
+      sfx("rival");
+      G.rival.actionsLeftThisGen -= 1;
+      const diff = AUTOMA_DIFFS[G.automaDiff] || AUTOMA_DIFFS.normal;
+      const mapDef = getMapDef();
+
+      // 1) 업적 조건 달성 시 선점 시도 (3세대 이후)
+      if (G.gen >= 3 && Object.keys(G.claimedMilestones).length < 3) {
+        const claimable = mapDef.milestones.find(ms => !G.claimedMilestones[ms.id] && ms.check(G, G.rival));
+        if (claimable && Math.random() < 0.65) {
+          G.claimedMilestones[claimable.id] = "rival";
+          G.rival.lastSub = "업적 선점 (선착 3개 경쟁)";
+          G.rival.lastTitle = `[${claimable.name}] 업적 달성 (+5점)`;
+          pushLog(`[라이벌 업적 선점!] 오토마가 '${claimable.name}' 업적을 먼저 차지했습니다!`);
+          return;
+        }
+      }
+
+      // 2) 글로벌 파라미터 & 타일 확장 & 엔진 구축 행동
+      const roll = Math.random();
+      if (roll < 0.26 && G.oxy < 14) {
+        if (placeRivalTileAuto("greenery")) {
+          G.rival.tags.plant += 1;
+          G.rival.greenCardCount += 1;
+          G.rival.lastSub = "생태계 확장 프로젝트";
+          G.rival.lastTitle = `녹지 타일 배치 & 산소 상승 (${G.oxy}%)`;
+          return;
+        }
+      }
+      if (roll < 0.48 && G.temp < 8) {
+        raiseTemperature(1, "rival");
+        G.rival.tags.space += 1;
+        G.rival.eventCardCount += 1;
+        G.rival.lastSub = "궤도 열원 투하";
+        G.rival.lastTitle = `기온 상승 프로젝트 (${G.temp > 0 ? `+${G.temp}` : G.temp}°C)`;
+        return;
+      }
+      if (roll < 0.66 && G.oceans < 9) {
+        if (placeRivalTileAuto("ocean")) {
+          G.rival.lastSub = "대수층 시추 프로젝트";
+          G.rival.lastTitle = `해양 타일 배치 (${G.oceans}/9)`;
+          return;
+        }
+      }
+      if (roll < 0.82 && G.rival.cityCount < 4) {
+        if (placeRivalTileAuto("city")) {
+          G.rival.prod.mc += 2;
+          G.rival.tags.building += 1;
+          G.rival.tags.city += 1;
+          G.rival.lastSub = "거점 도시 건설";
+          G.rival.lastTitle = `화성 표면 도시 건설 (총 ${G.rival.cityCount}개)`;
+          return;
+        }
+      }
+
+      // 3) 기업 엔진 및 고득점 기술 카드 구축
+      const techTags = ["science", "building", "space", "power", "earth"];
+      const pickedTag = techTags[Math.floor(Math.random() * techTags.length)];
+      G.rival.tags[pickedTag] = (G.rival.tags[pickedTag] || 0) + 1;
+      G.rival.prod.mc += 1;
+      G.rival.bonusVp += diff.vpPerGen;
+      G.rival.blueCardCount += 1;
+      if (diff.id === "hard") G.rival.expensiveCardCount += 1;
+      G.rival.lastSub = `기업 기술 연구 (${TAG_LABELS[pickedTag]} 태그)`;
+      G.rival.lastTitle = `연구 단지 증설 (+${diff.vpPerGen}점 · M€생산+1)`;
+      pushLog(`[라이벌] ${TAG_LABELS[pickedTag]} 기술 카드를 발동해 엔진을 강화했습니다.`);
+    }
+
+    function onPassGeneration() {
+      if (G.phase !== "action" || G.ended) return;
+      if (G.tileQueue.length > 0) {
+        pushToast("먼저 화성 맵에 대기 중인 타일을 배치해 주세요!", true);
+        return;
+      }
+      sfx("card");
+      G.playerPassed = true;
+      pushLog("플레이어가 이번 세대 행동 종료(패스)를 선언했습니다.");
+
+      if (G.mode === "automa" && !G.rivalPassed) {
+        while (!G.rivalPassed) {
+          runRivalStep();
+        }
+      }
+      runProductionAndSummary();
+    }
+
+    function runProductionAndSummary() {
+      // 1) 공식 생산 단계 순서 1: 남은 전력(Energy) 전량이 열(Heat)로 자동 전환됨!
+      const convertedEnergy = G.res.energy;
+      G.res.heat += convertedEnergy;
+      G.res.energy = 0;
+
+      // 2) 공식 생산 단계 순서 2: TR + M€ 생산력 현금 수령 및 5종 자원 생산력 일괄 수령
+      const mcIncome = Math.max(0, G.tr + G.prod.mc);
+      G.res.mc += mcIncome;
+      G.res.steel += Math.max(0, G.prod.steel);
+      G.res.titanium += Math.max(0, G.prod.titanium);
+      G.res.plants += Math.max(0, G.prod.plants);
+      G.res.energy += Math.max(0, G.prod.energy);
+      G.res.heat += Math.max(0, G.prod.heat);
+
+      // 라이벌 세대 생산 동기화
+      if (G.mode === "automa") {
+        G.rival.res.heat += G.rival.res.energy + G.rival.prod.heat;
+        G.rival.res.energy = G.rival.prod.energy;
+        G.rival.res.mc += G.rival.tr + G.rival.prod.mc;
+        G.rival.res.steel += G.rival.prod.steel;
+        G.rival.res.titanium += G.rival.prod.titanium;
+      }
+
+      // 3) 게임 종료 조건 판정
+      const isLastSoloGen = G.mode === "solo" && G.gen >= G.maxGen;
+      const isAutomaFinished = G.mode === "automa" && isAllParametersMaxed();
+
+      if (isLastSoloGen || isAutomaFinished) {
+        // 공식 규칙: 게임 종료 시 마지막 생산으로 모인 식물을 녹지 타일로 추가 전환할 기회를 제공!
+        const plantCost = getGreeneryPlantCost();
+        let finalBonusGreeneries = 0;
+        while (G.res.plants >= plantCost) {
+          const validGreen = getValidHexIdsForPlacement({ kind: "greenery", owner: "player" });
+          if (validGreen.length === 0) break;
+          G.res.plants -= plantCost;
+          // 내 도시와 가장 많이 인접한 육지 칸에 자동 최적 배치!
+          let bestHexId = validGreen[0];
+          let bestAdjCities = -1;
+          validGreen.forEach(hid => {
+            const h = G.hexes[hid];
+            const adjMyCities = getNeighborIds(h.q, h.r).filter(nid =>
+              G.hexes[nid]?.tile?.kind === "city" && G.hexes[nid]?.tile?.owner === "player"
+            ).length;
+            if (adjMyCities > bestAdjCities) { bestAdjCities = adjMyCities; bestHexId = hid; }
+          });
+          G.hexes[bestHexId].tile = { kind: "greenery", owner: "player", label: "최종녹지" };
+          // 솔로 모드에서 마지막 세대 생산 이후 놓는 보너스 녹지는 승점만 주고 타임어택 성공 판정용 산소는 올리지 않음(공식 룰: 14세대 행동 종료 시점 기준!)
+          // 단, 이미 산소가 덜 찼을 때 다인플 종료 후에는 어차피 산소 14% 상태임
+          finalBonusGreeneries += 1;
+        }
+        showFinalResultModal(convertedEnergy, mcIncome, finalBonusGreeneries);
+        return;
+      }
+
+      // 다음 세대 준비 모달 출력
+      const overlay = document.getElementById("summaryModalOverlay");
+      document.getElementById("sumEmblemBox").innerHTML = iconSvg("mars", 28);
+      document.getElementById("sumHeading").textContent = `${G.gen}세대 생산 단계 완료`;
+      document.getElementById("sumSubtext").textContent = "남은 전력이 열로 전환되고, 기업 생산 라인에서 자원이 공급되었습니다.";
+      document.getElementById("sumReceiptBox").innerHTML = `
+        <div class="flex justify-between"><span class="text-slate-400">전력 → 열 자동 전환</span><strong class="text-purple-300">${convertedEnergy}개 전환됨</strong></div>
+        <div class="flex justify-between"><span class="text-slate-400">M€ 수입 (TR ${G.tr} + 생산 ${G.prod.mc})</span><strong class="text-amber-300">+${mcIncome} M€</strong></div>
+        <div class="flex justify-between"><span class="text-slate-400">광물 생산 (강철 / 티타늄)</span><strong class="text-slate-200">+${G.prod.steel} / +${G.prod.titanium}</strong></div>
+        <div class="flex justify-between"><span class="text-slate-400">생태·에너지 생산 (식물 / 전력 / 열)</span><strong class="text-emerald-300">+${G.prod.plants} / +${G.prod.energy} / +${G.prod.heat}</strong></div>
+        <div class="flex justify-between border-t border-white/10 pt-1.5"><span class="text-slate-400">현재 글로벌 진행률</span><strong class="text-orange-300">${G.temp > 0 ? `+${G.temp}` : G.temp}°C · ${G.oxy}% · 해양 ${G.oceans}/9</strong></div>
+      `;
+      const nextBtn = document.getElementById("sumNextBtn");
+      nextBtn.textContent = `${G.gen + 1}세대 연구 단계(카드 4장 드로우) 진행`;
+      nextBtn.onclick = advanceToNextGeneration;
+
+      renderGame();
+      overlay.classList.remove("hidden");
+    }
+
+    function advanceToNextGeneration() {
+      document.getElementById("summaryModalOverlay").classList.add("hidden");
+      G.gen += 1;
+      G.playerPassed = false;
+      G.rivalPassed = G.mode === "solo";
+      G.trRaisedThisGen = false;
+      G.corpActionUsed = false;
+      G.played.forEach(c => { c.actionUsed = false; });
+
+      if (G.mode === "automa") {
+        const diff = AUTOMA_DIFFS[G.automaDiff] || AUTOMA_DIFFS.normal;
+        G.rival.actionsLeftThisGen = 3 + diff.stepBonus;
+        G.rival.handCount = 4 + Math.floor(Math.random() * 4);
+      }
+
+      pushLog(`=== ${G.gen}세대 개시 ===`);
+      openResearchDraftModal();
+      renderGame();
+    }
+
+    // =========================================================
+    // 9. 정식 점수 정산 엔진 (TR + 녹지 + 도시 인접 녹지 + 카드 VP + 업적/기업상)
+    // =========================================================
+    function computeScores() {
+      const hexList = Object.values(G.hexes);
+
+      // 1) 내 녹지 및 도시 인접 녹지 승점
+      const myGreeneryVp = hexList.filter(h => h.tile?.kind === "greenery" && h.tile?.owner === "player").length;
+      let myCityAdjVp = 0;
+      hexList.filter(h => h.tile?.kind === "city" && h.tile?.owner === "player").forEach(ch => {
+        myCityAdjVp += getNeighborIds(ch.q, ch.r).filter(nid => G.hexes[nid]?.tile?.kind === "greenery").length;
+      });
+
+      // 2) 발동 카드 고정 VP + 토큰 VP + 태그 비례 VP
+      let myCardVp = 0;
+      G.played.forEach(c => {
+        myCardVp += (c.vp || 0);
+        if (c.vpPerToken && c.tokens) {
+          myCardVp += Math.floor(c.tokens * c.vpPerToken);
+        }
+        if (c.vpPerTag) {
+          myCardVp += (G.tags[c.vpPerTag] || 0);
+        }
+      });
+
+      // 3) 업적 및 기업상 승점 (1:1 오토마 모드 전용)
+      let myMilestoneVp = 0;
+      let rivalMilestoneVp = 0;
+      let myAwardVp = 0;
+      let rivalAwardVp = 0;
+
+      if (G.mode === "automa") {
+        Object.values(G.claimedMilestones).forEach(who => {
+          if (who === "player") myMilestoneVp += 5;
+          else if (who === "rival") rivalMilestoneVp += 5;
+        });
+
+        const mapDef = getMapDef();
+        const pSnap = buildStatsSnapshotFor("player");
+        const rSnap = buildStatsSnapshotFor("rival");
+        Object.keys(G.fundedAwards).forEach(aId => {
+          const aw = mapDef.awards.find(x => x.id === aId);
+          if (!aw) return;
+          const pv = aw.metric(G, pSnap);
+          const rv = aw.metric(G, rSnap);
+          if (pv > rv) myAwardVp += 5;
+          else if (rv > pv) rivalAwardVp += 5;
+          else { myAwardVp += 5; rivalAwardVp += 5; }
+        });
+      }
+
+      const playerTotal = G.tr + myGreeneryVp + myCityAdjVp + myCardVp + myMilestoneVp + myAwardVp;
+
+      // 라이벌 점수 합산
+      const rivalGreeneryVp = hexList.filter(h => h.tile?.kind === "greenery" && h.tile?.owner === "rival").length;
+      let rivalCityAdjVp = 0;
+      hexList.filter(h => h.tile?.kind === "city" && h.tile?.owner === "rival").forEach(ch => {
+        rivalCityAdjVp += getNeighborIds(ch.q, ch.r).filter(nid => G.hexes[nid]?.tile?.kind === "greenery").length;
+      });
+      const rivalTotal = G.rival.tr + rivalGreeneryVp + rivalCityAdjVp + G.rival.bonusVp + rivalMilestoneVp + rivalAwardVp;
+
+      return {
+        playerTotal,
+        tr: G.tr,
+        myGreeneryVp,
+        myCityAdjVp,
+        myCardVp,
+        myMilestoneVp,
+        myAwardVp,
+        rivalTotal,
+        rivalTr: G.rival.tr,
+        rivalBoardVp: rivalGreeneryVp + rivalCityAdjVp,
+        rivalCardVp: G.rival.bonusVp,
+        rivalMaVp: rivalMilestoneVp + rivalAwardVp
+      };
+    }
+
+    function showFinalResultModal(convertedEnergy, mcIncome, finalBonusGreeneries) {
+      G.ended = true;
+      G.phase = "ended";
+      sfx("param");
+
+      const sc = computeScores();
+      const overlay = document.getElementById("summaryModalOverlay");
+      document.getElementById("sumEmblemBox").innerHTML = iconSvg("vp", 28);
+
+      if (G.mode === "solo") {
+        const success = isAllParametersMaxed();
+        document.getElementById("sumHeading").textContent = success ? "화성 테라포밍 완수 성공!" : "테라포밍 미완수 (시간 초과)";
+        document.getElementById("sumSubtext").textContent = success
+          ? `${G.maxGen}세대 이내에 기온(+8°C)·산소(14%)·해양(9개)을 모두 달성했습니다! 최종 점수 기록: ${sc.playerTotal}점`
+          : `${G.maxGen}세대가 종료되었으나 일부 글로벌 파라미터가 목표치에 도달하지 못했습니다.`;
+        document.getElementById("sumReceiptBox").innerHTML = `
+          <div class="flex justify-between"><span class="text-slate-400">글로벌 지표 달성 여부</span><strong class="${success ? "text-emerald-400" : "text-rose-400"}">${G.temp > 0 ? `+${G.temp}` : G.temp}°C · 산소 ${G.oxy}% · 해양 ${G.oceans}/9</strong></div>
+          ${finalBonusGreeneries > 0 ? `<div class="flex justify-between"><span class="text-emerald-300">종료 잔여 식물 녹지 전환</span><strong class="text-emerald-300">+${finalBonusGreeneries}칸 배치됨</strong></div>` : ""}
+          <div class="flex justify-between border-t border-white/10 pt-1.5"><span class="text-slate-400">테라포밍 등급 (TR)</span><strong class="text-slate-100">${sc.tr}점</strong></div>
+          <div class="flex justify-between"><span class="text-slate-400">내 녹지 타일 점수</span><strong class="text-slate-100">+${sc.myGreeneryVp}점</strong></div>
+          <div class="flex justify-between"><span class="text-slate-400">내 도시 인접 녹지 보너스</span><strong class="text-slate-100">+${sc.myCityAdjVp}점</strong></div>
+          <div class="flex justify-between border-b border-white/10 pb-1.5"><span class="text-slate-400">프로젝트 카드 & 토큰 승점</span><strong class="text-slate-100">${sc.myCardVp >= 0 ? `+${sc.myCardVp}` : sc.myCardVp}점</strong></div>
+          <div class="flex justify-between text-base pt-1"><span class="font-extrabold text-amber-300">내 최종 솔로 기록</span><strong class="font-black text-amber-300">${sc.playerTotal}점</strong></div>
+        `;
+      } else {
+        const win = sc.playerTotal > sc.rivalTotal || (sc.playerTotal === sc.rivalTotal && G.res.mc >= G.rival.res.mc);
+        document.getElementById("sumHeading").textContent = win ? "화성 패권 경쟁 승리!" : "라이벌 기업 오토마 승리";
+        document.getElementById("sumSubtext").textContent =
+          `${G.gen}세대에 모든 테라포밍 지표가 완성되었습니다! (${sc.playerTotal}점 대 ${sc.rivalTotal}점)`;
+        document.getElementById("sumReceiptBox").innerHTML = `
+          <div class="flex justify-between"><span class="text-slate-400">내 TR (${sc.tr}) + 보드 타일 (${sc.myGreeneryVp + sc.myCityAdjVp})</span><strong class="text-slate-100">${sc.tr + sc.myGreeneryVp + sc.myCityAdjVp}점</strong></div>
+          <div class="flex justify-between"><span class="text-slate-400">내 카드 승점 (${sc.myCardVp}) + 업적/기업상 (${sc.myMilestoneVp + sc.myAwardVp})</span><strong class="text-slate-100">+${sc.myCardVp + sc.myMilestoneVp + sc.myAwardVp}점</strong></div>
+          <div class="flex justify-between text-base border-y border-white/10 py-1.5"><span class="font-extrabold text-amber-300">내 기업 최종 총점</span><strong class="font-black text-amber-300">${sc.playerTotal}점</strong></div>
+          <div class="flex justify-between pt-1"><span class="text-rose-300">라이벌 오토마 (TR ${sc.rivalTr} + 보드 ${sc.rivalBoardVp} + 카드/업적 ${sc.rivalCardVp + sc.rivalMaVp})</span><strong class="font-bold text-rose-400">${sc.rivalTotal}점</strong></div>
+        `;
+      }
+
+      const nextBtn = document.getElementById("sumNextBtn");
+      nextBtn.textContent = "옵션 변경 및 새 게임 시작";
+      nextBtn.onclick = () => {
+        document.getElementById("summaryModalOverlay").classList.add("hidden");
+        openSettingsModal();
+      };
+      renderGame();
+      overlay.classList.remove("hidden");
+    }
+
+    // =========================================================
+    // 10. 옵션 모달 · 규칙서/인스펙터 · 모바일 탭 · 61헥스 SVG 마스터 렌더링
+    // =========================================================
+    function openSettingsModal() {
+      draftCfgMode = configMode;
+      draftCfgDiff = configAutomaDiff;
+      draftCfgPrelude = configUsePrelude;
+      draftCfgMap = configMapId;
+      draftCfgCorpPick = configCorpPick;
+      renderSettingsModal();
+      document.getElementById("settingsModalOverlay").classList.remove("hidden");
+    }
+
+    function closeSettingsModal() {
+      document.getElementById("settingsModalOverlay").classList.add("hidden");
+    }
+
+    function setDraftSetting(field, val) {
+      sfx("card");
+      if (field === "mode") draftCfgMode = val;
+      else if (field === "diff") draftCfgDiff = val;
+      else if (field === "prelude") draftCfgPrelude = val;
+      else if (field === "map") draftCfgMap = val;
+      else if (field === "corpPick") draftCfgCorpPick = val;
+      renderSettingsModal();
+    }
+
+    function renderSettingsModal() {
+      // 1. 솔로 vs 오토마 1:1
+      document.getElementById("gameModeButtons").innerHTML = [
+        { id: "solo", title: "공식 1인 솔로 (타임어택 퍼즐)", sub: "제한 세대(기본 14 / 서곡 12세대) 내 기온·산소·해양 100% 달성 목표 · 중립 도시2/녹지2 배치" },
+        { id: "automa", title: "오토마 1:1 대결 (라이벌 기업 경쟁)", sub: "세대 제한 없이 지표 완성 시 종료 · 라이벌과 땅따먹기·업적(선착 3개)·기업상 전면 승부!" }
+      ].map(m => {
+        const on = draftCfgMode === m.id;
+        return `
+          <button onclick="setDraftSetting('mode', '${m.id}')" class="p-3 rounded-xl border text-left transition cursor-pointer ${
+            on ? "bg-[#2a190e] border-orange-400 text-orange-100 shadow-md" : "bg-[#121722] border-white/10 text-slate-300 hover:bg-[#1a2233]"
+          }">
+            <div class="font-extrabold text-xs sm:text-sm ${on ? "text-orange-300" : "text-slate-100"}">${m.title}</div>
+            <div class="text-xs text-slate-400 mt-0.5 leading-snug">${m.sub}</div>
+          </button>
+        `;
+      }).join("");
+
+      const diffSec = document.getElementById("automaDiffSection");
+      diffSec.classList.toggle("hidden", draftCfgMode !== "automa");
+      document.getElementById("automaDiffButtons").innerHTML = Object.values(AUTOMA_DIFFS).map(d => {
+        const on = draftCfgDiff === d.id;
+        return `
+          <button onclick="setDraftSetting('diff', '${d.id}')" class="py-2 px-2 rounded-xl border font-bold text-center transition cursor-pointer ${
+            on ? "bg-rose-950/90 border-rose-400 text-rose-100" : "bg-[#121722] border-white/10 text-slate-300"
+          }">${d.name}</button>
+        `;
+      }).join("");
+
+      // 2. 서곡(Prelude) 확장 포함 여부
+      document.getElementById("preludeModeButtons").innerHTML = [
+        { val: true, title: "《서곡 (Prelude)》 확장 포함 (강력 추천)", sub: "시작 시 서곡 카드 4장 중 2장을 골라 무료 발동! 초반 엔진이 빠르게 가동됩니다 (솔로 12세대)" },
+        { val: false, title: "기본판만 플레이 (클래식)", sub: "서곡 카드 없이 순수 본판 규칙으로 차근차근 생산력을 올립니다 (솔로 14세대)" }
+      ].map(p => {
+        const on = draftCfgPrelude === p.val;
+        return `
+          <button onclick="setDraftSetting('prelude', ${p.val})" class="p-3 rounded-xl border text-left transition cursor-pointer ${
+            on ? "bg-[#291527] border-pink-400 text-pink-100 shadow-md" : "bg-[#121722] border-white/10 text-slate-300 hover:bg-[#1a2233]"
+          }">
+            <div class="font-extrabold text-xs sm:text-sm ${on ? "text-pink-300" : "text-slate-100"}">${p.title}</div>
+            <div class="text-xs text-slate-400 mt-0.5 leading-snug">${p.sub}</div>
+          </button>
+        `;
+      }).join("");
+
+      // 3. 화성 맵 3종 선택
+      document.getElementById("marsMapButtons").innerHTML = Object.values(MARS_MAPS).map(mp => {
+        const on = draftCfgMap === mp.id;
+        return `
+          <button onclick="setDraftSetting('map', '${mp.id}')" class="p-3 rounded-xl border text-left transition cursor-pointer ${
+            on ? "bg-[#16273b] border-sky-400 text-sky-100 shadow-md" : "bg-[#121722] border-white/10 text-slate-300 hover:bg-[#1a2233]"
+          }">
+            <div class="font-extrabold text-xs sm:text-sm ${on ? "text-sky-300" : "text-slate-100"}">${mp.name}</div>
+            <div class="text-xs text-slate-400 mt-0.5 leading-snug">${mp.desc}</div>
+          </button>
+        `;
+      }).join("");
+
+      // 4. 기업 배정 방식
+      document.getElementById("corpPrefButtons").innerHTML = [
+        { id: "all", title: "전체 10종 기업 자유 선택 (연습 추천)", sub: "초보 입문 기업부터 이코라인·헬리온·포인트 루나 등 원하는 기업을 직접 골라 연습합니다." },
+        { id: "draft3", title: "무작위 기업 후보 배정 (실전 드래프트)", sub: "실물 보드게임처럼 무작위로 뽑힌 기업 후보 중에서 골라 실전 감각을 익힙니다." }
+      ].map(cp => {
+        const on = draftCfgCorpPick === cp.id;
+        return `
+          <button onclick="setDraftSetting('corpPick', '${cp.id}')" class="p-2.5 rounded-xl border text-left transition cursor-pointer ${
+            on ? "bg-[#251f12] border-amber-400 text-amber-100" : "bg-[#121722] border-white/10 text-slate-300"
+          }">
+            <div class="font-extrabold text-xs sm:text-sm">${cp.title}</div>
+            <div class="text-xs text-slate-400 mt-0.5">${cp.sub}</div>
+          </button>
+        `;
+      }).join("");
+    }
+
+    function applySettingsAndStart() {
+      sfx("param");
+      configMode = draftCfgMode;
+      configAutomaDiff = draftCfgDiff;
+      configUsePrelude = draftCfgPrelude;
+      configMapId = draftCfgMap;
+      configCorpPick = draftCfgCorpPick;
+      startNewMarsGame();
+    }
+
+    function openInfoModal(kind) {
+      const heading = document.getElementById("infoModalHeading");
+      const content = document.getElementById("infoModalContent");
+
+      if (kind === "rules") {
+        heading.textContent = "테라포밍 마스 핵심 룰 요약 (모바일 연습 가이드)";
+        const rules = [
+          ["1. 게임의 목표 & TR(테라포밍 등급)", "기온(+8°C), 산소(14%), 해양 타일(9개) 3가지 지표를 올릴 때마다 내 TR이 +1씩 상승합니다. TR은 곧 '매 세대 기본 현금 월급'이자 동시에 '게임 종료 시 기본 승점'입니다!"],
+          ["2. 카드 구매(장당 3 M€)와 발동 비용의 분리", "테포마의 가장 독특한 규칙입니다! 카드를 손패로 가져올 때 먼저 '특허권 구매비 3 M€'를 내고, 손패에서 실제로 건설할 때 카드 좌측 상단의 발동 비용을 한 번 더 지불합니다. 따라서 당장 못 쓸 비싼 카드를 초반에 잔뜩 사두면 자금이 말라버립니다."],
+          ["3. 6종 자원과 생산 단계 (전력 → 열 자동 변환!)", "매 세대 모두가 패스하면 생산 단계가 진행됩니다. 이때 (1) 쓰고 남은 모든 전력(보라색)이 열(빨간색) 칸으로 이동하고, (2) TR + M€ 생산력만큼 현금을 받으며 나머지 5종 자원도 생산력 수치만큼 받습니다."],
+          ["4. 강철(건물 2 M€) · 티타늄(우주 3 M€) 복합 결제", "강철과 티타늄은 현금이 아니라 각각 '건물 태그'와 '우주 태그'가 붙은 카드를 낼 때 현금과 섞어 내는 전용 자재입니다(포보로그 기업은 티타늄이 개당 4 M€). 초과 지불 시 거스름돈은 돌려받지 않습니다."],
+          ["5. 61칸 화성 타일 배치 & 도시-녹지 점수 공식", "• 해양: 파란 테두리 구역에만 놓으며, 이미 깔린 해양 옆에 아무 타일이나 놓으면 인접 해양당 +2 M€ 보너스를 즉시 받습니다.\n• 녹지: 내 타일 옆 빈칸이 있으면 반드시 인접해 놓아야 하며, 산소+1% 및 종료 +1점을 줍니다.\n• 도시: 다른 도시와 붙어 지을 수 없으며(녹티스 예외), 게임 종료 시 그 도시 주변 6칸에 있는 모든 녹지(중립/라이벌 녹지 포함!)마다 +1점씩 추가 점수를 얻습니다!"]
+        ];
+        content.innerHTML = rules.map(([t, d]) => `
+          <div class="bg-[#0a0e16] border border-white/10 rounded-xl p-3.5 space-y-1">
+            <div class="font-extrabold text-orange-300 text-sm">${t}</div>
+            <p class="text-xs text-slate-300 whitespace-pre-line leading-relaxed">${d}</p>
+          </div>
+        `).join("");
+      } else if (kind === "deck") {
+        heading.textContent = `발동 완료된 프로젝트 카드 (${G.played.length}장)`;
+        content.innerHTML = G.played.length === 0
+          ? `<div class="p-4 text-center text-slate-500">아직 발동한 프로젝트 카드가 없습니다.</div>`
+          : `<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">${G.played.map(c => `
+              <div class="p-2.5 rounded-xl bg-[#0a0e16] border border-white/10 flex items-center justify-between gap-2">
+                <div>
+                  <div class="font-bold text-slate-100">${c.name} ${c.tokens ? `<span class="text-emerald-300">(토큰 ${c.tokens})</span>` : ""}</div>
+                  <div class="text-xs text-slate-400">${c.desc}</div>
+                </div>
+                <div class="flex items-center gap-0.5 shrink-0">${renderCardTagBadges(c.tags)}</div>
+              </div>
+            `).join("")}</div>`;
+      } else {
+        heading.textContent = "실시간 화성 테라포밍 일지";
+        content.innerHTML = `<div class="bg-[#0a0e16] border border-white/10 rounded-xl p-3.5 space-y-1 font-mono text-xs">${
+          G.logs.map(l => `<div class="border-b border-white/5 pb-1 last:border-0">${l}</div>`).join("")
+        }</div>`;
+      }
+      document.getElementById("infoModalOverlay").classList.remove("hidden");
+    }
+
+    function closeInfoModal() {
+      document.getElementById("infoModalOverlay").classList.add("hidden");
+    }
+
+    function switchMobileBoard(tab) {
+      mobileBoardTab = tab;
+      sfx("card");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      renderGame();
+    }
+
+    function toggleMobileHand() {
+      mobileHandCollapsed = !mobileHandCollapsed;
+      sfx("card");
+      renderGame();
+    }
+
+    // 스마트 전술 코치 메시지 생성기
+    function getSmartCoachMessage() {
+      if (G.tileQueue.length > 0) {
+        const cur = G.tileQueue[0];
+        if (cur.kind === "ocean" || cur.kind === "ocean_land") {
+          return "코치 팁: 해양 타일은 식물·카드 보너스가 있는 칸에 놓거나, 이미 깔린 해양 옆에 붙여 놓아 +2 M€ 캐시백을 챙기세요!";
+        }
+        if (cur.kind === "greenery" || cur.kind === "greenery_ocean") {
+          return "코치 팁: 녹지를 '내 도시' 옆에 붙이면 산소 +1%(TR+1)에 더해 녹지 점수(+1) + 도시 인접 점수(+1)까지 승점이 2배로 불어납니다!";
+        }
+        return "코치 팁: 도시는 다른 도시와 붙어 지을 수 없습니다. 중립 녹지 옆이나 식물 보너스 벨트 길목에 배치해 점수를 복사하세요!";
+      }
+      const gCost = getGreeneryPlantCost();
+      if (G.res.plants >= gCost) {
+        return `코치 팁: 식물이 ${G.res.plants}개 모였습니다! 맵 상단 [식물 ${gCost} → 녹지 조성] 버튼을 눌러 산소와 TR을 올리세요.`;
+      }
+      if (G.res.heat >= 8 && G.temp < 8) {
+        return `코치 팁: 열(Heat) 토큰이 ${G.res.heat}개 모였습니다! [열 8 → 기온 +2°C] 변환으로 기온 임계점 보너스를 노리세요.`;
+      }
+      if (G.corp.id === "unmi" && G.trRaisedThisGen && !G.corpActionUsed && G.res.mc >= 3) {
+        return "코치 팁: 이번 세대에 TR이 올랐습니다! [기업·표준] 패널에서 UNMI 전용 액션(3 M€ → TR+1)을 놓치지 마세요.";
+      }
+      if (G.played.some(c => c.blueAction && !c.actionUsed)) {
+        return "코치 팁: 아직 이번 세대에 사용하지 않은 '파란색 액티브 카드 액션'이 있습니다. 패스 전에 꼭 발동하세요!";
+      }
+      if (G.gen <= 2) {
+        return "코치 팁: 1~2세대에는 당장 점수만 주는 카드보다 M€·강철·식물·열 '생산력(+)'을 높이는 카드를 먼저 깔아야 스노우볼이 굴러갑니다!";
+      }
+      return "코치 팁: 기온 -24/-20°C(열생산+1), 0°C(무료 해양), 산소 8%(무료 기온 상승) 임계점을 내가 먼저 밟으면 엄청난 이득을 얻습니다!";
+    }
+
+    // ---------------------------------------------------------
+    // 61칸 육각 그리드 인라인 SVG 벡터 맵 렌더러
+    // ---------------------------------------------------------
+    function hexPointsString(cx, cy, radius) {
+      const pts = [];
+      for (let i = 0; i < 6; i++) {
+        const angle = (Math.PI / 180) * (60 * i - 30); // 뾰족한 상단(Pointy-top) 정육각형
+        pts.push(`${(cx + radius * Math.cos(angle)).toFixed(1)},${(cy + radius * Math.sin(angle)).toFixed(1)}`);
+      }
+      return pts.join(" ");
+    }
+
+    function renderBonusShortLabel(bonus) {
+      if (!bonus) return "";
+      const parts = [];
+      if (bonus.plants) parts.push(`식${bonus.plants}`);
+      if (bonus.steel) parts.push(`강${bonus.steel}`);
+      if (bonus.titanium) parts.push(`티${bonus.titanium}`);
+      if (bonus.heat) parts.push(`열${bonus.heat}`);
+      if (bonus.cards) parts.push(`카${bonus.cards}`);
+      if (bonus.oceanTriggerCost) parts.push(`해양-6M€`);
+      return parts.join("·");
+    }
+
+    function renderMarsHexBoard() {
+      const container = document.getElementById("marsHexSvgContainer");
+      if (!container) return;
+
+      const pendingReq = G.tileQueue[0] || null;
+      const validSet = pendingReq ? new Set(getValidHexIdsForPlacement(pendingReq)) : new Set();
+
+      const R = 29;
+      const DX = 51.5;
+      const DY = 44.5;
+      const CX0 = 300;
+      const CY0 = 260;
+
+      const svgParts = [];
+      // 화성 붉은 구체 배경 후광
+      svgParts.push(`<circle cx="${CX0}" cy="${CY0}" r="234" fill="#2c120b" opacity="0.55" />`);
+
+      Object.values(G.hexes).forEach(h => {
+        const cx = CX0 + DX * (h.q + h.r / 2);
+        const cy = CY0 + DY * h.r;
+        const pts = hexPointsString(cx, cy, R);
+        const isValid = validSet.has(h.id);
+
+        let fill = h.isOceanSpace ? "#0d2238" : "#2b1914";
+        let stroke = h.isOceanSpace ? "#38bdf8" : "rgba(253, 186, 116, 0.28)";
+        let strokeW = h.isOceanSpace ? "1.8" : "1.2";
+
+        if (h.special?.kind === "noctis" && !h.tile) {
+          fill = "#241d30";
+          stroke = "#c084fc";
+        } else if (h.special?.kind === "olympus" && !h.tile) {
+          fill = "#2d1b12";
+          stroke = "#fbbf24";
+        }
+
+        if (h.tile) {
+          if (h.tile.kind === "ocean") {
+            fill = "#0284c7";
+            stroke = "#bae6fd";
+            strokeW = "2.2";
+          } else if (h.tile.kind === "greenery") {
+            fill = h.tile.owner === "player" ? "#15803d" : h.tile.owner === "rival" ? "#3f6212" : "#1e3a29";
+            stroke = h.tile.owner === "player" ? "#38bdf8" : h.tile.owner === "rival" ? "#fb7185" : "#94a3b8";
+            strokeW = "2.5";
+          } else if (h.tile.kind === "city") {
+            fill = h.tile.owner === "player" ? "#1e3a5f" : h.tile.owner === "rival" ? "#4c1d24" : "#334155";
+            stroke = h.tile.owner === "player" ? "#38bdf8" : h.tile.owner === "rival" ? "#fb7185" : "#cbd5e1";
+            strokeW = "2.6";
+          } else {
+            fill = "#422006";
+            stroke = "#facc15";
+            strokeW = "2.3";
+          }
+        }
+
+        if (isValid) {
+          stroke = "#fde047";
+          strokeW = "3";
+          fill = h.isOceanSpace ? "#133a5e" : "#432618";
+        }
+
+        const clickAttr = isValid ? `onclick="onClickMarsHex('${h.id}')"` : "";
+        const cls = isValid ? "hex-cell hex-valid" : "hex-cell";
+
+        let innerMarkup = "";
+        if (h.tile) {
+          const titleTxt = h.tile.kind === "ocean" ? "해양" : h.tile.kind === "greenery" ? "녹지" : h.tile.kind === "city" ? "도시" : (h.tile.label || "특수").slice(0, 3);
+          const ownerTag = h.tile.owner === "player" ? "나" : h.tile.owner === "rival" ? "봇" : h.tile.owner === "neutral" ? "중립" : "";
+          innerMarkup = `
+            <text x="${cx}" y="${ownerTag ? cy - 2 : cy + 4}" text-anchor="middle" fill="#f8fafc" font-size="12.5" font-weight="800" pointer-events="none">${titleTxt}</text>
+            ${ownerTag ? `<text x="${cx}" y="${cy + 14}" text-anchor="middle" fill="${h.tile.owner === "player" ? "#7dd3fc" : h.tile.owner === "rival" ? "#fda4af" : "#cbd5e1"}" font-size="12" font-weight="700" pointer-events="none">${ownerTag}</text>` : ""}
+          `;
+        } else {
+          const bTxt = renderBonusShortLabel(h.bonus);
+          const spTxt = h.special ? (h.special.kind === "noctis" ? "녹티스" : h.special.kind === "olympus" ? "올림푸스" : "남극") : (h.isOceanSpace ? "해양" : "");
+          innerMarkup = `
+            ${spTxt ? `<text x="${cx}" y="${bTxt ? cy - 4 : cy + 4}" text-anchor="middle" fill="${h.isOceanSpace ? "#7dd3fc" : "#fdba74"}" font-size="12" font-weight="700" opacity="0.9" pointer-events="none">${spTxt}</text>` : ""}
+            ${bTxt ? `<text x="${cx}" y="${spTxt ? cy + 12 : cy + 4}" text-anchor="middle" fill="#fde68a" font-size="12" font-weight="800" pointer-events="none">${bTxt}</text>` : ""}
+          `;
+        }
+
+        svgParts.push(`
+          <g ${clickAttr} class="${cls}">
+            <polygon points="${pts}" fill="${fill}" stroke="${stroke}" stroke-width="${strokeW}" />
+            ${innerMarkup}
+          </g>
+        `);
+      });
+
+      container.innerHTML = `
+        <svg viewBox="62 48 476 424" class="w-full h-auto max-h-[440px] select-none">
+          ${svgParts.join("")}
+        </svg>
+      `;
+    }
+
+    function initStaticIcons() {
+      document.getElementById("brandEmblem").innerHTML = iconSvg("mars", 16);
+      document.getElementById("secIconMap").innerHTML = iconSvg("mars", 18);
+      document.getElementById("secIconRival").innerHTML = iconSvg("rival", 18);
+      ["mc", "steel", "titanium", "plants", "energy", "heat"].forEach(k => {
+        document.getElementById(`hudIcon_${k}`).innerHTML = iconSvg(k, 14);
+      });
+      document.getElementById("btnAudioToggle").innerHTML = iconSvg(audioOn ? "sound_on" : "sound_off", 15);
+    }
+
+    function renderGame() {
+      if (!G || !G.res) return;
+      const sc = computeScores();
+      const mapDef = getMapDef();
+      const isSolo = G.mode === "solo";
+
+      // 1. 상단 3줄 고정 텔레메트리 HUD
+      document.getElementById("hudGenBadge").textContent = isSolo ? `${G.gen}/${G.maxGen}세대` : `${G.gen}세대`;
+      document.getElementById("hudCorpBadge").innerHTML = `<span>${G.corp.name.split(" (")[0]}</span>`;
+      document.getElementById("hudTrText").textContent = `TR ${G.tr}`;
+      document.getElementById("hudPlayerScore").textContent = `${sc.playerTotal}점`;
+
+      const rWrap = document.getElementById("hudRivalScoreWrap");
+      if (!isSolo) {
+        rWrap.classList.remove("hidden");
+        rWrap.classList.add("inline-flex");
+        document.getElementById("hudRivalScore").textContent = `봇 ${sc.rivalTotal}`;
+      } else {
+        rWrap.classList.add("hidden");
+        rWrap.classList.remove("inline-flex");
+      }
+
+      const coachBtn = document.getElementById("btnCoachToggle");
+      coachBtn.textContent = coachOn ? "코치ON" : "코치OFF";
+      coachBtn.className = `px-1.5 py-1 rounded-lg border text-xs font-bold cursor-pointer ${
+        coachOn ? "bg-emerald-950/85 border-emerald-500/45 text-emerald-300" : "bg-[#161c28] border-white/10 text-slate-400"
+      }`;
+
+      // 2행: 3대 글로벌 파라미터 배지
+      document.getElementById("hudParamTemp").innerHTML = `
+        <span class="flex items-center gap-1">${iconSvg("temp", 14)}<span class="text-slate-300 hidden sm:inline">기온</span></span>
+        <strong class="${G.temp >= 8 ? "text-emerald-300" : "text-rose-200"}">${G.temp > 0 ? `+${G.temp}` : G.temp}°C</strong>
+      `;
+      document.getElementById("hudParamOxy").innerHTML = `
+        <span class="flex items-center gap-1">${iconSvg("oxygen", 14)}<span class="text-slate-300 hidden sm:inline">산소</span></span>
+        <strong class="${G.oxy >= 14 ? "text-emerald-300" : "text-emerald-200"}">${G.oxy}%/14%</strong>
+      `;
+      document.getElementById("hudParamOcean").innerHTML = `
+        <span class="flex items-center gap-1">${iconSvg("ocean", 14)}<span class="text-slate-300 hidden sm:inline">해양</span></span>
+        <strong class="${G.oceans >= 9 ? "text-emerald-300" : "text-sky-200"}">${G.oceans}/9</strong>
+      `;
+
+      const phaseBadge = document.getElementById("hudPhaseBadge");
+      if (G.tileQueue.length > 0) {
+        phaseBadge.textContent = "타일배치";
+        phaseBadge.className = "px-2 py-0.5 rounded-lg bg-orange-950 border border-orange-400 font-extrabold text-orange-200 whitespace-nowrap shrink-0";
+      } else if (G.phase === "research") {
+        phaseBadge.textContent = "연구구매";
+        phaseBadge.className = "px-2 py-0.5 rounded-lg bg-sky-950 border border-sky-400 font-bold text-sky-200 whitespace-nowrap shrink-0";
+      } else {
+        phaseBadge.textContent = "행동단계";
+        phaseBadge.className = "px-2 py-0.5 rounded-lg bg-[#161d2b] border border-white/10 font-bold text-emerald-300 whitespace-nowrap shrink-0";
+      }
+
+      // 3행: 6종 자원 보유량(+생산력)
+      ["mc", "steel", "titanium", "plants", "energy", "heat"].forEach(k => {
+        document.getElementById(`hudVal_${k}`).textContent = G.res[k];
+        const p = G.prod[k];
+        document.getElementById(`hudProd_${k}`).textContent = `(${p >= 0 ? `+${p}` : p})`;
+      });
+
+      // 조건부 타일 배치 배너
+      const tBanner = document.getElementById("hudTileBanner");
+      if (G.tileQueue.length > 0) {
+        const cur = G.tileQueue[0];
+        const kindKo = (cur.kind === "ocean" || cur.kind === "ocean_land")
+          ? "해양 타일"
+          : (cur.kind === "greenery" || cur.kind === "greenery_ocean")
+          ? "녹지 타일"
+          : (cur.kind === "city" || cur.kind === "noctis" || cur.kind === "city_isolated")
+          ? "도시 타일"
+          : `특수 타일(${cur.label})`;
+        document.getElementById("hudTileBannerText").textContent = `[${kindKo}] 화성 맵의 노랗게 빛나는 구역을 터치해 배치하세요 (${G.tileQueue.length}개 대기)`;
+        document.getElementById("btnCancelTilePlace").classList.toggle("hidden", !cur.cancellable);
+        tBanner.classList.remove("hidden");
+        tBanner.classList.add("flex");
+      } else {
+        tBanner.classList.add("hidden");
+        tBanner.classList.remove("flex");
+      }
+
+      // 스마트 코치 배너
+      const cBanner = document.getElementById("coachBanner");
+      if (coachOn && !G.ended) {
+        document.getElementById("coachBannerText").textContent = getSmartCoachMessage();
+        cBanner.classList.remove("hidden");
+        cBanner.classList.add("flex");
+      } else {
+        cBanner.classList.add("hidden");
+        cBanner.classList.remove("flex");
+      }
+
+      // 모바일 3탭 스위처 동기화
+      const activeBlueReadyCnt = G.played.filter(c => c.blueAction && !c.actionUsed).length +
+        (G.corp.id === "unmi" && G.trRaisedThisGen && !G.corpActionUsed ? 1 : 0);
+      const tabs = [
+        { id: "map", btnId: "mTabMap", colId: "boardColMap", base: "xl:col-span-5 board-frame rounded-2xl p-3 sm:p-4 flex-col gap-2.5", label: `화성맵 (${mapDef.shortName})` },
+        { id: "engine", btnId: "mTabEngine", colId: "boardColEngine", base: "xl:col-span-4 flex-col gap-3", label: `기업·표준${activeBlueReadyCnt > 0 ? ` (${activeBlueReadyCnt})` : ""}` },
+        { id: "meta", btnId: "mTabMeta", colId: "boardColMeta", base: "xl:col-span-3 flex-col gap-3", label: isSolo ? `목표·점수(${sc.playerTotal})` : `업적·점수(${sc.playerTotal})` }
+      ];
+      tabs.forEach(tb => {
+        const on = mobileBoardTab === tb.id;
+        const b = document.getElementById(tb.btnId);
+        const col = document.getElementById(tb.colId);
+        if (b) {
+          b.textContent = tb.label;
+          b.className = `py-1.5 px-1 rounded-lg text-xs font-extrabold transition truncate cursor-pointer ${
+            on ? "bg-[#2a190e] border border-orange-400 text-orange-200 shadow-sm" : "bg-[#141925] border border-white/10 text-slate-300"
+          }`;
+        }
+        if (col) col.className = `${on ? "flex" : "hidden xl:flex"} ${tb.base}`;
+      });
+
+      // 제1열: 화성 맵 & 궤도 도시 & 식물/열 변환 퀵바
+      document.getElementById("mapHeaderTitle").textContent = `${mapDef.name} (61구역)`;
+      document.getElementById("offworldHexBox").innerHTML = [
+        { k: "phobos", label: "포보스" },
+        { k: "ganymede", label: "가니메데" }
+      ].map(ow => {
+        const occ = G.offworld[ow.k];
+        return `<span class="px-2 py-0.5 rounded-lg border text-xs font-bold ${
+          occ === "player" ? "bg-sky-950 border-sky-400 text-sky-200" : "bg-[#111622] border-white/10 text-slate-500"
+        }">${ow.label}${occ ? "(건설됨)" : ""}</span>`;
+      }).join("");
+
+      const gReq = getGreeneryPlantCost();
+      const canConvG = G.phase === "action" && !G.playerPassed && G.tileQueue.length === 0 && G.res.plants >= gReq;
+      const canConvH = G.phase === "action" && !G.playerPassed && G.tileQueue.length === 0 && G.res.heat >= 8 && G.temp < 8;
+      document.getElementById("quickConvertBar").innerHTML = `
+        <button onclick="onConvertPlantsToGreenery()" ${!canConvG ? "disabled" : ""}
+          class="tactile-tile rounded-xl py-2 px-2.5 flex items-center justify-between text-xs font-bold ${
+            canConvG ? "tactile-clickable cursor-pointer border-emerald-400 text-emerald-200" : "opacity-55 cursor-not-allowed text-slate-400"
+          }">
+          <span class="flex items-center gap-1.5">${iconSvg("plants", 15)}<span>식물 ${gReq} → 녹지</span></span>
+          <span class="font-extrabold">${G.res.plants}/${gReq}</span>
+        </button>
+        <button onclick="onConvertHeatToTemp()" ${!canConvH ? "disabled" : ""}
+          class="tactile-tile rounded-xl py-2 px-2.5 flex items-center justify-between text-xs font-bold ${
+            canConvH ? "tactile-clickable cursor-pointer border-rose-400 text-rose-200" : "opacity-55 cursor-not-allowed text-slate-400"
+          }">
+          <span class="flex items-center gap-1.5">${iconSvg("heat", 15)}<span>열 8 → 기온+2°C</span></span>
+          <span class="font-extrabold">${G.temp >= 8 ? "완료" : `${G.res.heat}/8`}</span>
+        </button>
+      `;
+
+      renderMarsHexBoard();
+
+      // 제2열: 라이벌 오토마 현황(1:1 모드) + 내 기업/태그/파란 액티브 카드 + 표준 프로젝트 6종
+      const rivalPanel = document.getElementById("rivalPanel");
+      if (!isSolo) {
+        rivalPanel.classList.remove("hidden");
+        rivalPanel.classList.add("flex");
+        document.getElementById("rivalDiffTag").textContent = (AUTOMA_DIFFS[G.automaDiff] || AUTOMA_DIFFS.normal).name;
+        document.getElementById("rivalTrVal").textContent = G.rival.tr;
+        document.getElementById("rivalTileCnt").textContent = G.rival.totalTiles;
+        document.getElementById("rivalActionSub").textContent = G.rival.lastSub;
+        document.getElementById("rivalActionTitle").textContent = G.rival.lastTitle;
+        document.getElementById("rivalPassBadge").classList.toggle("hidden", !G.rivalPassed);
+      } else {
+        rivalPanel.classList.add("hidden");
+        rivalPanel.classList.remove("flex");
+      }
+
+      const canUnmi = G.corp.id === "unmi" && G.phase === "action" && !G.playerPassed && G.tileQueue.length === 0 &&
+        G.trRaisedThisGen && !G.corpActionUsed && (G.res.mc + (G.corp.heatAsMc ? G.res.heat : 0)) >= 3;
+      document.getElementById("corpSummaryBox").innerHTML = `
+        <div class="flex items-center justify-between gap-2">
+          <div>
+            <div class="text-sm font-extrabold text-sky-200">${G.corp.name}</div>
+            <div class="text-xs text-slate-300 mt-0.5 leading-snug">${G.corp.effectDesc}</div>
+          </div>
+          ${G.corp.id === "unmi" ? `
+            <button onclick="onUseUnmiAction()" ${!canUnmi ? "disabled" : ""}
+              class="px-2.5 py-1.5 rounded-xl border text-xs font-extrabold shrink-0 ${
+                canUnmi ? "bg-sky-900 hover:bg-sky-800 border-sky-400 text-white cursor-pointer" : "bg-slate-900 border-white/10 text-slate-500 cursor-not-allowed"
+              }">UNMI (+1 TR)</button>
+          ` : ""}
+        </div>
+      `;
+
+      document.getElementById("tagCountersBox").innerHTML = Object.entries(TAG_LABELS).map(([tk, kor]) => {
+        const cnt = G.tags[tk] || 0;
+        return `
+          <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#0c111b] border ${cnt > 0 ? "border-white/20 text-slate-100" : "border-white/5 text-slate-500"} text-xs font-bold">
+            ${iconSvg(`tag_${tk}`, 13)}<span>${kor} ${cnt}</span>
+          </span>
+        `;
+      }).join("");
+
+      const blueCards = G.played.filter(c => c.color === "blue");
+      const blueBox = document.getElementById("activeBlueCardsBox");
+      if (blueCards.length === 0) {
+        blueBox.innerHTML = `<div class="text-xs text-slate-500 py-2">발동된 파란색 지속/액티브 카드가 없습니다.</div>`;
+      } else {
+        blueBox.innerHTML = blueCards.map(bc => {
+          if (!bc.blueAction) {
+            return `
+              <div class="p-2 rounded-xl bg-[#0d1422] border border-sky-500/25 flex items-center justify-between text-xs">
+                <div>
+                  <span class="font-bold text-sky-200">${bc.name}</span>
+                  ${bc.tokens ? `<span class="ml-1 text-emerald-300 font-bold">(토큰 ${bc.tokens}개)</span>` : ""}
+                  <div class="text-slate-400">${bc.desc}</div>
+                </div>
+                <span class="px-2 py-0.5 rounded bg-sky-950 text-sky-300 font-bold shrink-0">상시적용</span>
+              </div>
+            `;
+          }
+          const ready = !bc.actionUsed && G.phase === "action" && !G.playerPassed && G.tileQueue.length === 0;
+          return `
+            <button onclick="onUseBlueCardAction('${bc.id}')" ${!ready ? "disabled" : ""}
+              class="w-full p-2 rounded-xl border text-left flex items-center justify-between gap-2 text-xs transition ${
+                ready ? "bg-[#13233a] hover:bg-[#1a304f] border-sky-400 cursor-pointer" : "bg-[#0c111b] border-white/10 opacity-60 cursor-not-allowed"
+              }">
+              <div class="min-w-0">
+                <div class="font-bold text-sky-100 truncate">${bc.name} ${bc.tokens ? `<span class="text-amber-300">[토큰 ${bc.tokens}]</span>` : ""}</div>
+                <div class="text-slate-300 truncate">${bc.desc}</div>
+              </div>
+              <span class="px-2 py-1 rounded-lg ${ready ? "bg-sky-500 text-slate-950" : "bg-slate-800 text-slate-400"} font-extrabold shrink-0">${bc.actionUsed ? "사용됨" : "액션 발동"}</span>
+            </button>
+          `;
+        }).join("");
+      }
+
+      // 표준 프로젝트 6종 렌더링
+      const availCash = G.res.mc + (G.corp.heatAsMc ? G.res.heat : 0);
+      document.getElementById("standardProjectsGrid").innerHTML = STANDARD_PROJECTS.map(sp => {
+        const maxed = (sp.id === "sp_asteroid" && G.temp >= 8) || (sp.id === "sp_aquifer" && G.oceans >= 9);
+        const canRun = G.phase === "action" && !G.playerPassed && G.tileQueue.length === 0 && !maxed &&
+          (sp.id === "sp_sell" ? G.hand.length > 0 : availCash >= sp.cost);
+        return `
+          <button onclick="executeStandardProject('${sp.id}')" ${!canRun ? "disabled" : ""}
+            class="tactile-tile rounded-xl p-2 text-left flex flex-col justify-between gap-1 text-xs ${
+              canRun ? "tactile-clickable cursor-pointer" : "opacity-50 cursor-not-allowed"
+            }">
+            <div class="flex items-center justify-between w-full">
+              <span class="font-extrabold text-slate-100 flex items-center gap-1">${iconSvg(sp.icon, 14)}<span>${sp.name}</span></span>
+              <span class="font-black text-amber-300">${sp.cost > 0 ? `${sp.cost}M€` : "+1M€"}</span>
+            </div>
+            <div class="text-slate-400 truncate">${sp.desc}</div>
+          </button>
+        `;
+      }).join("");
+
+      // 제3열: 솔로 타임어택 체크리스트 vs 1:1 오토마 업적 & 기업상 경쟁판
+      const maBox = document.getElementById("maSectionBox");
+      if (isSolo) {
+        maBox.innerHTML = `
+          <div class="flex items-center justify-between border-b border-white/10 pb-1.5">
+            <h3 class="text-sm font-extrabold text-emerald-300">공식 솔로 승리 목표 (${G.maxGen}세대 제한)</h3>
+            <span class="text-xs text-slate-400">남은 세대 ${Math.max(0, G.maxGen - G.gen + 1)}회</span>
+          </div>
+          <div class="space-y-1.5 text-xs">
+            <div class="p-2 rounded-lg bg-[#0b1019] border border-white/10 flex justify-between"><span>1. 기온 +8°C 달성</span><strong class="${G.temp >= 8 ? "text-emerald-400" : "text-rose-300"}">${G.temp >= 8 ? "달성 완료!" : `현재 ${G.temp > 0 ? `+${G.temp}` : G.temp}°C (${(8 - G.temp) / 2}단계 남음)`}</strong></div>
+            <div class="p-2 rounded-lg bg-[#0b1019] border border-white/10 flex justify-between"><span>2. 산소 14% 달성</span><strong class="${G.oxy >= 14 ? "text-emerald-400" : "text-emerald-200"}">${G.oxy >= 14 ? "달성 완료!" : `현재 ${G.oxy}% (${14 - G.oxy}단계 남음)`}</strong></div>
+            <div class="p-2 rounded-lg bg-[#0b1019] border border-white/10 flex justify-between"><span>3. 해양 타일 9개 배치</span><strong class="${G.oceans >= 9 ? "text-emerald-400" : "text-sky-300"}">${G.oceans >= 9 ? "달성 완료!" : `현재 ${G.oceans}/9 (${9 - G.oceans}개 남음)`}</strong></div>
+          </div>
+        `;
+      } else {
+        const pSnap = buildStatsSnapshotFor("player");
+        const rSnap = buildStatsSnapshotFor("rival");
+        const msClaimedCnt = Object.keys(G.claimedMilestones).length;
+        const awFundedCnt = Object.keys(G.fundedAwards).length;
+        const nextAwCost = [8, 14, 20][awFundedCnt] || 0;
+
+        maBox.innerHTML = `
+          <div class="space-y-2 text-xs">
+            <div class="flex items-center justify-between border-b border-white/10 pb-1">
+              <span class="font-extrabold text-amber-300">업적 (선착 ${msClaimedCnt}/3 · 8 M€ → +5점)</span>
+            </div>
+            <div class="space-y-1">
+              ${mapDef.milestones.map(ms => {
+                const holder = G.claimedMilestones[ms.id];
+                const ok = !holder && msClaimedCnt < 3 && ms.check(G, pSnap) && availCash >= 8 && G.phase === "action" && !G.playerPassed;
+                return `
+                  <button onclick="onClaimMilestone('${ms.id}')" ${!ok ? "disabled" : ""}
+                    class="w-full px-2.5 py-1.5 rounded-lg border flex items-center justify-between text-left ${
+                      holder === "player" ? "bg-sky-950/80 border-sky-400 text-sky-200" :
+                      holder === "rival" ? "bg-rose-950/80 border-rose-400 text-rose-200" :
+                      ok ? "bg-[#251f12] border-amber-400 text-amber-200 cursor-pointer" : "bg-[#0c111b] border-white/10 text-slate-400"
+                    }">
+                    <span class="truncate"><strong>${ms.name}</strong> · ${ms.desc}</span>
+                    <span class="font-extrabold shrink-0 ml-1">${holder === "player" ? "내 업적(+5)" : holder === "rival" ? "봇 선점" : ok ? "선점(8M€)" : "미달"}</span>
+                  </button>
+                `;
+              }).join("")}
+            </div>
+
+            <div class="flex items-center justify-between border-b border-white/10 pb-1 pt-1">
+              <span class="font-extrabold text-sky-300">기업상 (개설 ${awFundedCnt}/3 · ${nextAwCost ? `${nextAwCost} M€` : "마감"} → 1위 +5점)</span>
+            </div>
+            <div class="space-y-1">
+              ${mapDef.awards.map(aw => {
+                const funded = G.fundedAwards[aw.id];
+                const pv = aw.metric(G, pSnap);
+                const rv = aw.metric(G, rSnap);
+                const canFund = !funded && awFundedCnt < 3 && availCash >= nextAwCost && G.phase === "action" && !G.playerPassed;
+                return `
+                  <button onclick="onFundAward('${aw.id}')" ${!canFund ? "disabled" : ""}
+                    class="w-full px-2.5 py-1.5 rounded-lg border flex items-center justify-between text-left ${
+                      funded ? "bg-[#152438] border-sky-400 text-sky-100" :
+                      canFund ? "bg-[#151c2a] hover:bg-[#1e283c] border-white/15 text-slate-200 cursor-pointer" : "bg-[#0c111b] border-white/10 text-slate-500"
+                    }">
+                    <span class="truncate"><strong>${aw.name}</strong> (나 ${pv} : 봇 ${rv})</span>
+                    <span class="font-bold shrink-0 ml-1">${funded ? "개설됨" : canFund ? `${nextAwCost}M€ 개설` : "-"}</span>
+                  </button>
+                `;
+              }).join("")}
+            </div>
+          </div>
+        `;
+      }
+
+      document.getElementById("paramThresholdsBox").innerHTML = `
+        <div class="p-2 rounded-lg bg-[#141016] border border-white/10 flex justify-between">
+          <span>기온 -24°C / -20°C 보너스</span>
+          <strong class="${G.temp >= -20 ? "text-emerald-400" : "text-rose-300"}">열 생산력 각 +1</strong>
+        </div>
+        <div class="p-2 rounded-lg bg-[#141016] border border-white/10 flex justify-between">
+          <span>기온 0°C 해빙점 보너스</span>
+          <strong class="${G.temp >= 0 ? "text-emerald-400" : "text-sky-300"}">무료 해양 1개 배치</strong>
+        </div>
+        <div class="p-2 rounded-lg bg-[#141016] border border-white/10 flex justify-between">
+          <span>산소 8% 연쇄 보너스</span>
+          <strong class="${G.oxy >= 8 ? "text-emerald-400" : "text-amber-300"}">무료 기온 +2°C 상승</strong>
+        </div>
+      `;
+
+      document.getElementById("liveScoreBreakdownBox").innerHTML = `
+        <div class="flex justify-between"><span class="text-slate-400">테라포밍 등급 (TR)</span><strong class="text-slate-100">${sc.tr}점</strong></div>
+        <div class="flex justify-between"><span class="text-slate-400">내 녹지 타일 (+1/칸)</span><strong class="text-emerald-300">+${sc.myGreeneryVp}점</strong></div>
+        <div class="flex justify-between"><span class="text-slate-400">내 도시 인접 녹지 보너스</span><strong class="text-sky-300">+${sc.myCityAdjVp}점</strong></div>
+        <div class="flex justify-between"><span class="text-slate-400">발동 카드 & 토큰 승점</span><strong class="text-amber-200">${sc.myCardVp >= 0 ? `+${sc.myCardVp}` : sc.myCardVp}점</strong></div>
+        ${!isSolo ? `<div class="flex justify-between"><span class="text-slate-400">업적 & 기업상 예상 승점</span><strong class="text-pink-300">+${sc.myMilestoneVp + sc.myAwardVp}점</strong></div>` : ""}
+        <div class="flex justify-between border-t border-white/10 pt-1 text-sm"><span class="font-extrabold text-amber-300">현재 예상 총점</span><strong class="font-black text-amber-300">${sc.playerTotal}점</strong></div>
+      `;
+
+      // 하단 손패 카드 도크 렌더링
+      const dockBody = document.getElementById("dockMainBody");
+      if (dockBody) {
+        dockBody.className = `${mobileHandCollapsed ? "hidden lg:flex" : "flex"} flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2 lg:gap-4`;
+      }
+      document.getElementById("mobileHandLabel").textContent = `내 손패 ${G.hand.length}장 (${mobileHandCollapsed ? "펼치기" : "접기"})`;
+      document.getElementById("footerDeckCnt").textContent = G.deck.length;
+      document.getElementById("footerPlayedCnt").textContent = G.played.length;
+      document.getElementById("footerDiscardCnt").textContent = G.discard.length;
+
+      const handBox = document.getElementById("playerHandContainer");
+      if (G.hand.length === 0) {
+        handBox.innerHTML = `<div class="text-xs text-slate-500 font-medium py-7 px-2">현재 손패에 카드가 없습니다. 표준 프로젝트·액티브 카드를 사용하거나 [세대 종료]를 눌러 다음 세대로 넘어가세요.</div>`;
+      } else {
+        handBox.innerHTML = G.hand.map((c, idx) => {
+          const req = checkCardRequirement(c);
+          const effCost = getCardEffectiveCost(c);
+          const affordable = getMaxPurchasingPowerForCard(c) >= effCost;
+          const playable = G.phase === "action" && !G.playerPassed && G.tileQueue.length === 0 && req.ok && affordable;
+
+          const topAccent = c.color === "green" ? "bg-emerald-500" : c.color === "blue" ? "bg-sky-500" : "bg-rose-500";
+          const typeTxt = c.color === "green" ? "녹색·기반" : c.color === "blue" ? "파랑·지속" : "빨강·이벤트";
+
+          return `
+            <div onclick="onClickHandCard(${idx})"
+              class="project-card w-40 sm:w-48 snap-start shrink-0 rounded-xl p-2.5 flex flex-col justify-between gap-1.5 cursor-pointer relative overflow-hidden ${
+                playable ? "" : "opacity-55 card-locked"
+              }">
+              <div class="absolute top-0 left-0 right-0 h-1 ${topAccent}"></div>
+
+              <div class="flex items-center justify-between gap-1 pt-0.5">
+                <span class="px-1.5 py-0.5 rounded bg-black/55 border border-white/10 text-xs font-black text-amber-300">
+                  ${effCost < c.cost ? `<span class="line-through text-slate-500 mr-0.5">${c.cost}</span>${effCost}` : effCost} M€
+                </span>
+                <div class="flex items-center gap-0.5">${renderCardTagBadges(c.tags)}</div>
+              </div>
+
+              <div>
+                <div class="text-xs sm:text-sm font-extrabold text-slate-100 truncate">${c.name}</div>
+                <div class="text-xs text-slate-300 mt-0.5 leading-snug line-clamp-2">${c.desc}</div>
+              </div>
+
+              <div class="border-t border-white/10 pt-1 flex items-center justify-between text-xs font-bold">
+                <span class="text-slate-400">${typeTxt}</span>
+                <span class="${playable ? "text-orange-300" : "text-rose-300"} truncate ml-1">${
+                  !req.ok ? req.reason : !affordable ? "자금 부족" : "터치해 발동"
+                }</span>
+              </div>
+            </div>
+          `;
+        }).join("");
+      }
+
+      const canEndGen = G.phase === "action" && !G.playerPassed && G.tileQueue.length === 0 && !G.ended;
+      ["btnEndGen", "btnEndGenMobile"].forEach(bid => {
+        const b = document.getElementById(bid);
+        if (b) b.disabled = !canEndGen;
+      });
+    }
+
+    // 앱 부팅: 정적 아이콘 로드 후 기본 게임 세팅 & 시작 옵션 선택 모달 오픈!
+    initStaticIcons();
+    startNewMarsGame();
+    openSettingsModal();
+  </script>
+</body>
+</html>
