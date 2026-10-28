@@ -878,7 +878,7 @@
       { id: "pre_12", name: "생물권 지원단", tags: ["plant"], prod: { mc: -1, plants: 3 }, desc: "M€ 생산력 -1, 식물 생산력 +3" }
     ];
 
-    // 공식 프로젝트 카드 60종 데이터베이스
+    // 공식 프로젝트 카드 데이터베이스 (기본 70종 + 기본판 인기 카드 55종 = 총 125종)
     // color: "green" (생산/기반시설) | "blue" (지속 할인/패시브/액티브 액션) | "red" (일회성 이벤트)
     const PROJECT_CARDS = [
       // --- [녹색 기반시설 & 생산력 카드] ---
@@ -955,7 +955,75 @@
       { id: "c_67", color: "red", name: "지하 핵실험", cost: 10, vp: -2, tags: ["earth", "event"], raiseTemp: 2, placeSpecialLand: "핵실험지", desc: "육지에 핵실험 타일 배치 & 저렴하게 기온 2단계(+4°C) 상승! (-2점)" },
       { id: "c_68", color: "red", name: "용암 분출", cost: 18, vp: 0, tags: ["event"], raiseTemp: 2, placeSpecialLand: "용암류", desc: "용암류 타일 배치 & 기온 2단계(+4°C) 상승" },
       { id: "c_69", color: "red", name: "기술 시연회", cost: 5, vp: 0, tags: ["science", "space", "event"], res: { cards: 2 }, desc: "카드 2장 즉시 뽑기" },
-      { id: "c_70", color: "red", name: "정부 보조금", cost: 0, vp: -2, tags: ["event"], res: { mc: 14 }, desc: "비용 0 M€ → 즉시 현금 +14 M€ 대출 수령! (종료 -2점)" }
+      { id: "c_70", color: "red", name: "정부 보조금", cost: 0, vp: -2, tags: ["event"], res: { mc: 14 }, desc: "비용 0 M€ → 즉시 현금 +14 M€ 대출 수령! (종료 -2점)" },
+
+      // =====================================================
+      // [기본판 인기 카드 추가 팩] 실제 기본판 카드 수치 기준 (타 플레이어 공격 효과는 1인 연습용으로 생략)
+      // =====================================================
+      // --- [녹색] 전력 · 열 · 생산 엔진 ---
+      { id: "c_71", color: "green", name: "발전소 (Power Plant)", cost: 4, vp: 0, tags: ["power", "building"], prod: { energy: 1 }, desc: "전력 생산력 +1" },
+      { id: "c_72", color: "green", name: "원자력 발전", cost: 10, vp: 0, tags: ["power", "building"], prod: { mc: -2, energy: 3 }, desc: "M€생산-2, 전력생산+3" },
+      { id: "c_73", color: "green", name: "과산화물 발전", cost: 7, vp: 0, tags: ["power", "building"], prod: { mc: -1, energy: 2 }, desc: "M€생산-1, 전력생산+2" },
+      { id: "c_74", color: "green", name: "풍력 발전기 (Windmills)", cost: 6, vp: 1, tags: ["power", "building"], reqOxyMin: 7, prod: { energy: 1 }, desc: "[산소 7% 이상] 전력 생산력 +1" },
+      { id: "c_75", color: "green", name: "파력 발전", cost: 8, vp: 1, tags: ["power"], reqOceansMin: 3, prod: { energy: 1 }, desc: "[해양 3개 이상] 전력 생산력 +1" },
+      { id: "c_76", color: "green", name: "지각 응력 발전", cost: 18, vp: 1, tags: ["power", "building"], reqTags: { science: 2 }, prod: { energy: 3 }, desc: "[과학태그 2+] 전력 생산력 +3" },
+      { id: "c_77", color: "green", name: "번개 수확", cost: 8, vp: 1, tags: ["power"], reqTags: { science: 3 }, prod: { energy: 1, mc: 1 }, desc: "[과학태그 3+] 전력생산+1, M€생산+1" },
+      { id: "c_78", color: "green", name: "솔레타 (Soletta)", cost: 35, vp: 0, tags: ["space"], prod: { heat: 7 }, desc: "열 생산력 +7 (거대 궤도 반사경)" },
+      { id: "c_79", color: "green", name: "온실가스 공장", cost: 11, vp: 0, tags: ["building"], reqProd: { energy: 1 }, prod: { energy: -1, heat: 4 }, desc: "[전력생산-1] 열 생산력 +4" },
+      { id: "c_80", color: "green", name: "산업 미생물", cost: 12, vp: 0, tags: ["microbe", "building"], prod: { energy: 1, steel: 1 }, desc: "전력생산+1, 강철생산+1" },
+      { id: "c_81", color: "green", name: "방사화학 공장", cost: 8, vp: 0, tags: ["building"], reqProd: { energy: 1 }, prod: { energy: -1 }, gainTr: 2, desc: "[전력생산-1] TR +2 즉시 상승" },
+      { id: "c_82", color: "green", name: "검은 극지 먼지", cost: 15, vp: 0, tags: [], prod: { mc: -2, heat: 3 }, placeOcean: 1, desc: "M€생산-2, 열생산+3 \u0026 해양 타일 1개 배치" },
+      { id: "c_83", color: "green", name: "토륨 소행성 빔", cost: 32, vp: 1, tags: ["jovian", "space", "power"], reqTags: { jovian: 1 }, prod: { heat: 3, energy: 3 }, desc: "[목성태그 1+] 열생산+3, 전력생산+3" },
+      { id: "c_84", color: "green", name: "식품 공장", cost: 12, vp: 1, tags: ["building"], reqProd: { plants: 1 }, prod: { plants: -1, mc: 4 }, desc: "[식물생산-1] M€ 생산력 +4" },
+
+      // --- [녹색] 과학 · 우주 · 목성 ---
+      { id: "c_85", color: "green", name: "연구 (Research)", cost: 11, vp: 1, tags: ["science", "science"], res: { cards: 2 }, desc: "과학 태그 2개! 카드 2장 즉시 뽑기" },
+      { id: "c_86", color: "green", name: "유전자 복구", cost: 12, vp: 2, tags: ["science"], reqTags: { science: 3 }, prod: { mc: 2 }, desc: "[과학태그 3+] M€ 생산력 +2" },
+      { id: "c_87", color: "green", name: "해왕성 너머 탐사선", cost: 6, vp: 1, tags: ["science", "space"], desc: "저렴한 과학·우주 태그 + 1점" },
+      { id: "c_88", color: "green", name: "통신 위성 (Satellites)", cost: 10, vp: 0, tags: ["space"], mcProdPerTag: "space", desc: "이 카드를 포함한 내 우주 태그 1개당 M€ 생산력 +1" },
+      { id: "c_89", color: "green", name: "미란다 휴양지", cost: 12, vp: 1, tags: ["jovian", "space"], mcProdPerTag: "earth", desc: "내 지구 태그 1개당 M€ 생산력 +1" },
+      { id: "c_90", color: "green", name: "칼리스토 유형지 광산", cost: 24, vp: 2, tags: ["jovian", "space"], prod: { mc: 3 }, desc: "M€ 생산력 +3" },
+      { id: "c_91", color: "green", name: "타이탄 메탄 수송", cost: 28, vp: 2, tags: ["jovian", "space"], reqOxyMin: 2, prod: { heat: 2, plants: 2 }, desc: "[산소 2% 이상] 열생산+2, 식물생산+2" },
+
+      // --- [녹색] 식물 · 생태 ---
+      { id: "c_92", color: "green", name: "히스 덤불 (Heather)", cost: 6, vp: 0, tags: ["plant"], reqTempMin: -14, prod: { plants: 1 }, res: { plants: 1 }, desc: "[기온 -14°C 이상] 식물생산+1, 식물+1" },
+      { id: "c_93", color: "green", name: "곤충 (Insects)", cost: 9, vp: 0, tags: ["microbe"], reqOxyMin: 6, plantProdPerTag: "plant", desc: "[산소 6% 이상] 내 식물 태그 1개당 식물 생산력 +1" },
+      { id: "c_94", color: "green", name: "대농장 (Plantation)", cost: 15, vp: 0, tags: ["plant"], reqTags: { science: 2 }, placeGreenery: 1, desc: "[과학태그 2+] 녹지 타일 1개 배치 (산소 +1%)" },
+      { id: "c_95", color: "green", name: "마리네리스 호수", cost: 18, vp: 2, tags: [], reqTempMin: 0, placeOcean: 2, desc: "[기온 0°C 이상] 해양 타일 2개 배치" },
+
+      // --- [파란색] 지속 효과 · 액션 ---
+      { id: "c_96", color: "blue", name: "지구 사무소", cost: 1, vp: 0, tags: ["earth"], discountTag: { earth: 3 }, desc: "[지속] 지구 태그 카드 비용 -3 M€ 할인!" },
+      { id: "c_97", color: "blue", name: "미디어 그룹", cost: 6, vp: 0, tags: ["earth"], eventRebate: 3, desc: "[지속] 빨간색 이벤트 카드를 낼 때마다 +3 M€ 획득!" },
+      { id: "c_98", color: "blue", name: "탐사차 건조", cost: 8, vp: 1, tags: ["building"], cityRebate: 2, desc: "[지속] 어떤 도시든 배치될 때마다 +2 M€ 획득" },
+      { id: "c_99", color: "blue", name: "극지 조류 (Arctic Algae)", cost: 12, vp: 0, tags: ["plant"], reqTempMax: -12, res: { plants: 1 }, oceanPlants: 2, desc: "[기온 -12°C 이하] 식물+1 · 어떤 해양이든 놓일 때마다 식물 +2" },
+      { id: "c_100", color: "blue", name: "반려동물 (Pets)", cost: 10, vp: 0, tags: ["earth", "animal"], tokenType: "animal", vpPerToken: 0.5, startTokens: 1, cityAnimal: true, desc: "동물 1개로 시작 · 어떤 도시든 배치될 때마다 동물 +1 (2개당 1점)" },
+      { id: "c_101", color: "blue", name: "분해자 (Decomposers)", cost: 5, vp: 0, tags: ["microbe"], reqOxyMin: 3, tokenType: "microbe", vpPerToken: 1 / 3, passiveBioToken: true, bioTags: ["plant", "animal", "microbe"], desc: "[산소 3%+] 식물·동물·미생물 태그 낼 때마다 미생물 +1 (3개당 1점)" },
+      { id: "c_102", color: "blue", name: "가축 (Livestock)", cost: 13, vp: 0, tags: ["animal"], reqOxyMin: 9, reqProd: { plants: 1 }, prod: { plants: -1, mc: 2 }, tokenType: "animal", vpPerToken: 1, blueAction: "add_token", desc: "[산소 9%+, 식물생산-1] M€생산+2 · 액션: 동물 +1 (개당 1점)" },
+      { id: "c_103", color: "blue", name: "소형 동물", cost: 6, vp: 0, tags: ["animal"], reqOxyMin: 6, tokenType: "animal", vpPerToken: 0.5, blueAction: "add_token", desc: "[산소 6%+] 액션: 동물 +1 (2개당 1점)" },
+      { id: "c_104", color: "blue", name: "완보동물 (Tardigrades)", cost: 4, vp: 0, tags: ["microbe"], tokenType: "microbe", vpPerToken: 0.25, blueAction: "add_token", desc: "[액션] 미생물 +1 (4개당 1점)" },
+      { id: "c_105", color: "blue", name: "우주 엘리베이터", cost: 27, vp: 2, tags: ["space", "building"], prod: { titanium: 1 }, blueAction: "steel_to_mc", desc: "티타늄생산+1 · 액션: 강철 1개 → 5 M€ 환전" },
+      { id: "c_106", color: "blue", name: "물 분해 공장", cost: 12, vp: 0, tags: ["building"], reqOceansMin: 2, blueAction: "energy_to_oxy", desc: "[해양 2개+] 액션: 전력 3개 소비 → 산소 +1%" },
+      { id: "c_107", color: "blue", name: "적도 자기장 발생기", cost: 11, vp: 0, tags: ["building"], blueAction: "magnetizer", desc: "[액션] 전력 생산력 -1 → TR +1" },
+      { id: "c_108", color: "blue", name: "관리 위탁 계약", cost: 3, vp: 0, tags: [], reqTempMin: 0, blueAction: "heat_to_tr", desc: "[기온 0°C+] 액션: 열 8개 소비 → TR +1" },
+      { id: "c_109", color: "blue", name: "발명가 길드", cost: 9, vp: 0, tags: ["science"], blueAction: "buy_card", desc: "[액션] 3 M€ 지불 → 카드 1장 구매 (실제: 맨 위 카드를 보고 구매 여부 결정)" },
+      { id: "c_110", color: "blue", name: "제한 구역", cost: 11, vp: 0, tags: ["science"], placeSpecialLand: "제한구역", blueAction: "mc2_draw", desc: "특수 타일 배치 · 액션: 2 M€ 지불 → 카드 1장 뽑기" },
+      { id: "c_111", color: "blue", name: "질량 변환기", cost: 8, vp: 0, tags: ["science", "power"], reqTags: { science: 5 }, prod: { energy: 6 }, discountTag: { space: 2 }, desc: "[과학태그 5+] 전력생산+6 \u0026 우주 카드 -2 M€ 할인" },
+      { id: "c_112", color: "blue", name: "셔틀 (Shuttles)", cost: 10, vp: 1, tags: ["space"], reqOxyMin: 5, reqProd: { energy: 1 }, prod: { energy: -1, mc: 2 }, discountTag: { space: 2 }, desc: "[산소 5%+, 전력생산-1] M€생산+2 \u0026 우주 카드 -2 M€ 할인" },
+
+      // --- [빨간색] 이벤트 ---
+      { id: "c_113", color: "red", name: "만년설 해빙", cost: 5, vp: 0, tags: ["event"], reqTempMin: 2, placeOcean: 1, desc: "[기온 +2°C 이상] 해양 타일 1개 배치" },
+      { id: "c_114", color: "red", name: "지하 저수지", cost: 11, vp: 0, tags: ["event"], placeOcean: 1, desc: "해양 타일 1개 배치" },
+      { id: "c_115", color: "red", name: "영구동토 추출", cost: 8, vp: 0, tags: ["event"], reqTempMin: -8, placeOcean: 1, desc: "[기온 -8°C 이상] 해양 타일 1개 배치" },
+      { id: "c_116", color: "red", name: "유로파 수송선단", cost: 15, vp: 0, tags: ["space", "event"], placeOcean: 1, res: { cards: 1 }, desc: "해양 1개 배치 \u0026 카드 1장 드로우" },
+      { id: "c_117", color: "red", name: "혜성 견인", cost: 23, vp: 0, tags: ["space", "event"], raiseOxy: 1, placeOcean: 1, res: { plants: 2 }, desc: "산소 +1%, 해양 1개 배치 \u0026 식물 +2" },
+      { id: "c_118", color: "red", name: "거대 소행성", cost: 27, vp: 0, tags: ["space", "event"], raiseTemp: 2, res: { titanium: 4 }, desc: "기온 2단계(+4°C) 상승 \u0026 티타늄 +4 (실제: 타인 식물 4 제거)" },
+      { id: "c_119", color: "red", name: "비활성 기체 방출", cost: 14, vp: 0, tags: ["event"], gainTr: 2, desc: "TR +2 즉시 상승" },
+      { id: "c_120", color: "red", name: "위원회 매수", cost: 7, vp: -2, tags: ["earth", "event"], gainTr: 2, desc: "TR +2 즉시 상승 (종료 -2점)" },
+      { id: "c_121", color: "red", name: "온실가스 수입", cost: 7, vp: 0, tags: ["earth", "space", "event"], prod: { heat: 1 }, res: { heat: 3 }, desc: "열생산+1, 열 +3" },
+      { id: "c_122", color: "red", name: "질소 수입", cost: 23, vp: 0, tags: ["earth", "space", "event"], gainTr: 1, res: { plants: 4 }, desc: "TR +1 \u0026 식물 +4 (실제: 미생물3·동물2 추가 적재)" },
+      { id: "c_123", color: "red", name: "채굴 원정대", cost: 12, vp: 0, tags: ["event"], raiseOxy: 1, res: { steel: 2 }, desc: "산소 +1% \u0026 강철 +2 (실제: 타인 식물 2 제거)" },
+      { id: "c_124", color: "red", name: "발명 경연대회", cost: 2, vp: 0, tags: ["science", "event"], res: { cards: 1 }, desc: "카드 1장 획득 (실제: 3장 보고 1장 선택)" },
+      { id: "c_125", color: "red", name: "성간 식민선", cost: 24, vp: 4, tags: ["earth", "space", "event"], reqTags: { science: 5 }, desc: "[과학태그 5+] 대규모 이주 → +4점!" }
     ];
 
     // =========================================================
@@ -1077,7 +1145,7 @@
     function startNewMarsGame() {
       const isSolo = configMode === "solo";
       const maxGen = isSolo ? (configUsePrelude ? 12 : 14) : 99;
-      const deckPool = shuffleList(PROJECT_CARDS.map(c => ({ ...c, tokens: 0, actionUsed: false })));
+      const deckPool = shuffleList(PROJECT_CARDS.map(c => ({ ...c, tokens: c.startTokens || 0, actionUsed: false })));
       const preludePool = shuffleList(PRELUDE_CARDS.map(p => ({ ...p })));
 
       G = {
@@ -1732,7 +1800,28 @@
       renderGame();
     }
 
+    // 극지 조류: 누구의 해양이든 배치될 때마다 식물 +2
+    function onAnyOceanPlaced() {
+      G.played.forEach(pc => {
+        if (pc.oceanPlants) {
+          gainPlayerRes({ plants: pc.oceanPlants });
+          pushLog(`[${pc.name}] 해양 배치 감지 → 식물 +${pc.oceanPlants}!`);
+        }
+      });
+    }
+
     function onAnyCityPlacedOnMars(cityOwner) {
+      // 탐사차 건조(+2 M€) / 반려동물(동물 +1): 누구의 도시든 배치될 때마다 발동
+      G.played.forEach(pc => {
+        if (pc.cityRebate) {
+          gainPlayerRes({ mc: pc.cityRebate });
+          pushLog(`[${pc.name}] 도시 건설 감지 → +${pc.cityRebate} M€!`);
+        }
+        if (pc.cityAnimal) {
+          pc.tokens = (pc.tokens || 0) + 1;
+          pushLog(`[${pc.name}] 도시 건설 감지 → 동물 토큰 +1 (누적 ${pc.tokens}개)`);
+        }
+      });
       if (G.corp.id === "tharsis_rep") {
         G.prod.mc += 1;
         if (cityOwner === "player") {
@@ -1807,6 +1896,7 @@
         G.oceans = Math.min(9, G.oceans + 1);
         gainPlayerTr(1);
         pushLog(`해양 타일 배치 완료 (${G.oceans}/9) → 내 TR +1!`);
+        onAnyOceanPlaced();
       } else if (actualKind === "greenery") {
         pushLog(`녹지 타일 배치 완료!`);
         raiseOxygen(1, "player");
@@ -1849,6 +1939,9 @@
       if (card.reqTempMin !== undefined && G.temp < card.reqTempMin) {
         return { ok: false, reason: `기온 ${card.reqTempMin > 0 ? `+${card.reqTempMin}` : card.reqTempMin}°C↑ 필요` };
       }
+      if (card.reqTempMax !== undefined && G.temp > card.reqTempMax) {
+        return { ok: false, reason: `기온 ${card.reqTempMax}°C↓ 제한 초과` };
+      }
       if (card.reqOxyMin !== undefined && G.oxy < card.reqOxyMin) {
         return { ok: false, reason: `산소 ${card.reqOxyMin}%↑ 필요` };
       }
@@ -1868,7 +1961,8 @@
       if (card.reqProd) {
         for (const [rk, cnt] of Object.entries(card.reqProd)) {
           if ((G.prod[rk] || 0) < cnt) {
-            return { ok: false, reason: `전력 생산력 ${cnt} 필요` };
+            const prodLabels = { mc: "M€", steel: "강철", titanium: "티타늄", plants: "식물", energy: "전력", heat: "열" };
+            return { ok: false, reason: `${prodLabels[rk] || rk} 생산력 ${cnt} 필요` };
           }
         }
       }
@@ -2109,12 +2203,22 @@
           pushLog(`[최적 공기제동] 우주 이벤트 보너스 → +${3 * aeroCnt} M€, 열 +${3 * aeroCnt}!`);
         }
       }
-      // 생태 보호 구역 토큰 적재 패시브
-      if (card.tags && (card.tags.includes("plant") || card.tags.includes("animal"))) {
-        const ecoCard = G.played.find(pc => pc.passiveBioToken);
-        if (ecoCard) {
-          ecoCard.tokens = (ecoCard.tokens || 0) + 1;
-          pushLog(`[생태 보호 구역] 생물 태그 시너지로 동물 토큰 +1 적재! (누적 ${ecoCard.tokens}개)`);
+      // 생태 보호 구역 / 분해자 토큰 적재 패시브 (카드별 대상 태그 지원)
+      if (card.tags && card.tags.length > 0) {
+        G.played.filter(pc => pc.passiveBioToken).forEach(bioCard => {
+          const watchTags = bioCard.bioTags || ["plant", "animal"];
+          if (card.tags.some(t => watchTags.includes(t))) {
+            bioCard.tokens = (bioCard.tokens || 0) + 1;
+            pushLog(`[${bioCard.name}] 생물 태그 시너지로 토큰 +1 적재! (누적 ${bioCard.tokens}개)`);
+          }
+        });
+      }
+      // 미디어 그룹: 이벤트 카드 발동 시 +3 M€
+      if (isEvent) {
+        const evRebate = G.played.reduce((s, pc) => s + (pc.eventRebate || 0), 0);
+        if (evRebate > 0) {
+          gainPlayerRes({ mc: evRebate });
+          pushLog(`[미디어 그룹] 이벤트 보도 수익 → +${evRebate} M€!`);
         }
       }
 
@@ -2125,6 +2229,10 @@
       if (card.mcProdPerTag) {
         const cnt = G.tags[card.mcProdPerTag] || 0;
         G.prod.mc += cnt;
+      }
+      if (card.plantProdPerTag) {
+        const cnt = G.tags[card.plantProdPerTag] || 0;
+        G.prod.plants += cnt;
       }
       if (card.prodPlantBoost) {
         const boost = (G.tags.plant || 0) >= 3 ? 4 : 1;
@@ -2159,6 +2267,9 @@
       }
       if (card.placeOceanOnLand) queueTilePlacement("ocean_land", "player", { label: card.name });
       if (card.placeGreeneryOnOcean) queueTilePlacement("greenery_ocean", "player", { label: card.name });
+      if (card.placeGreenery) {
+        for (let i = 0; i < card.placeGreenery; i++) queueTilePlacement("greenery", "player", { label: card.name });
+      }
       if (card.placeCity) {
         for (let i = 0; i < card.placeCity; i++) queueTilePlacement("city", "player", { label: card.name });
       }
@@ -2316,7 +2427,44 @@
         card.actionUsed = true;
         card.tokens = (card.tokens || 0) + 1;
         sfx("coin");
-        pushLog(`[${card.name}] 동물 토큰 +1 적재! (누적 +${card.tokens}점)`);
+        const tokName = card.tokenType === "microbe" ? "미생물" : "동물";
+        pushLog(`[${card.name}] ${tokName} 토큰 +1 적재! (누적 ${card.tokens}개 → ${Math.floor(card.tokens * card.vpPerToken + 1e-9)}점)`);
+      } else if (act === "steel_to_mc") {
+        if (G.res.steel < 1) { pushToast("강철 1개가 필요합니다.", true); return; }
+        G.res.steel -= 1;
+        card.actionUsed = true;
+        gainPlayerRes({ mc: 5 });
+        pushLog(`[${card.name}] 강철 1개 → +5 M€ 환전!`);
+      } else if (act === "energy_to_oxy") {
+        if (G.oxy >= 14) { pushToast("이미 산소가 최대치(14%)입니다.", true); return; }
+        if (G.res.energy < 3) { pushToast("전력 3개가 필요합니다.", true); return; }
+        G.res.energy -= 3;
+        card.actionUsed = true;
+        raiseOxygen(1, "player");
+        pushLog(`[${card.name}] 전력 3개 소비 → 산소 +1%!`);
+      } else if (act === "magnetizer") {
+        if (G.prod.energy < 1) { pushToast("전력 생산력이 1 이상이어야 합니다.", true); return; }
+        G.prod.energy -= 1;
+        card.actionUsed = true;
+        sfx("param");
+        gainPlayerTr(1);
+        pushLog(`[${card.name}] 전력 생산력 -1 → TR +1!`);
+      } else if (act === "heat_to_tr") {
+        if (G.res.heat < 8) { pushToast("열 8개가 필요합니다.", true); return; }
+        G.res.heat -= 8;
+        card.actionUsed = true;
+        sfx("param");
+        gainPlayerTr(1);
+        pushLog(`[${card.name}] 열 8개 소비 → TR +1!`);
+      } else if (act === "buy_card" || act === "mc2_draw") {
+        const price = act === "buy_card" ? 3 : 2;
+        const avail = G.res.mc + (G.corp.heatAsMc ? G.res.heat : 0);
+        if (avail < price) { pushToast(`${price} M€가 필요합니다.`, true); return; }
+        payMcOrHelionHeat(price);
+        card.actionUsed = true;
+        sfx("card");
+        drawPlayerCards(1);
+        pushLog(`[${card.name}] ${price} M€ 지불 → 카드 1장 획득!`);
       } else if (act === "physics_complex") {
         if (G.res.energy < 6) { pushToast("전력 6개가 필요합니다.", true); return; }
         G.res.energy -= 6;
@@ -2525,6 +2673,7 @@
       if (kind === "ocean") {
         G.oceans = Math.min(9, G.oceans + 1);
         G.rival.tr += 1;
+        onAnyOceanPlaced();
       } else {
         G.rival.totalTiles += 1;
         if (hex.r >= 3) G.rival.southTiles += 1;
@@ -2752,7 +2901,7 @@
       G.played.forEach(c => {
         myCardVp += (c.vp || 0);
         if (c.vpPerToken && c.tokens) {
-          myCardVp += Math.floor(c.tokens * c.vpPerToken);
+          myCardVp += Math.floor(c.tokens * c.vpPerToken + 1e-9);
         }
         if (c.vpPerTag) {
           myCardVp += (G.tags[c.vpPerTag] || 0);
