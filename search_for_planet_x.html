@@ -3,22 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>행성 X를 찾아서 모바일 튜토리얼 & 솔로 시뮬레이터</title>
+  <title>행성 X를 찾아서 - 모바일 천문학 디덕션 시뮬레이터 (프리미엄 에디션)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     :root {
-      --bg-space: #070913;
+      --bg-space: #050711;
       --radar-cyan: #38bdf8;
       --star-gold: #facc15;
-      --orbit-purple: #a855f7;
-      --planetx-pink: #f43f5e;
+      --orbit-purple: #c084fc;
+      --planetx-rose: #f43f5e;
+      --comet-cyan: #22d3ee;
+      --gas-purple: #a855f7;
+      --asteroid-amber: #f59e0b;
+      --dwarf-emerald: #10b981;
     }
     body {
       background-color: var(--bg-space);
       background-image:
-        radial-gradient(ellipse 90% 50% at 50% -10%, rgba(56, 189, 248, 0.12), transparent 75%),
-        radial-gradient(ellipse 70% 40% at 50% 110%, rgba(168, 85, 247, 0.1), transparent 75%),
-        linear-gradient(to bottom, #070913, #0b0e1e 60%, #060810);
+        radial-gradient(ellipse 90% 45% at 50% -10%, rgba(56, 189, 248, 0.16), transparent 70%),
+        radial-gradient(ellipse 70% 40% at 50% 110%, rgba(192, 132, 252, 0.12), transparent 70%),
+        linear-gradient(to bottom, #050711, #0a0e20 55%, #04060d);
       color: #f1f5f9;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       user-select: none;
@@ -30,21 +34,30 @@
     ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.7); }
     ::-webkit-scrollbar-thumb { background: rgba(56, 189, 248, 0.4); border-radius: 9999px; }
 
-    /* 레이더 및 시야 펄스 */
-    @keyframes radar-pulse {
-      0%, 100% { opacity: 0.25; }
-      50% { opacity: 0.55; }
+    /* 망원경 시야 펄스 */
+    @keyframes horizon-glow {
+      0%, 100% { opacity: 0.3; filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.4)); }
+      50% { opacity: 0.65; filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.8)); }
     }
     .horizon-pulse {
-      animation: radar-pulse 2.2s infinite ease-in-out;
+      animation: horizon-glow 2.8s infinite ease-in-out;
     }
 
-    /* 셀 체크 마크 스타일 */
-    .sheet-cell {
-      transition: background-color 0.15s ease, transform 0.1s ease;
+    /* 네온 셀 체크 */
+    .sheet-btn {
+      transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    .sheet-cell:active {
-      transform: scale(0.92);
+    .sheet-btn:active {
+      transform: scale(0.9);
+    }
+
+    /* 선택된 섹터 펄스 테두리 */
+    @keyframes sector-pulse {
+      0%, 100% { stroke: rgba(250, 204, 21, 0.5); stroke-width: 2.5; }
+      50% { stroke: rgba(250, 204, 21, 1); stroke-width: 4.5; filter: drop-shadow(0 0 8px rgba(250, 204, 21, 0.9)); }
+    }
+    .sector-highlight {
+      animation: sector-pulse 1.6s infinite ease-in-out;
     }
   </style>
 </head>
@@ -53,22 +66,28 @@
   <!-- ========================================================= -->
   <!-- 1. 상단 3줄 초컴팩트 텔레메트리 HUD                        -->
   <!-- ========================================================= -->
-  <header class="sticky top-0 z-40 bg-[#0a0d1a]/95 backdrop-blur-md border-b border-sky-900/50 px-2.5 py-1.5 shadow-xl select-none">
+  <header class="sticky top-0 z-40 bg-[#070a16]/95 backdrop-blur-md border-b border-sky-900/50 px-2.5 py-1.5 shadow-xl select-none">
+    
     <!-- 줄 1: 시간 트랙 / 봇 비교 / 현재 시야 / 퀵 버튼 -->
     <div class="flex items-center justify-between gap-1.5 pb-1 border-b border-white/10 text-xs">
       <div class="flex items-center gap-1.5 shrink-0">
-        <span class="px-2 py-0.5 rounded bg-sky-950/90 border border-sky-500/50 text-sky-300 font-extrabold tracking-wider" id="hudTimeBadge">
-          시간: T 0
-        </span>
-        <span class="px-2 py-0.5 rounded bg-purple-950/80 border border-purple-500/40 text-purple-300 font-bold" id="hudBotTimeBadge">
-          라이벌: T 0
-        </span>
+        <!-- 시간 마커 뱃지 -->
+        <div class="flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-sky-950/90 border border-sky-400/60 shadow-sm" title="내 시간 위치 (행동에 따라 시계방향 전진)">
+          <div id="iconClockMini" class="text-sky-300"></div>
+          <span class="text-[12px] text-slate-300">시간:</span>
+          <strong class="text-xs font-extrabold text-sky-200" id="hudTimeBadge">T 0</strong>
+        </div>
+        <!-- 봇 시간 뱃지 -->
+        <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-purple-950/80 border border-purple-500/40 text-purple-300" title="천문학회 라이벌 봇 (뒤쳐진 쪽이 턴을 가짐)">
+          <span class="text-[12px] text-purple-400">봇:</span>
+          <strong class="text-xs font-bold" id="hudBotTimeBadge">T 0</strong>
+        </div>
       </div>
 
       <div class="flex items-center gap-1.5">
         <!-- 현재 밤하늘 관측 시야(Horizon) 뱃지 -->
-        <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#0f172a] border border-sky-400/50 text-sky-200" title="현재 지구에서 관측 가능한 밤하늘 섹터 범위">
-          <div id="iconTelescopeMini"></div>
+        <div class="flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#0e1628] border border-sky-400/50 text-sky-200 shadow-sm" title="현재 지구 위치에서 망원경으로 관측 가능한 섹터 범위">
+          <div id="iconTelescopeMini" class="text-sky-400"></div>
           <span class="text-[12px] text-slate-400">시야:</span>
           <strong class="text-xs font-extrabold text-sky-300" id="hudHorizonBadge">섹터 1~6</strong>
         </div>
@@ -85,57 +104,46 @@
       </div>
     </div>
 
-    <!-- 줄 2: 6대 천체 구성 요약 인디케이터 (소행성, 혜성, 가스구름, 왜소행성, 빈공간, 행성X) -->
+    <!-- 줄 2: 6대 천체 요약 칩 (소행성4, 혜성2, 가스2, 왜소1/4, 빈공간2/5, 행성X 1) -->
     <div class="flex items-center justify-between gap-1 pt-1.5 overflow-x-auto text-xs no-scrollbar">
-      <!-- 소행성 (Asteroid) -->
-      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#1f1912] border border-amber-600/40 shrink-0" title="소행성: 항상 짝을 지어 인접함">
+      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#1f170e] border border-amber-500/50 shrink-0" title="소행성 (4개): 항상 짝을 지어 인접함">
         <div id="hudIconAsteroid" class="text-amber-400"></div>
         <span class="text-[12px] text-amber-300">소행성</span>
         <strong class="font-extrabold text-amber-200" id="hudCountAsteroid">4</strong>
       </div>
-
-      <!-- 혜성 (Comet) -->
-      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#0e1f29] border border-cyan-500/40 shrink-0" title="혜성: 특정 소수 섹터에만 위치">
+      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#0a1b24] border border-cyan-500/50 shrink-0" title="혜성 (2개): 특정 소수 섹터에만 위치">
         <div id="hudIconComet" class="text-cyan-400"></div>
         <span class="text-[12px] text-cyan-300">혜성</span>
         <strong class="font-extrabold text-cyan-200" id="hudCountComet">2</strong>
       </div>
-
-      <!-- 가스 구름 (Gas Cloud) -->
-      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#201026] border border-purple-500/40 shrink-0" title="가스 구름: 빈 공간과 인접">
+      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#1b0f24] border border-purple-500/50 shrink-0" title="가스 구름 (2개): 빈 공간과 반드시 인접">
         <div id="hudIconGas" class="text-purple-400"></div>
-        <span class="text-[12px] text-purple-300">가스구름</span>
+        <span class="text-[12px] text-purple-300">가스</span>
         <strong class="font-extrabold text-purple-200" id="hudCountGas">2</strong>
       </div>
-
-      <!-- 왜소행성 (Dwarf Planet) -->
-      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#11241a] border border-emerald-500/40 shrink-0" title="왜소행성: 행성 X와 인접하지 않음">
+      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#0d2117] border border-emerald-500/50 shrink-0" title="왜소행성: 행성 X와 인접하지 않음">
         <div id="hudIconDwarf" class="text-emerald-400"></div>
-        <span class="text-[12px] text-emerald-300">왜소행성</span>
+        <span class="text-[12px] text-emerald-300">왜소</span>
         <strong class="font-extrabold text-emerald-200" id="hudCountDwarf">1</strong>
       </div>
-
-      <!-- 빈 공간 (Truly Empty) -->
-      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#151922] border border-slate-600/40 shrink-0" title="빈 공간">
+      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#111622] border border-slate-600/50 shrink-0" title="빈 공간 (아무것도 없음)">
         <div id="hudIconEmpty" class="text-slate-400"></div>
         <span class="text-[12px] text-slate-300">빈공간</span>
         <strong class="font-extrabold text-slate-200" id="hudCountEmpty">2</strong>
       </div>
-
-      <!-- 행성 X (Planet X) -->
-      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#260e18] border border-rose-500/60 shrink-0 shadow-sm" title="행성 X: 관측 시 빈 공간으로 보임!">
+      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#270c17] border border-rose-500/60 shrink-0 shadow-md" title="행성 X (1개): 망원경 관측 시 빈 공간으로 보임!">
         <div id="hudIconPlanetX" class="text-rose-400"></div>
         <span class="text-[12px] text-rose-300">행성 X</span>
         <strong class="font-extrabold text-rose-200" id="hudCountPlanetX">1</strong>
       </div>
     </div>
 
-    <!-- 줄 3: 연구 단서 획득 수 + 논문 점수 + 타겟 잔여 횟수 -->
+    <!-- 줄 3: 연구 완료 / 논문 점수 / 타겟 관측 잔여 / 스마트 어시스트 버튼 -->
     <div class="flex items-center justify-between gap-1 pt-1.5 text-xs text-slate-300">
       <div class="flex items-center gap-2">
         <div class="flex items-center gap-1">
-          <span class="text-[12px] text-slate-400">연구 완료:</span>
-          <strong class="text-sky-300 font-extrabold" id="hudResearchProgress">0 / 8</strong>
+          <span class="text-[12px] text-slate-400">연구:</span>
+          <strong class="text-sky-300 font-extrabold" id="hudResearchProgress">1 / 8</strong>
         </div>
         <div class="h-3 w-px bg-white/20"></div>
         <div class="flex items-center gap-1">
@@ -144,9 +152,15 @@
         </div>
       </div>
 
-      <div class="flex items-center gap-1">
-        <span class="text-[12px] text-slate-400">타겟 관측:</span>
-        <strong class="text-cyan-300 font-extrabold" id="hudTargetLeft">2 / 2 회</strong>
+      <div class="flex items-center gap-2">
+        <div class="flex items-center gap-1 text-[12px]">
+          <span class="text-slate-400">정밀 타겟:</span>
+          <strong class="text-cyan-300 font-extrabold" id="hudTargetLeft">2 / 2회</strong>
+        </div>
+        <!-- 원터치 스마트 단서 자동 소거 버튼 -->
+        <button onclick="autoApplyKnownRules()" class="px-2 py-0.5 rounded-md bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-slate-950 font-extrabold text-[12px] shadow-sm flex items-center gap-1" title="기본 규칙(혜성 소수 섹터 등)과 확보한 단서를 디덕션 시트에 자동 소거 반영">
+          <span>스마트 소거</span>
+        </button>
       </div>
     </div>
   </header>
@@ -161,60 +175,76 @@
   </aside>
 
   <!-- ========================================================= -->
-  <!-- 2. 인터랙티브 원형 우주 레이더 관측창 (Interactive SVG)     -->
+  <!-- 2. 프리미엄 천문대 망원경 우주 레이더 (Interactive SVG)     -->
   <!-- ========================================================= -->
   <section class="p-2.5 max-w-xl mx-auto w-full select-none">
-    <div class="bg-[#0b0e1b] border border-sky-900/40 rounded-2xl p-2.5 shadow-2xl relative overflow-hidden flex flex-col items-center">
+    <div class="bg-gradient-to-b from-[#0a0e1e] to-[#060913] border border-sky-500/30 rounded-2xl p-3 shadow-2xl relative overflow-hidden flex flex-col items-center">
       
-      <!-- 레이더 상단 안내 -->
-      <div class="w-full flex items-center justify-between px-1.5 pb-1 text-xs text-slate-300">
-        <span class="font-extrabold text-sky-300 flex items-center gap-1">
-          <span id="iconRadarSvg"></span>
-          <span>원형 우주 관측 레이더</span>
-        </span>
-        <span class="text-[12px] text-slate-400">섹터를 터치하면 빠른 조사가 가능합니다</span>
+      <!-- 레이더 상단 툴바: 지구 위치 & 시간 트랙 시각화 -->
+      <div class="w-full flex items-center justify-between px-1 pb-1 text-xs">
+        <div class="flex items-center gap-1.5 font-extrabold text-sky-300">
+          <div id="iconRadarSvg" class="text-sky-400"></div>
+          <span>망원경 우주 레이더</span>
+          <span class="text-[12px] text-slate-400 font-normal">(푸른 부채꼴 = 관측 시야)</span>
+        </div>
+        <!-- 뷰 모드 토글: 레이더 뷰 vs 섹터 카드 포커스 뷰 -->
+        <div class="flex items-center gap-1">
+          <button onclick="toggleSheetFocusMode()" id="btnToggleFocusMode" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-sky-200 text-[12px] font-bold border border-white/10">
+            카드 포커스 모드
+          </button>
+        </div>
       </div>
 
       <!-- 원형 SVG 우주 지도 (12/18 섹터 동적 렌더링) -->
       <div class="relative w-full aspect-square max-w-[340px] flex items-center justify-center my-1">
-        <svg id="radialRadarSvg" viewBox="0 0 400 400" class="w-full h-full drop-shadow-lg">
-          <!-- JS에서 동적 주입 -->
+        <svg id="radialRadarSvg" viewBox="0 0 400 400" class="w-full h-full drop-shadow-xl">
+          <!-- JS 동적 주입 -->
         </svg>
       </div>
 
-      <!-- 섹터 터치 시 빠른 관측 팝업 바 -->
-      <div id="quickSectorBar" class="w-full bg-[#12172a] border border-sky-500/40 p-2 rounded-xl text-xs flex items-center justify-between gap-2 transition-all">
-        <div class="flex items-center gap-1.5 min-w-0">
-          <span class="text-slate-400 shrink-0">선택된 섹터:</span>
-          <strong id="quickSectorTitle" class="text-sky-300 font-extrabold">섹터 1</strong>
-          <span id="quickSectorInView" class="px-1.5 py-0.2 rounded bg-sky-950 text-sky-300 text-[12px] font-bold">관측 가능</span>
+      <!-- 섹터 터치 시 스마트 빠른 액션 & 디덕션 툴바 -->
+      <div id="quickSectorBar" class="w-full bg-[#101628] border border-sky-400/50 p-2.5 rounded-xl text-xs flex flex-col gap-2 shadow-lg transition-all">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="text-slate-400 shrink-0 text-xs font-bold">선택:</span>
+            <strong id="quickSectorTitle" class="text-sky-300 font-extrabold text-sm">섹터 1</strong>
+            <span id="quickSectorInView" class="px-2 py-0.5 rounded bg-sky-950 border border-sky-500/40 text-sky-300 text-[12px] font-bold">관측 가능</span>
+            <span id="quickSectorRemaining" class="text-slate-400 text-[12px]">후보 6개 남음</span>
+          </div>
+
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button onclick="quickActionSurvey()" class="px-2.5 py-1 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md">
+              조사
+            </button>
+            <button onclick="quickActionTarget()" class="px-2.5 py-1 rounded-lg bg-cyan-700 hover:bg-cyan-600 text-white font-extrabold text-xs shadow-md">
+              타겟
+            </button>
+          </div>
         </div>
-        <div class="flex items-center gap-1.5 shrink-0">
-          <button onclick="quickActionSurvey()" class="px-2 py-1 rounded bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs">
-            조사
-          </button>
-          <button onclick="quickActionTarget()" class="px-2 py-1 rounded bg-cyan-700 hover:bg-cyan-600 text-white font-bold text-xs">
-            타겟
-          </button>
+
+        <!-- 선택된 섹터 내 6종 천체 원터치 마킹 버튼 바 (편의성 극대화!) -->
+        <div class="flex items-center justify-between gap-1 pt-1 border-t border-white/10 overflow-x-auto no-scrollbar" id="quickMarkingButtonsRow">
+          <!-- JS 렌더링 -->
         </div>
       </div>
+
     </div>
   </section>
 
   <!-- ========================================================= -->
   <!-- 3. 메인 인터랙션 4대 탭 바 (Navigation Bar)               -->
   <!-- ========================================================= -->
-  <nav class="bg-[#0f1424] border-y border-white/10 px-2 py-1 sticky top-[82px] z-30 flex items-center justify-around gap-1 text-xs font-bold">
-    <button onclick="switchTab('actions')" id="tabBtn_actions" class="flex-1 py-1.5 px-1 rounded-lg text-center transition flex items-center justify-center gap-1 bg-sky-500/20 text-sky-300 border border-sky-500/40">
+  <nav class="bg-[#0c1122] border-y border-white/10 px-2 py-1 sticky top-[82px] z-30 flex items-center justify-around gap-1 text-xs font-bold">
+    <button onclick="switchTab('actions')" id="tabBtn_actions" class="flex-1 py-1.5 px-1 rounded-lg text-center transition flex items-center justify-center gap-1.5 bg-sky-500/20 text-sky-300 border border-sky-500/40">
       <span id="tabIconActions"></span><span>관측 행동</span>
     </button>
-    <button onclick="switchTab('sheet')" id="tabBtn_sheet" class="flex-1 py-1.5 px-1 rounded-lg text-center transition flex items-center justify-center gap-1 text-slate-400 hover:text-slate-200">
+    <button onclick="switchTab('sheet')" id="tabBtn_sheet" class="flex-1 py-1.5 px-1 rounded-lg text-center transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-slate-200">
       <span id="tabIconSheet"></span><span>디덕션 시트</span>
     </button>
-    <button onclick="switchTab('clues')" id="tabBtn_clues" class="flex-1 py-1.5 px-1 rounded-lg text-center transition flex items-center justify-center gap-1 text-slate-400 hover:text-slate-200">
+    <button onclick="switchTab('clues')" id="tabBtn_clues" class="flex-1 py-1.5 px-1 rounded-lg text-center transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-slate-200">
       <span id="tabIconClues"></span><span>연구 단서함</span>
     </button>
-    <button onclick="switchTab('papers')" id="tabBtn_papers" class="flex-1 py-1.5 px-1 rounded-lg text-center transition flex items-center justify-center gap-1 text-slate-400 hover:text-slate-200">
+    <button onclick="switchTab('papers')" id="tabBtn_papers" class="flex-1 py-1.5 px-1 rounded-lg text-center transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-slate-200">
       <span id="tabIconPapers"></span><span>논문·학회</span>
     </button>
   </nav>
@@ -227,9 +257,9 @@
     <!-- [탭 1] 관측 행동 (Actions) -->
     <section id="view_actions" class="space-y-3">
       
-      <!-- 1. 섹터 조사 (Survey) -->
-      <div class="p-3 rounded-2xl border border-sky-500/30 bg-[#0e1322] space-y-2.5 shadow-md">
-        <div class="flex items-center justify-between border-b border-white/10 pb-1.5">
+      <!-- 1. 섹터 범위 조사 (Survey) -->
+      <div class="p-3.5 rounded-2xl border border-sky-500/30 bg-[#0c1222] space-y-3 shadow-md">
+        <div class="flex items-center justify-between border-b border-white/10 pb-2">
           <div class="flex items-center gap-2">
             <div id="iconSurveyLg" class="text-sky-400"></div>
             <strong class="text-sm font-extrabold text-sky-200">1. 섹터 범위 조사 (Survey)</strong>
@@ -244,7 +274,7 @@
         <div class="grid grid-cols-2 gap-2 text-xs">
           <div class="space-y-1">
             <label class="text-[12px] text-slate-400 font-bold">조사할 천체 선택:</label>
-            <select id="surveySelectObject" class="w-full bg-[#151c2e] border border-white/20 rounded-xl p-2 text-xs font-bold text-sky-200 focus:outline-none focus:border-sky-400">
+            <select id="surveySelectObject" class="w-full bg-[#131b2e] border border-white/20 rounded-xl p-2.5 text-xs font-extrabold text-sky-200 focus:outline-none focus:border-sky-400">
               <option value="asteroid">소행성 (Asteroids)</option>
               <option value="comet">혜성 (Comets)</option>
               <option value="gas">가스 구름 (Gas Clouds)</option>
@@ -256,11 +286,11 @@
           <div class="space-y-1">
             <label class="text-[12px] text-slate-400 font-bold">섹터 범위 선택:</label>
             <div class="flex items-center gap-1.5">
-              <select id="surveyStartSector" class="w-1/2 bg-[#151c2e] border border-white/20 rounded-xl p-2 text-xs font-bold text-sky-200 focus:outline-none">
+              <select id="surveyStartSector" class="w-1/2 bg-[#131b2e] border border-white/20 rounded-xl p-2.5 text-xs font-extrabold text-sky-200 focus:outline-none">
                 <!-- JS 렌더링 -->
               </select>
               <span class="text-slate-400 text-xs">~</span>
-              <select id="surveyEndSector" class="w-1/2 bg-[#151c2e] border border-white/20 rounded-xl p-2 text-xs font-bold text-sky-200 focus:outline-none">
+              <select id="surveyEndSector" class="w-1/2 bg-[#131b2e] border border-white/20 rounded-xl p-2.5 text-xs font-extrabold text-sky-200 focus:outline-none">
                 <!-- JS 렌더링 -->
               </select>
             </div>
@@ -273,8 +303,8 @@
       </div>
 
       <!-- 2. 정밀 타겟 관측 (Target) -->
-      <div class="p-3 rounded-2xl border border-cyan-500/30 bg-[#0e1724] space-y-2.5 shadow-md">
-        <div class="flex items-center justify-between border-b border-white/10 pb-1.5">
+      <div class="p-3.5 rounded-2xl border border-cyan-500/30 bg-[#0a1524] space-y-3 shadow-md">
+        <div class="flex items-center justify-between border-b border-white/10 pb-2">
           <div class="flex items-center gap-2">
             <div id="iconTargetLg" class="text-cyan-400"></div>
             <strong class="text-sm font-extrabold text-cyan-200">2. 정밀 타겟 관측 (Target)</strong>
@@ -287,18 +317,18 @@
 
         <div class="flex items-center gap-2 text-xs">
           <label class="text-[12px] text-slate-400 font-bold shrink-0">타겟 섹터:</label>
-          <select id="targetSelectSector" class="flex-1 bg-[#142033] border border-white/20 rounded-xl p-2 text-xs font-bold text-cyan-200 focus:outline-none">
+          <select id="targetSelectSector" class="flex-1 bg-[#121f33] border border-white/20 rounded-xl p-2.5 text-xs font-extrabold text-cyan-200 focus:outline-none">
             <!-- JS 렌더링 -->
           </select>
-          <button onclick="executeTargetAction()" class="px-4 py-2 rounded-xl bg-cyan-700 hover:bg-cyan-600 text-white font-extrabold text-xs shadow-md">
-            정밀 타겟 관측
+          <button onclick="executeTargetAction()" class="px-4 py-2.5 rounded-xl bg-cyan-700 hover:bg-cyan-600 text-white font-extrabold text-xs shadow-md">
+            정밀 관측 실행
           </button>
         </div>
       </div>
 
       <!-- 3. 학술 연구 (Research) -->
-      <div class="p-3 rounded-2xl border border-purple-500/30 bg-[#160f24] space-y-2.5 shadow-md">
-        <div class="flex items-center justify-between border-b border-white/10 pb-1.5">
+      <div class="p-3.5 rounded-2xl border border-purple-500/30 bg-[#140e24] space-y-3 shadow-md">
+        <div class="flex items-center justify-between border-b border-white/10 pb-2">
           <div class="flex items-center gap-2">
             <div id="iconResearchLg" class="text-purple-400"></div>
             <strong class="text-sm font-extrabold text-purple-200">3. 학술 연구 (Research)</strong>
@@ -310,21 +340,21 @@
         </p>
 
         <div class="flex items-center gap-2 text-xs">
-          <select id="researchSelectLab" class="flex-1 bg-[#1f1533] border border-white/20 rounded-xl p-2 text-xs font-bold text-purple-200 focus:outline-none">
+          <select id="researchSelectLab" class="flex-1 bg-[#1c1433] border border-white/20 rounded-xl p-2.5 text-xs font-extrabold text-purple-200 focus:outline-none">
             <!-- JS 렌더링 A~H -->
           </select>
-          <button onclick="executeResearchAction()" class="px-4 py-2 rounded-xl bg-purple-700 hover:bg-purple-600 text-white font-extrabold text-xs shadow-md">
+          <button onclick="executeResearchAction()" class="px-4 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-600 text-white font-extrabold text-xs shadow-md">
             연구 단서 열람
           </button>
         </div>
       </div>
 
       <!-- 4. 행성 X 위치 특정 (Locate Planet X) -->
-      <div class="p-3 rounded-2xl border border-rose-500/50 bg-[#220d18] space-y-2.5 shadow-lg">
-        <div class="flex items-center justify-between border-b border-rose-500/30 pb-1.5">
+      <div class="p-3.5 rounded-2xl border border-rose-500/50 bg-[#200b17] space-y-3 shadow-lg">
+        <div class="flex items-center justify-between border-b border-rose-500/30 pb-2">
           <div class="flex items-center gap-2">
             <div id="iconLocateLg" class="text-rose-400"></div>
-            <strong class="text-sm font-extrabold text-rose-200">5. 행성 X 위치 특정 (Locate Planet X)</strong>
+            <strong class="text-sm font-extrabold text-rose-200">4. 행성 X 위치 특정 (Locate Planet X)</strong>
           </div>
           <span class="px-2 py-0.5 rounded bg-rose-950 text-rose-300 font-extrabold text-xs">시간 소모: 5 (최종 승리)</span>
         </div>
@@ -372,38 +402,51 @@
 
     <!-- [탭 2] 인터랙티브 디덕션 시트 (Interactive Deduction Sheet) -->
     <section id="view_sheet" class="hidden space-y-3 select-none">
-      <div class="bg-[#0b0e1b] border border-sky-900/40 rounded-2xl p-3 space-y-2.5 shadow-xl">
+      
+      <!-- 시트 헤더 & 편의 도구 -->
+      <div class="bg-[#0b0e1b] border border-sky-900/40 rounded-2xl p-3 space-y-3 shadow-xl">
         <div class="flex items-center justify-between text-xs">
-          <span class="font-extrabold text-sky-300">터치형 디덕션 기록 매트릭스</span>
-          <span class="text-[12px] text-slate-400">터치: 빈칸 → X(배제) → ?(후보) → ★(확정)</span>
+          <div class="flex items-center gap-1.5 font-extrabold text-sky-300">
+            <span>디덕션 추리 시트</span>
+            <span class="text-[12px] text-slate-400 font-normal">(터치하여 X/?/★ 마킹)</span>
+          </div>
+          <!-- 전체 소거 / 시트 초기화 버튼 -->
+          <div class="flex items-center gap-1">
+            <button onclick="autoApplyKnownRules()" class="px-2 py-1 rounded bg-teal-900/60 hover:bg-teal-800 border border-teal-500/40 text-teal-200 font-bold text-[12px]">
+              단서 자동 소거
+            </button>
+            <button onclick="clearDeductionSheetConfirm()" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[12px] font-bold">
+              초기화
+            </button>
+          </div>
         </div>
 
-        <!-- 디덕션 시트 가로 스크롤 매트릭스 -->
-        <div class="overflow-x-auto no-scrollbar border border-white/10 rounded-xl">
+        <!-- 디덕션 매트릭스 테이블 (모바일 스크롤 지원) -->
+        <div class="overflow-x-auto no-scrollbar border border-white/10 rounded-xl shadow-inner bg-[#080b16]">
           <table class="w-full text-center border-collapse text-xs" id="deductionSheetTable">
             <!-- JS 동적 렌더링 -->
           </table>
         </div>
 
-        <div class="flex items-center justify-between text-[12px] text-slate-400 px-1 pt-1">
-          <button onclick="clearDeductionSheetConfirm()" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold">
-            시트 초기화
-          </button>
-          <span>★ 확정 시 해당 섹터의 다른 천체는 자동 배제(X) 처리됩니다</span>
+        <div class="flex items-center justify-between text-[12px] text-slate-400 px-1">
+          <span>★ 확정 시 같은 섹터의 다른 천체는 자동 X 배제됩니다</span>
+          <span class="text-sky-400 font-bold">1회: X / 2회: ? / 3회: ★</span>
         </div>
       </div>
     </section>
 
     <!-- [탭 3] 연구 단서함 (Clues Notebook) -->
     <section id="view_clues" class="hidden space-y-3">
-      <div class="bg-[#0b0e1b] border border-purple-900/40 rounded-2xl p-3 space-y-2.5 shadow-xl">
-        <div class="flex items-center justify-between text-xs">
-          <strong class="font-extrabold text-purple-300 text-sm">확보된 논리 단서 보관함</strong>
-          <span class="text-[12px] text-slate-400" id="cluesTotalCountText">총 0개 확보됨</span>
+      <div class="bg-[#0b0e1b] border border-purple-900/40 rounded-2xl p-3.5 space-y-3 shadow-xl">
+        <div class="flex items-center justify-between text-xs border-b border-white/10 pb-2">
+          <div class="flex items-center gap-1.5 font-extrabold text-purple-300 text-sm">
+            <span>확보된 천문학 연구 단서함</span>
+          </div>
+          <span class="text-xs text-purple-200 font-bold" id="cluesTotalCountText">총 1개 확보됨</span>
         </div>
 
-        <!-- 단서 리스트 -->
-        <div class="space-y-2 text-xs" id="cluesListContainer">
+        <!-- 단서 리스트 (시각적 다이어그램 카드) -->
+        <div class="space-y-2.5 text-xs" id="cluesListContainer">
           <!-- JS 렌더링 -->
         </div>
       </div>
@@ -411,26 +454,26 @@
 
     <!-- [탭 4] 논문 발표 및 학회 (Peer Review) -->
     <section id="view_papers" class="hidden space-y-3">
-      <div class="bg-[#0b0e1b] border border-amber-900/40 rounded-2xl p-3 space-y-3 shadow-xl">
+      <div class="bg-[#0b0e1b] border border-amber-900/40 rounded-2xl p-3.5 space-y-3 shadow-xl">
         <div class="flex items-center justify-between text-xs border-b border-white/10 pb-2">
           <strong class="font-extrabold text-amber-300 text-sm">학술 논문 발표 및 동료 검토</strong>
           <span class="text-xs text-amber-200 font-bold">시간 소모: 1</span>
         </div>
         <p class="text-xs text-slate-300 leading-relaxed">
-          특정 섹터의 천체에 대한 가설을 제출합니다. 시간 트랙이 동료 검토 지점을 지날 때 논문이 공개되며 승점을 획득합니다!
+          특정 섹터의 천체에 대한 가설 논문을 학회에 제출합니다. 정답 시 건당 +3점의 승점을 획득합니다!
         </p>
 
         <!-- 논문 제출 폼 -->
         <div class="grid grid-cols-2 gap-2 text-xs">
           <div class="space-y-1">
             <label class="text-[12px] text-slate-400 font-bold">발표할 섹터:</label>
-            <select id="paperSelectSector" class="w-full bg-[#151c2e] border border-white/20 rounded-xl p-2 text-xs font-bold text-amber-200">
+            <select id="paperSelectSector" class="w-full bg-[#151c2e] border border-white/20 rounded-xl p-2.5 text-xs font-extrabold text-amber-200">
               <!-- JS 렌더링 -->
             </select>
           </div>
           <div class="space-y-1">
             <label class="text-[12px] text-slate-400 font-bold">천체 가설 주장:</label>
-            <select id="paperSelectObject" class="w-full bg-[#151c2e] border border-white/20 rounded-xl p-2 text-xs font-bold text-amber-200">
+            <select id="paperSelectObject" class="w-full bg-[#151c2e] border border-white/20 rounded-xl p-2.5 text-xs font-extrabold text-amber-200">
               <option value="asteroid">소행성</option>
               <option value="comet">혜성</option>
               <option value="gas">가스구름</option>
@@ -444,7 +487,7 @@
           학술 논문 제출
         </button>
 
-        <!-- 제출된 논문 현황 목록 -->
+        <!-- 제출된 논문 목록 -->
         <div class="pt-2 border-t border-white/10 space-y-2">
           <span class="font-extrabold text-xs text-slate-200">제출된 논문 현황</span>
           <div class="space-y-1.5" id="submittedPapersList">
@@ -554,6 +597,8 @@
           return `<svg class="${c}" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`;
         case "paper":
           return `<svg class="${c}" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`;
+        case "clock":
+          return `<svg class="${c}" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
         default:
           return `<span class="inline-block w-3 h-3 bg-slate-500 rounded-full"></span>`;
       }
@@ -579,6 +624,7 @@
     let coachEnabled = true;
     let activeTab = "actions";
     let selectedRadarSector = 1;
+    let isFocusMode = false;
 
     function pushToast(msg, isError = false) {
       const area = document.getElementById("toastArea");
@@ -599,8 +645,6 @@
     // (D) 절차적 우주 생성 엔진 (백트래킹 배치 및 논리 검증)
     // ---------------------------------------------------------
     function generateValidUniverse(totalSectors) {
-      // 12섹터: 소행성4, 혜성2, 가스구름2, 왜소행성1, 빈공간2, 행성X 1
-      // 18섹터: 소행성4, 혜성2, 가스구름2, 왜소행성4, 빈공간5, 행성X 1
       const primeSectors = totalSectors === 12 ? [2, 3, 5, 7, 11] : [2, 3, 5, 7, 11, 13, 17];
       
       let attempts = 0;
@@ -621,7 +665,6 @@
 
         // 3) 왜소행성 배치 (행성 X와 인접하지 않아야 함)
         const dwarfCount = totalSectors === 12 ? 1 : 4;
-        let placedDwarfs = 0;
         const availDwarf = [];
         for (let s = 1; s <= totalSectors; s++) {
           if (!board[s] && !isAdjacent(s, xSec, totalSectors)) {
@@ -632,11 +675,9 @@
         availDwarf.sort(() => Math.random() - 0.5);
         for (let i = 0; i < dwarfCount; i++) {
           board[availDwarf[i]] = "dwarf";
-          placedDwarfs++;
         }
 
         // 4) 소행성 4개 배치 (항상 최소 1개 이상의 다른 소행성과 인접해야 함)
-        // 2개씩 2쌍 or 4개 연속 or 3개+1개 등
         const emptySecs2 = [];
         for (let s = 1; s <= totalSectors; s++) if (!board[s]) emptySecs2.push(s);
         
@@ -645,19 +686,16 @@
         for (let start of emptySecs2) {
           const adj = getNeighbors(start, totalSectors).filter(n => !board[n]);
           if (adj.length > 0) {
-            const pair1 = [start, adj[0]];
-            board[pair1[0]] = "asteroid";
-            board[pair1[1]] = "asteroid";
+            board[start] = "asteroid";
+            board[adj[0]] = "asteroid";
 
-            // 두 번째 쌍
             const emptySecs3 = [];
             for (let s = 1; s <= totalSectors; s++) if (!board[s]) emptySecs3.push(s);
             for (let start2 of emptySecs3) {
               const adj2 = getNeighbors(start2, totalSectors).filter(n => !board[n] || board[n] === "asteroid");
               if (adj2.length > 0) {
-                const pair2 = [start2, adj2[0]];
-                board[pair2[0]] = "asteroid";
-                if (!board[pair2[1]]) board[pair2[1]] = "asteroid";
+                board[start2] = "asteroid";
+                if (!board[adj2[0]]) board[adj2[0]] = "asteroid";
                 asteroidPlaced = true;
                 break;
               }
@@ -667,16 +705,14 @@
         }
         if (!asteroidPlaced) continue;
 
-        // 소행성 개수가 정확히 4개인지 검증
         let aCnt = 0;
         for (let s = 1; s <= totalSectors; s++) if (board[s] === "asteroid") aCnt++;
         if (aCnt !== 4) continue;
 
-        // 5) 가스 구름 2개 및 빈 공간(Truly Empty) 배치 (가스 구름은 최소 1개의 빈 공간과 인접해야 함)
+        // 5) 가스 구름 2개 및 빈 공간 채우기
         const remaining = [];
         for (let s = 1; s <= totalSectors; s++) if (!board[s]) remaining.push(s);
         
-        // 가스 구름 2개, 나머지 빈 공간 채우기
         const emptyCount = totalSectors === 12 ? 2 : 5;
         if (remaining.length !== 2 + emptyCount) continue;
 
@@ -700,7 +736,7 @@
         return { board, xSector: xSec };
       }
 
-      // 기본 폴백 우주 배치 (12섹터)
+      // 폴백 우주 배치 (12섹터)
       return {
         board: [null, "empty", "comet", "comet", "gas", "empty", "asteroid", "asteroid", "dwarf", "asteroid", "asteroid", "gas", "planetx"],
         xSector: 12
@@ -741,7 +777,6 @@
       const { board, xSector } = generateValidUniverse(total);
       const clues = generateResearchClues(board, xSector, total);
 
-      // 디덕션 시트 초기화: [섹터 1~N][천체키] -> "none" | "x" | "maybe" | "confirmed"
       const sheet = {};
       for (let s = 1; s <= total; s++) {
         sheet[s] = { asteroid: "none", comet: "none", gas: "none", dwarf: "none", empty: "none", planetx: "none" };
@@ -749,24 +784,22 @@
 
       PX = {
         totalSectors: total,
-        horizonSpan: total === 12 ? 6 : 9, // 밤하늘 관측 가능 부채꼴 범위
+        horizonSpan: total === 12 ? 6 : 9,
         time: 0,
         botTime: 0,
         board,
         xSector,
         clues,
-        researchedLabs: {}, // { "A": true }
+        researchedLabs: {},
         unlockedClues: [],
         sheet,
         targetLeft: 2,
-        submittedPapers: [], // [ { sector: 1, object: "asteroid", score: 2, revealed: false } ]
+        submittedPapers: [],
         peerReviewScore: 0,
         ended: false
       };
 
-      // 초기 기본 단서 1개 무료 해금 (A 연구실)
       unlockClue("A");
-
       renderAll();
       pushToast(`${total}섹터 무작위 우주 탐사가 시작되었습니다!`);
     }
@@ -781,11 +814,9 @@
     // ---------------------------------------------------------
     // (F) 밤하늘 시야 (Horizon) 계산기
     // ---------------------------------------------------------
-    // 지구의 시간(Time)에 따라 현재 관측 가능한 섹터 리스트 반환
     function getVisibleSectors() {
       const total = PX.totalSectors;
       const span = PX.horizonSpan;
-      // 시간 1당 지구 공전 (시계방향 회전)
       const startSector = (Math.floor(PX.time / 2) % total) + 1;
       const visible = [];
       for (let i = 0; i < span; i++) {
@@ -801,18 +832,67 @@
     }
 
     // ---------------------------------------------------------
-    // (G) 5대 관측 행동 실행 엔진
+    // (G) 스마트 디덕션 어시스트 (편의성 핵심!)
+    // ---------------------------------------------------------
+    function autoApplyKnownRules() {
+      let appliedCount = 0;
+      const total = PX.totalSectors;
+      const primes = total === 12 ? [2, 3, 5, 7, 11] : [2, 3, 5, 7, 11, 13, 17];
+
+      // 1) 혜성 소수 섹터 룰 자동 배제
+      for (let s = 1; s <= total; s++) {
+        if (!primes.includes(s) && PX.sheet[s].comet !== "x" && PX.sheet[s].comet !== "confirmed") {
+          PX.sheet[s].comet = "x";
+          appliedCount++;
+        }
+      }
+
+      // 2) 행성 X 짝수/홀수 단서(E 연구실) 해금 시 자동 소거
+      if (PX.researchedLabs["E"]) {
+        const isXEven = (PX.xSector % 2 === 0);
+        for (let s = 1; s <= total; s++) {
+          const isSEven = (s % 2 === 0);
+          if (isSEven !== isXEven && PX.sheet[s].planetx !== "x" && PX.sheet[s].planetx !== "confirmed") {
+            PX.sheet[s].planetx = "x";
+            appliedCount++;
+          }
+        }
+      }
+
+      // 3) 확정된 칸 주변 천체 규칙 적용
+      for (let s = 1; s <= total; s++) {
+        // 만약 특정 천체가 확정되었다면 다른 천체는 자동 x
+        Object.entries(PX.sheet[s]).forEach(([k, st]) => {
+          if (st === "confirmed") {
+            Object.keys(PX.sheet[s]).forEach(other => {
+              if (other !== k && PX.sheet[s][other] !== "x") {
+                PX.sheet[s][other] = "x";
+                appliedCount++;
+              }
+            });
+          }
+        });
+      }
+
+      renderAll();
+      if (appliedCount > 0) {
+        pushToast(`스마트 소거: 총 ${appliedCount}개의 불가능한 후보를 시트에서 자동 배제(X)했습니다!`);
+      } else {
+        pushToast("현재 확보된 단서로 새로 배제할 수 있는 항목이 이미 모두 반영되어 있습니다.");
+      }
+    }
+
+    // ---------------------------------------------------------
+    // (H) 5대 관측 행동 실행 엔진
     // ---------------------------------------------------------
     function advanceTime(cost) {
       PX.time += cost;
       
-      // 솔로 봇 AI 시간 추격
       if (PX.botTime < PX.time) {
         const botAdvance = Math.min(PX.time - PX.botTime, Math.floor(Math.random() * 3) + 2);
         PX.botTime += botAdvance;
         
-        // 봇 논문 제출 시뮬레이션
-        if (Math.random() < 0.4 && PX.submittedPapers.length < 5) {
+        if (Math.random() < 0.45 && PX.submittedPapers.length < 6) {
           const randomSec = Math.floor(Math.random() * PX.totalSectors) + 1;
           const actualObj = PX.board[randomSec] === "planetx" ? "empty" : PX.board[randomSec];
           PX.submittedPapers.push({
@@ -828,7 +908,6 @@
       renderAll();
     }
 
-    // 1. 섹터 범위 조사
     function executeSurveyAction() {
       if (PX.ended) return;
       const start = parseInt(document.getElementById("surveyStartSector").value);
@@ -840,7 +919,6 @@
         return;
       }
 
-      // 범위 섹터 목록 추출
       const range = [];
       let cur = start;
       while (true) {
@@ -850,7 +928,6 @@
         if (range.length > PX.horizonSpan) break;
       }
 
-      // 해당 천체 개수 카운트 (행성 X는 빈 공간으로 간주됨!)
       let count = 0;
       range.forEach(s => {
         let realObj = PX.board[s];
@@ -865,11 +942,18 @@
       const clueText = `[조사 보고] 섹터 ${start}~${end} 범위 내에 ${objName}은(는) 총 ${count}개 존재합니다. (시간 +${cost})`;
       PX.unlockedClues.unshift({ lab: "조사", title: `섹터 ${start}~${end} 조사`, text: clueText });
 
-      alert(clueText);
+      // 조사 결과 개수가 0개라면 해당 범위 내의 해당 천체 자동 x 배제 편의성!
+      if (count === 0) {
+        range.forEach(s => {
+          if (PX.sheet[s][obj] !== "confirmed") PX.sheet[s][obj] = "x";
+        });
+        pushToast(`조사 결과 0개 발견: 섹터 ${start}~${end}의 ${objName}을 시트에서 자동 배제(X)했습니다!`);
+      } else {
+        alert(clueText);
+      }
       renderAll();
     }
 
-    // 2. 정밀 타겟 관측
     function executeTargetAction() {
       if (PX.ended) return;
       if (PX.targetLeft <= 0) {
@@ -884,7 +968,7 @@
 
       PX.targetLeft -= 1;
       let realObj = PX.board[sec];
-      if (realObj === "planetx") realObj = "empty"; // 행성 X는 빈 공간으로 보임!
+      if (realObj === "planetx") realObj = "empty";
 
       advanceTime(4);
 
@@ -892,14 +976,12 @@
       const clueText = `[타겟 보고] 섹터 ${sec}번을 정밀 관측한 결과 '${objName}'이(가) 확인되었습니다! (시간 +4)`;
       PX.unlockedClues.unshift({ lab: "타겟", title: `섹터 ${sec} 정밀 타겟`, text: clueText });
 
-      // 디덕션 시트에 자동 확정 반영
       setSheetCellState(sec, realObj, "confirmed");
 
       alert(clueText);
       renderAll();
     }
 
-    // 3. 학술 연구
     function executeResearchAction() {
       if (PX.ended) return;
       const lab = document.getElementById("researchSelectLab").value;
@@ -916,7 +998,6 @@
       renderAll();
     }
 
-    // 4. 논문 제출
     function executeSubmitPaperAction() {
       if (PX.ended) return;
       const sec = parseInt(document.getElementById("paperSelectSector").value);
@@ -943,7 +1024,6 @@
       renderAll();
     }
 
-    // 5. 행성 X 위치 특정
     function executeLocatePlanetXAction() {
       if (PX.ended) return;
       const xSec = parseInt(document.getElementById("locatePlanetXSector").value);
@@ -979,7 +1059,6 @@
         descEl.textContent = `아쉽습니다! 실제 행성 X는 ${PX.xSector}번 섹터에 있었습니다. 좌측(${leftSec}번): ${CELESTIAL_OBJECTS[realLeft].name}, 우측(${rightSec}번): ${CELESTIAL_OBJECTS[realRight].name}`;
       }
 
-      // 실제 정답 리스트 렌더링
       const ansList = document.getElementById("resultAnswerList");
       const rows = [];
       for (let s = 1; s <= PX.totalSectors; s++) {
@@ -997,11 +1076,10 @@
     }
 
     // ---------------------------------------------------------
-    // (H) 디덕션 시트 터치 인터랙션
+    // (I) 디덕션 시트 인터랙션 및 포커스 뷰
     // ---------------------------------------------------------
     function toggleSheetCell(sec, objKey) {
       const cur = PX.sheet[sec][objKey];
-      // 순환: "none" -> "x" -> "maybe" -> "confirmed" -> "none"
       let next = "none";
       if (cur === "none") next = "x";
       else if (cur === "x") next = "maybe";
@@ -1013,7 +1091,6 @@
 
     function setSheetCellState(sec, objKey, state) {
       PX.sheet[sec][objKey] = state;
-      // 확정(confirmed)인 경우 같은 섹터의 다른 천체는 자동으로 x 처리
       if (state === "confirmed") {
         Object.keys(PX.sheet[sec]).forEach(k => {
           if (k !== objKey) PX.sheet[sec][k] = "x";
@@ -1021,6 +1098,7 @@
       }
       renderSheetTable();
       renderRadarSvg();
+      renderQuickMarkingBar();
     }
 
     function clearDeductionSheetConfirm() {
@@ -1030,11 +1108,18 @@
       }
       renderSheetTable();
       renderRadarSvg();
+      renderQuickMarkingBar();
       pushToast("디덕션 시트가 초기화되었습니다.");
     }
 
+    function toggleSheetFocusMode() {
+      isFocusMode = !isFocusMode;
+      document.getElementById("btnToggleFocusMode").textContent = isFocusMode ? "전체 시트 모드" : "카드 포커스 모드";
+      renderSheetTable();
+    }
+
     // ---------------------------------------------------------
-    // (I) UI 및 SVG 렌더링 엔진
+    // (J) UI 및 SVG 렌더링 엔진
     // ---------------------------------------------------------
     function switchTab(tabKey) {
       activeTab = tabKey;
@@ -1045,8 +1130,8 @@
         if (viewEl) viewEl.classList.toggle("hidden", !isActive);
         if (btnEl) {
           btnEl.className = isActive
-            ? "flex-1 py-1.5 px-1 rounded-lg text-center transition flex items-center justify-center gap-1 bg-sky-500/20 text-sky-300 border border-sky-500/40"
-            : "flex-1 py-1.5 px-1 rounded-lg text-center transition flex items-center justify-center gap-1 text-slate-400 hover:text-slate-200";
+            ? "flex-1 py-1.5 px-1 rounded-lg text-center transition flex items-center justify-center gap-1.5 bg-sky-500/20 text-sky-300 border border-sky-500/40"
+            : "flex-1 py-1.5 px-1 rounded-lg text-center transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-slate-200";
         }
       });
     }
@@ -1065,6 +1150,7 @@
     function renderAll() {
       renderHUD();
       renderRadarSvg();
+      renderQuickMarkingBar();
       renderSheetTable();
       renderCluesTab();
       renderPapersTab();
@@ -1073,18 +1159,58 @@
     }
 
     function renderHUD() {
-      document.getElementById("hudTimeBadge").textContent = `시간: T ${PX.time}`;
-      document.getElementById("hudBotTimeBadge").textContent = `라이벌: T ${PX.botTime}`;
+      document.getElementById("hudTimeBadge").textContent = `T ${PX.time}`;
+      document.getElementById("hudBotTimeBadge").textContent = `T ${PX.botTime}`;
       
       const inView = getVisibleSectors();
       document.getElementById("hudHorizonBadge").textContent = `섹터 ${inView[0]}~${inView[inView.length - 1]}`;
 
-      document.getElementById("hudTargetLeft").textContent = `${PX.targetLeft} / 2 회`;
+      document.getElementById("hudTargetLeft").textContent = `${PX.targetLeft} / 2회`;
       document.getElementById("hudResearchProgress").textContent = `${Object.keys(PX.researchedLabs).length} / 8`;
       document.getElementById("hudPeerReviewScore").textContent = `${PX.peerReviewScore} 점`;
 
       document.getElementById("hudCountDwarf").textContent = PX.totalSectors === 12 ? "1" : "4";
       document.getElementById("hudCountEmpty").textContent = PX.totalSectors === 12 ? "2" : "5";
+    }
+
+    // 레이더 하단 원터치 마킹 버튼 바 렌더링
+    function renderQuickMarkingBar() {
+      const sec = selectedRadarSector;
+      const row = document.getElementById("quickMarkingButtonsRow");
+      if (!row) return;
+
+      const remainingCount = Object.values(PX.sheet[sec] || {}).filter(st => st !== "x").length;
+      document.getElementById("quickSectorRemaining").textContent = `후보 ${remainingCount}개 남음`;
+
+      const objs = ["asteroid", "comet", "gas", "dwarf", "empty", "planetx"];
+      row.innerHTML = objs.map(oKey => {
+        const oDef = CELESTIAL_OBJECTS[oKey];
+        const state = PX.sheet[sec][oKey];
+        
+        let stateBadge = `<span class="text-slate-500 font-bold text-[12px]">-</span>`;
+        let btnBg = "bg-slate-900 border-white/10 hover:border-white/30";
+
+        if (state === "x") {
+          stateBadge = `<span class="text-rose-400 font-extrabold text-[12px]">X</span>`;
+          btnBg = "bg-rose-950/40 border-rose-500/40 opacity-70";
+        } else if (state === "maybe") {
+          stateBadge = `<span class="text-amber-300 font-extrabold text-[12px]">?</span>`;
+          btnBg = "bg-amber-950/40 border-amber-500/50";
+        } else if (state === "confirmed") {
+          stateBadge = `<span class="text-white font-extrabold text-[12px]">★</span>`;
+          btnBg = "bg-sky-600 border-sky-400 shadow-md";
+        }
+
+        return `
+          <button onclick="toggleSheetCell(${sec}, '${oKey}')"
+                  class="flex-1 py-1.5 px-1 rounded-xl border flex flex-col items-center gap-0.5 transition sheet-btn ${btnBg}"
+                  title="${oDef.name} 상태 변경">
+            <span class="${oDef.color}">${iconSvg(oKey, 14)}</span>
+            <span class="text-[12px] truncate max-w-[42px]">${oDef.name}</span>
+            ${stateBadge}
+          </button>
+        `;
+      }).join("");
     }
 
     // 원형 우주 레이더 SVG 그리기
@@ -1100,8 +1226,17 @@
       const inView = getVisibleSectors();
       let html = "";
 
-      // 1) 배경 별자리 원
-      html += `<circle cx="${cx}" cy="${cy}" r="${rOuter}" fill="#080c18" stroke="#1e293b" stroke-width="2"/>`;
+      // 1) 배경 별자리 원 및 그라데이션
+      html += `
+        <defs>
+          <radialGradient id="sunGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#fef08a" stop-opacity="1"/>
+            <stop offset="60%" stop-color="#f59e0b" stop-opacity="0.8"/>
+            <stop offset="100%" stop-color="#ea580c" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <circle cx="${cx}" cy="${cy}" r="${rOuter}" fill="#080c18" stroke="#1e293b" stroke-width="2"/>
+      `;
 
       // 2) 섹터 부채꼴 링
       const angleStep = 360 / total;
@@ -1125,13 +1260,13 @@
 
         const d = `M ${x1} ${y1} A ${rOuter} ${rOuter} 0 0 1 ${x2} ${y2} L ${x3} ${y3} A ${rInner} ${rInner} 0 0 0 ${x4} ${y4} Z`;
 
-        let fillColor = isVisible ? "rgba(56, 189, 248, 0.12)" : "rgba(15, 23, 42, 0.4)";
+        let fillColor = isVisible ? "rgba(56, 189, 248, 0.16)" : "rgba(15, 23, 42, 0.45)";
         let strokeColor = isSelected ? "#facc15" : isVisible ? "#38bdf8" : "#334155";
-        let strokeWidth = isSelected ? "3" : isVisible ? "1.5" : "1";
+        let strokeWidth = isSelected ? "3.5" : isVisible ? "1.8" : "1";
 
         html += `
           <path d="${d}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}"
-                class="cursor-pointer transition-all ${isVisible ? "hover:fill-sky-500/25" : ""}"
+                class="cursor-pointer transition-all ${isSelected ? "sector-highlight" : isVisible ? "hover:fill-sky-500/30" : ""}"
                 onclick="onSelectRadarSector(${s})"/>
         `;
 
@@ -1141,7 +1276,6 @@
         const tx = cx + (rOuter - 20) * Math.cos(radMid);
         const ty = cy + (rOuter - 20) * Math.sin(radMid);
 
-        // 시트 확정 천체가 있다면 표시
         let confirmedObj = null;
         Object.entries(PX.sheet[s] || {}).forEach(([k, st]) => {
           if (st === "confirmed") confirmedObj = k;
@@ -1154,6 +1288,7 @@
           </text>
         `;
 
+        // 확정 천체 뱃지
         if (confirmedObj) {
           const ix = cx + (rInner + 22) * Math.cos(radMid);
           const iy = cy + (rInner + 22) * Math.sin(radMid);
@@ -1168,9 +1303,10 @@
 
       // 3) 중앙 태양 & 지구 공전 궤도
       html += `<circle cx="${cx}" cy="${cy}" r="${rEarthOrbit}" fill="none" stroke="#334155" stroke-dasharray="3 3"/>`;
-      html += `<circle cx="${cx}" cy="${cy}" r="18" fill="#f59e0b" stroke="#fef08a" stroke-width="2"/>`; // 태양
+      html += `<circle cx="${cx}" cy="${cy}" r="22" fill="url(#sunGlow)"/>`;
+      html += `<circle cx="${cx}" cy="${cy}" r="15" fill="#f59e0b" stroke="#fef08a" stroke-width="2"/>`;
 
-      // 지구 위치 (시간 트랙 반영)
+      // 지구 마커
       const earthAngle = ((Math.floor(PX.time / 2) % total) * (360 / total) - 90);
       const radEarth = (earthAngle * Math.PI) / 180;
       const ex = cx + rEarthOrbit * Math.cos(radEarth);
@@ -1193,15 +1329,16 @@
       const inView = isSectorInView(sec);
       inViewEl.textContent = inView ? "관측 가능" : "시야 밖";
       inViewEl.className = inView
-        ? "px-1.5 py-0.2 rounded bg-sky-950 text-sky-300 text-[12px] font-bold"
-        : "px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 text-[12px]";
+        ? "px-2 py-0.5 rounded bg-sky-950 border border-sky-500/40 text-sky-300 text-[12px] font-bold"
+        : "px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-[12px]";
 
-      // 조사/타겟 셀렉터 동기화
       document.getElementById("targetSelectSector").value = sec;
       document.getElementById("paperSelectSector").value = sec;
       document.getElementById("locatePlanetXSector").value = sec;
 
       renderRadarSvg();
+      renderQuickMarkingBar();
+      if (isFocusMode) renderSheetTable();
     }
 
     function quickActionSurvey() {
@@ -1216,17 +1353,46 @@
       executeTargetAction();
     }
 
-    // 터치형 디덕션 시트 테이블 렌더링
+    // 디덕션 시트 테이블 또는 포커스 뷰 렌더링
     function renderSheetTable() {
       const table = document.getElementById("deductionSheetTable");
       const total = PX.totalSectors;
       const objs = ["asteroid", "comet", "gas", "dwarf", "empty", "planetx"];
 
+      // 1) 섹터 포커스 뷰 모드
+      if (isFocusMode) {
+        const sec = selectedRadarSector;
+        let html = `
+          <thead><tr class="bg-sky-950/70 text-xs text-sky-200">
+            <th colspan="3" class="p-2 border border-white/10 font-extrabold">섹터 ${sec}번 상세 디덕션 포커스</th>
+          </tr></thead>
+          <tbody>
+        `;
+        objs.forEach(oKey => {
+          const oDef = CELESTIAL_OBJECTS[oKey];
+          const st = PX.sheet[sec][oKey];
+          let mark = st === "x" ? "X (배제됨)" : st === "maybe" ? "? (후보)" : st === "confirmed" ? "★ (확정)" : "미확인";
+          let rowBg = st === "confirmed" ? "bg-sky-600/30 text-sky-200" : st === "x" ? "opacity-50 text-slate-400" : "";
+          html += `
+            <tr class="border-b border-white/5 hover:bg-slate-800/40 cursor-pointer ${rowBg}" onclick="toggleSheetCell(${sec}, '${oKey}')">
+              <td class="p-2 border border-white/10 font-bold ${oDef.color} flex items-center gap-1.5">${iconSvg(oKey, 16)}<span>${oDef.name}</span></td>
+              <td class="p-2 border border-white/10 text-xs font-bold">${mark}</td>
+              <td class="p-2 border border-white/10 text-right"><span class="px-2 py-0.5 rounded bg-slate-800 text-[12px] font-bold">터치하여 변경</span></td>
+            </tr>
+          `;
+        });
+        html += `</tbody>`;
+        table.innerHTML = html;
+        return;
+      }
+
+      // 2) 전체 매트릭스 테이블 뷰
       let html = `<thead><tr class="bg-slate-900/90 text-[12px] text-slate-300">`;
       html += `<th class="p-1.5 border border-white/10 text-left">천체</th>`;
       for (let s = 1; s <= total; s++) {
         const isVis = isSectorInView(s);
-        html += `<th class="p-1 border border-white/10 font-bold ${isVis ? "text-sky-300 bg-sky-950/40" : "text-slate-400"}">${s}</th>`;
+        const isSel = (s === selectedRadarSector);
+        html += `<th class="p-1 border border-white/10 font-bold cursor-pointer ${isSel ? "text-amber-300 bg-amber-950/60" : isVis ? "text-sky-300 bg-sky-950/40" : "text-slate-400"}" onclick="onSelectRadarSector(${s})">${s}</th>`;
       }
       html += `</tr></thead><tbody>`;
 
@@ -1275,10 +1441,10 @@
       }
 
       container.innerHTML = PX.unlockedClues.map(c => `
-        <div class="p-2.5 rounded-xl border border-purple-500/30 bg-[#140e22] space-y-1">
+        <div class="p-3 rounded-2xl border border-purple-500/30 bg-[#120d20] space-y-1.5 shadow-sm">
           <div class="flex items-center justify-between text-purple-300 font-bold">
-            <span>[${c.lab}] ${c.title}</span>
-            <span class="text-[12px] px-1.5 py-0.2 rounded bg-purple-950 text-purple-300">검증 완료</span>
+            <span class="text-sm font-extrabold text-purple-200">[${c.lab}] ${c.title}</span>
+            <span class="text-[12px] px-2 py-0.5 rounded-md bg-purple-950 border border-purple-500/40 text-purple-300 font-extrabold">검증 완료</span>
           </div>
           <p class="text-slate-200 text-xs leading-relaxed">${c.text}</p>
         </div>
@@ -1293,12 +1459,12 @@
       }
 
       container.innerHTML = PX.submittedPapers.map(p => `
-        <div class="p-2 rounded-lg bg-black/40 border border-white/5 flex items-center justify-between text-xs">
+        <div class="p-2.5 rounded-xl bg-black/40 border border-white/10 flex items-center justify-between text-xs">
           <div class="flex items-center gap-2">
-            <span class="font-bold text-amber-300">${p.author}</span>
+            <span class="font-extrabold text-amber-300">${p.author}</span>
             <span class="text-slate-300">섹터 ${p.sector}번 = <strong class="${CELESTIAL_OBJECTS[p.object].color}">${CELESTIAL_OBJECTS[p.object].name}</strong></span>
           </div>
-          <span class="font-bold text-amber-300">+${p.score} 점</span>
+          <span class="font-extrabold text-amber-300">+${p.score} 점</span>
         </div>
       `).join("");
     }
@@ -1317,11 +1483,9 @@
       document.getElementById("locatePlanetXSector").innerHTML = optsHtml;
       document.getElementById("paperSelectSector").innerHTML = optsHtml;
 
-      // 초기 범위 기본값
       document.getElementById("surveyStartSector").value = "1";
       document.getElementById("surveyEndSector").value = "3";
 
-      // 연구 A~H 셀렉터
       document.getElementById("researchSelectLab").innerHTML = PX.clues.map(c => {
         const done = !!PX.researchedLabs[c.lab];
         return `<option value="${c.lab}" ${done ? "disabled" : ""}>[${c.lab} 연구실] ${c.title} ${done ? "(완료)" : ""}</option>`;
@@ -1336,7 +1500,7 @@
     }
 
     // ---------------------------------------------------------
-    // (J) 설정 및 초기 로드
+    // (K) 설정 모달
     // ---------------------------------------------------------
     function openSettingsModal() {
       document.getElementById("modalSettings").classList.remove("hidden");
@@ -1360,6 +1524,7 @@
     }
 
     window.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("iconClockMini").innerHTML = iconSvg("clock", 14);
       document.getElementById("iconHelpMini").innerHTML = iconSvg("help", 15);
       document.getElementById("iconGearMini").innerHTML = iconSvg("gear", 15);
       document.getElementById("iconCoachBulb").innerHTML = iconSvg("bulb", 15);
