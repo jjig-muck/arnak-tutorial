@@ -3,64 +3,74 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>듄: 임페리움 모바일 튜토리얼 & 솔로 시뮬레이터 (익스의 부상 & 불멸 확장 지원)</title>
+  <title>듄: 임페리움 모바일 튜토리얼 & 솔로 시뮬레이터 (익스의 부상 & 불멸 확장 통합판)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    /* 듄 임페리움 특유의 SF 사막 & 스페이스 오페라 테마 */
     :root {
-      --bg-dark: #0a0c10;
+      --bg-dune: #090c12;
       --sand-gold: #d4a359;
-      --spice-orange: #e06c26;
-      --water-blue: #38bdf8;
-      --solari-yellow: #fbbf24;
-      --blood-red: #ef4444;
+      --spice-orange: #ea580c;
+      --water-cyan: #38bdf8;
+      --solari-yellow: #facc15;
+      --combat-red: #ef4444;
+      --ix-cyan: #06b6d4;
+      --imm-emerald: #10b981;
     }
     body {
-      background-color: var(--bg-dark);
+      background-color: var(--bg-dune);
       background-image:
-        radial-gradient(ellipse 90% 45% at 50% -10%, rgba(224, 108, 38, 0.12), transparent 70%),
-        radial-gradient(ellipse 80% 40% at 50% 110%, rgba(56, 189, 248, 0.08), transparent 70%);
-      color: #e2e8f0;
+        radial-gradient(ellipse 90% 50% at 50% -10%, rgba(234, 88, 12, 0.14), transparent 75%),
+        radial-gradient(ellipse 70% 35% at 50% 105%, rgba(56, 189, 248, 0.08), transparent 75%),
+        linear-gradient(to bottom, #090c12, #0d121c 60%, #080b10);
+      color: #f1f5f9;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       user-select: none;
       -webkit-user-select: none;
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
     }
-    /* 모바일 스크롤바 미려화 */
-    ::-webkit-scrollbar { width: 4px; height: 4px; }
-    ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
-    ::-webkit-scrollbar-thumb { background: rgba(212, 163, 89, 0.35); border-radius: 9999px; }
-    .gold-glow {
-      box-shadow: 0 0 15px rgba(212, 163, 89, 0.25);
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.7); }
+    ::-webkit-scrollbar-thumb { background: rgba(212, 163, 89, 0.4); border-radius: 9999px; }
+
+    /* 황금빛/스파이스 네온 펄스 효과 */
+    @keyframes pulse-gold-border {
+      0%, 100% {
+        border-color: rgba(250, 204, 21, 0.4);
+        box-shadow: 0 0 8px rgba(250, 204, 21, 0.2);
+      }
+      50% {
+        border-color: rgba(250, 204, 21, 1);
+        box-shadow: 0 0 18px rgba(250, 204, 21, 0.65), inset 0 0 10px rgba(250, 204, 21, 0.2);
+      }
     }
-    .spice-glow {
-      box-shadow: 0 0 15px rgba(224, 108, 38, 0.3);
+    .pulse-match {
+      animation: pulse-gold-border 1.4s infinite ease-in-out;
     }
-    .combat-glow {
-      box-shadow: 0 0 18px rgba(239, 68, 68, 0.35);
+
+    /* 카드 선택 시 입체감 */
+    .card-selected {
+      transform: translateY(-4px) scale(1.02);
+      box-shadow: 0 10px 25px -5px rgba(234, 88, 12, 0.4), 0 0 0 2px #f59e0b;
     }
-    /* 카드 펄스 하이라이트 */
-    @keyframes pulse-gold {
-      0%, 100% { border-color: rgba(212, 163, 89, 0.4); }
-      50% { border-color: rgba(212, 163, 89, 1); box-shadow: 0 0 12px rgba(212, 163, 89, 0.5); }
-    }
-    .pulse-highlight {
-      animation: pulse-gold 1.8s infinite ease-in-out;
+
+    /* 심볼 뱃지 글로우 */
+    .symbol-glow {
+      filter: drop-shadow(0 0 3px currentColor);
     }
   </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between overflow-x-hidden text-slate-100">
 
   <!-- ========================================================= -->
-  <!-- 1. 상단 3줄 초컴팩트 텔레메트리 HUD (Mobile-First)         -->
+  <!-- 1. 상단 3줄 초컴팩트 텔레메트리 HUD                        -->
   <!-- ========================================================= -->
-  <header class="sticky top-0 z-40 bg-[#0d1117]/95 backdrop-blur-md border-b border-amber-900/40 px-2.5 py-1.5 shadow-lg select-none">
+  <header class="sticky top-0 z-40 bg-[#0b0f17]/95 backdrop-blur-md border-b border-amber-900/50 px-2.5 py-1.5 shadow-xl select-none">
     
-    <!-- 줄 1: 라운드 / 단계 / 내 승점(VP) / 상단 빠른 액션 -->
-    <div class="flex items-center justify-between gap-1.5 text-xs pb-1 border-b border-white/5">
+    <!-- 줄 1: 라운드 / 단계 / 승점(VP) / 퀵 버튼 -->
+    <div class="flex items-center justify-between gap-1.5 pb-1 border-b border-white/10 text-xs">
       <div class="flex items-center gap-1.5 shrink-0">
-        <span class="px-2 py-0.5 rounded bg-amber-950/80 border border-amber-500/40 text-amber-300 font-extrabold tracking-wider" id="hudRoundBadge">
+        <span class="px-2 py-0.5 rounded bg-amber-950/90 border border-amber-500/50 text-amber-300 font-extrabold tracking-wider" id="hudRoundBadge">
           R 1 / 10
         </span>
         <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-200 font-bold" id="hudPhaseBadge">
@@ -68,110 +78,115 @@
         </span>
       </div>
 
-      <div class="flex items-center gap-2">
-        <!-- 승점(VP) 뱃지 -->
-        <div class="flex items-center gap-1 px-2 py-0.5 rounded bg-[#1c1813] border border-amber-400/50 shadow-sm" title="내 현재 승점 (10점 도달 시 게임 종료)">
+      <div class="flex items-center gap-1.5">
+        <!-- 승점(VP) 바 -->
+        <div class="flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#1a140d] border border-amber-400/60 shadow-sm" title="내 현재 승점 (10 VP 달성 시 종료)">
           <div id="iconVpMini" class="shrink-0 text-amber-400"></div>
           <span class="text-xs text-amber-300 font-bold">VP</span>
           <strong id="hudPlayerVp" class="text-sm font-extrabold text-amber-200">0</strong>
           <span class="text-[12px] text-slate-400">/ 10</span>
         </div>
 
-        <!-- 경쟁 현황 모달 / 규칙 정보 / 설정 버튼 -->
-        <div class="flex items-center gap-1">
-          <button onclick="toggleCoach()" id="btnCoachToggle" class="px-2 py-0.5 rounded text-xs font-bold bg-amber-900/60 border border-amber-600/40 text-amber-200 hover:bg-amber-800/80" title="전술 코치 배너 켜기/끄기">
-            코치 ON
-          </button>
-          <button onclick="openRulesModal()" class="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300" title="게임 도움말 및 족보">
-            <div id="iconHelpMini"></div>
-          </button>
-          <button onclick="openSettingsModal()" class="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300" title="새 게임 및 확장팩 설정">
-            <div id="iconGearMini"></div>
-          </button>
-        </div>
+        <!-- 코치 토글 & 도움말 & 설정 버튼 -->
+        <button onclick="toggleCoach()" id="btnCoachToggle" class="px-2 py-0.5 rounded text-xs font-bold bg-amber-900/70 border border-amber-600/50 text-amber-200 hover:bg-amber-800" title="전술 코치 배너 켜기/끄기">
+          코치 ON
+        </button>
+        <button onclick="openRulesModal()" class="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300" title="규칙 및 족보">
+          <div id="iconHelpMini"></div>
+        </button>
+        <button onclick="openSettingsModal()" class="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300" title="확장팩 및 게임 설정">
+          <div id="iconGearMini"></div>
+        </button>
       </div>
     </div>
 
-    <!-- 줄 2: 5대 핵심 자원 바 (물, 솔라리, 스파이스, 주둔지 병력, 분쟁 지역 전투력) + 확장팩 자원 -->
+    <!-- 줄 2: 자원 바 (물, 솔라리, 스파이스, 주둔지 병력, 분쟁지 전투력, 드레드노트, 표본) -->
     <div class="flex items-center justify-between gap-1 pt-1.5 overflow-x-auto text-xs no-scrollbar">
       <!-- 물 (Water) -->
-      <div class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#0a1926] border border-sky-500/30 shrink-0" title="물 (사막 진입 및 프레멘 협력에 필수)">
+      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#071626] border border-sky-500/40 shrink-0" title="물 (사막 진입 필수 자원)">
         <div id="hudIconWater" class="text-sky-400"></div>
-        <span class="font-extrabold text-sky-200" id="hudResWater">1</span>
+        <span class="text-[12px] text-sky-300">물</span>
+        <strong class="font-extrabold text-sky-200" id="hudResWater">1</strong>
       </div>
 
       <!-- 솔라리 (Solari) -->
-      <div class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#211a09] border border-amber-500/30 shrink-0" title="솔라리 제국 화폐 (의회 좌석 및 랜드스라드 고용)">
+      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#201808] border border-amber-500/40 shrink-0" title="솔라리 제국 화폐">
         <div id="hudIconSolari" class="text-amber-400"></div>
-        <span class="font-extrabold text-amber-200" id="hudResSolari">0</span>
+        <span class="text-[12px] text-amber-300">솔라리</span>
+        <strong class="font-extrabold text-amber-200" id="hudResSolari">0</strong>
       </div>
 
       <!-- 스파이스 (Spice) -->
-      <div class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#24130b] border border-orange-500/40 shrink-0" title="스파이스 멜란지 (길드 수송, 초암 매각, 기술 구매)">
+      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#241209] border border-orange-500/50 shrink-0" title="스파이스 멜란지">
         <div id="hudIconSpice" class="text-orange-400"></div>
-        <span class="font-extrabold text-orange-200" id="hudResSpice">1</span>
+        <span class="text-[12px] text-orange-300">스파이스</span>
+        <strong class="font-extrabold text-orange-200" id="hudResSpice">1</strong>
       </div>
 
-      <!-- 주둔지 병력 (Garrison Troops) -->
-      <div class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#1e1526] border border-purple-500/30 shrink-0" title="주둔지 대기 병력 (에이전트 파견 시 분쟁 지역으로 투입 가능)">
+      <!-- 주둔지 병력 -->
+      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#181224] border border-purple-500/40 shrink-0" title="주둔지 대기 병력">
         <div id="hudIconGarrison" class="text-purple-300"></div>
-        <span class="text-slate-300 text-[12px]">주둔</span>
-        <span class="font-extrabold text-purple-200" id="hudResGarrison">2</span>
+        <span class="text-[12px] text-purple-300">주둔</span>
+        <strong class="font-extrabold text-purple-200" id="hudResGarrison">2</strong>
       </div>
 
-      <!-- 분쟁지 전투력 (Combat Strength) -->
-      <div class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#260f14] border border-rose-500/50 shrink-0 combat-glow" title="현재 분쟁 지역 내 총 전투력 (투입 병력 x2 + 드레드노트 x3 + 카드 보너스)">
+      <!-- 분쟁지 전투력 -->
+      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#260e15] border border-rose-500/60 shrink-0 shadow-md" title="현재 분쟁 지역 내 총 전투력">
         <div id="hudIconSwords" class="text-rose-400"></div>
-        <span class="text-rose-300 text-[12px]">전투</span>
+        <span class="text-[12px] text-rose-300">전투력</span>
         <strong class="font-extrabold text-rose-200 text-sm" id="hudResCombatStr">0</strong>
       </div>
 
-      <!-- [익스 확장] 드레드노트 인디케이터 (조건부 표시) -->
-      <div id="hudIxBox" class="hidden flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#17202a] border border-cyan-500/40 shrink-0" title="[익스] 드레드노트 (전투력 3, 거점 점령, 파괴 불가)">
+      <!-- [익스] 드레드노트 -->
+      <div id="hudIxBox" class="hidden flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#0e1f29] border border-cyan-500/50 shrink-0" title="[익스] 드레드노트 (전투력 3, 거점 통제)">
         <div id="hudIconDreadnought" class="text-cyan-300"></div>
-        <span class="font-bold text-cyan-200 text-xs" id="hudResDreadnought">0/2</span>
+        <span class="text-[12px] text-cyan-300">전함</span>
+        <strong class="font-extrabold text-cyan-200" id="hudResDreadnought">0/2</strong>
       </div>
 
-      <!-- [불멸 확장] 표본 인디케이터 (조건부 표시) -->
-      <div id="hudImmBox" class="hidden flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#1f1624] border border-emerald-500/40 shrink-0" title="[불멸] 틀레이락스 유전자 표본">
+      <!-- [불멸] 표본 -->
+      <div id="hudImmBox" class="hidden flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#12211b] border border-emerald-500/50 shrink-0" title="[불멸] 틀레이락스 표본">
         <div id="hudIconSpecimen" class="text-emerald-300"></div>
-        <span class="font-bold text-emerald-200 text-xs" id="hudResSpecimens">0</span>
+        <span class="text-[12px] text-emerald-300">표본</span>
+        <strong class="font-extrabold text-emerald-200" id="hudResSpecimens">0</strong>
       </div>
     </div>
 
-    <!-- 줄 3: 4대 파벌 영향력 미니 트랙 + 확장 트랙 상태 요약 -->
+    <!-- 줄 3: 4대 파벌 영향력 미니 뱃지 + 에이전트 잔여 수 -->
     <div class="flex items-center justify-between gap-1 pt-1.5 text-xs">
+      <!-- 4대 파벌 영향력 -->
       <div class="flex items-center gap-1 shrink-0 overflow-x-auto no-scrollbar">
-        <!-- 황제 (Emperor) -->
-        <div id="miniFaction_emperor" class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-300" title="황제 파벌 영향력 (2레벨: +1 VP, 4레벨 동맹: +1 VP)">
-          <span class="font-bold text-[12px] text-amber-400">황</span>
-          <span class="font-extrabold text-slate-100" id="trackVal_emperor">0</span>
+        <div class="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-900 border border-slate-700" title="황제 파벌 (2레벨: +1 VP, 4레벨 동맹: +1 VP)">
+          <div id="miniIconEmp"></div>
+          <span class="font-bold text-amber-400 text-[12px]">황제</span>
+          <strong class="font-extrabold text-slate-100" id="trackVal_emperor">0</strong>
         </div>
-        <!-- 우주조합 (Spacing Guild) -->
-        <div id="miniFaction_guild" class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-300" title="우주조합 영향력">
-          <span class="font-bold text-[12px] text-orange-400">길</span>
-          <span class="font-extrabold text-slate-100" id="trackVal_guild">0</span>
+        <div class="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-900 border border-slate-700" title="우주조합 파벌">
+          <div id="miniIconGuild"></div>
+          <span class="font-bold text-orange-400 text-[12px]">조합</span>
+          <strong class="font-extrabold text-slate-100" id="trackVal_guild">0</strong>
         </div>
-        <!-- 베네 게세리트 (Bene Gesserit) -->
-        <div id="miniFaction_bene" class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-300" title="베네 게세리트 자매회 영향력">
-          <span class="font-bold text-[12px] text-blue-400">베</span>
-          <span class="font-extrabold text-slate-100" id="trackVal_bene">0</span>
+        <div class="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-900 border border-slate-700" title="베네 게세리트 파벌">
+          <div id="miniIconBene"></div>
+          <span class="font-bold text-blue-400 text-[12px]">베네</span>
+          <strong class="font-extrabold text-slate-100" id="trackVal_bene">0</strong>
         </div>
-        <!-- 프레멘 (Fremen) -->
-        <div id="miniFaction_fremen" class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-300" title="프레멘 시치 영향력">
-          <span class="font-bold text-[12px] text-yellow-400">프</span>
-          <span class="font-extrabold text-slate-100" id="trackVal_fremen">0</span>
+        <div class="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-900 border border-slate-700" title="프레멘 파벌">
+          <div id="miniIconFremen"></div>
+          <span class="font-bold text-yellow-400 text-[12px]">프레멘</span>
+          <strong class="font-extrabold text-slate-100" id="trackVal_fremen">0</strong>
         </div>
       </div>
 
-      <!-- 에이전트 잔여 수 및 턴 전환 안내 -->
+      <!-- 에이전트 일꾼 수 -->
       <div class="flex items-center gap-1.5 shrink-0 text-slate-300">
-        <div class="flex items-center gap-0.5">
+        <div class="flex items-center gap-1">
+          <div id="hudIconAgent" class="text-amber-300"></div>
           <span class="text-[12px] text-slate-400">일꾼:</span>
-          <span class="font-extrabold text-amber-300" id="hudAgentsLeft">2/2</span>
+          <strong class="font-extrabold text-amber-300" id="hudAgentsLeft">2/2</strong>
         </div>
         <div class="h-3 w-px bg-white/20"></div>
-        <div class="flex items-center gap-1 text-[12px]">
+        <div class="text-[12px]">
           <span class="text-slate-400">멘타트:</span>
           <span class="font-bold text-slate-200" id="hudMentatStatus">미고용</span>
         </div>
@@ -179,11 +194,11 @@
     </div>
   </header>
 
-  <!-- 실시간 스마트 전술 코치 배너 (ON/OFF 가능) -->
+  <!-- 실시간 스마트 전술 코치 배너 -->
   <aside id="coachBanner" class="bg-gradient-to-r from-amber-950/80 via-slate-900/90 to-amber-950/80 border-b border-amber-500/30 px-3 py-1.5 text-xs text-amber-200 flex items-center justify-between gap-2 shadow-inner">
     <div class="flex items-center gap-2 min-w-0">
       <div id="iconCoachBulb" class="shrink-0 text-amber-400"></div>
-      <p id="coachAdviceText" class="truncate font-medium">손패의 카드를 확인하고 에이전트를 파견해 스파이스와 파벌 영향력을 선점하세요!</p>
+      <p id="coachAdviceText" class="truncate font-medium">하단 손패 카드를 선택하면 갈 수 있는 보드 구역의 심볼이 빛납니다!</p>
     </div>
     <button onclick="toggleCoach()" class="text-slate-400 hover:text-slate-200 shrink-0 font-bold text-xs" title="닫기">X</button>
   </aside>
@@ -191,18 +206,18 @@
   <!-- ========================================================= -->
   <!-- 2. 메인 보드 4대 탭 바 (Navigation Bar)                   -->
   <!-- ========================================================= -->
-  <nav class="bg-[#111622] border-b border-white/10 px-2 py-1 sticky top-[82px] z-30 flex items-center justify-around gap-1 text-xs font-bold">
-    <button onclick="switchTab('board')" id="tabBtn_board" class="flex-1 py-1.5 px-1 rounded-lg text-center transition flex items-center justify-center gap-1 bg-amber-500/20 text-amber-300 border border-amber-500/40">
+  <nav class="bg-[#10141e] border-b border-white/10 px-2 py-1 sticky top-[82px] z-30 flex items-center justify-around gap-1 text-xs font-bold">
+    <button onclick="switchTab('board')" id="tabBtn_board" class="flex-1 py-1.5 px-1 rounded-lg text-center transition flex items-center justify-center gap-1.5 bg-amber-500/20 text-amber-300 border border-amber-500/40">
       <span id="tabIconBoard"></span><span>보드 구역</span>
     </button>
-    <button onclick="switchTab('tracks')" id="tabBtn_tracks" class="flex-1 py-1.5 px-1 rounded-lg text-center transition flex items-center justify-center gap-1 text-slate-400 hover:text-slate-200">
+    <button onclick="switchTab('tracks')" id="tabBtn_tracks" class="flex-1 py-1.5 px-1 rounded-lg text-center transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-slate-200">
       <span id="tabIconTracks"></span><span>영향력·트랙</span>
     </button>
-    <button onclick="switchTab('combat')" id="tabBtn_combat" class="flex-1 py-1.5 px-1 rounded-lg text-center transition flex items-center justify-center gap-1 text-slate-400 hover:text-slate-200 relative">
+    <button onclick="switchTab('combat')" id="tabBtn_combat" class="flex-1 py-1.5 px-1 rounded-lg text-center transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-slate-200 relative">
       <span id="tabIconCombat"></span><span>분쟁·전투</span>
       <span id="combatBadgeAlert" class="hidden absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
     </button>
-    <button onclick="switchTab('market')" id="tabBtn_market" class="flex-1 py-1.5 px-1 rounded-lg text-center transition flex items-center justify-center gap-1 text-slate-400 hover:text-slate-200">
+    <button onclick="switchTab('market')" id="tabBtn_market" class="flex-1 py-1.5 px-1 rounded-lg text-center transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-slate-200">
       <span id="tabIconMarket"></span><span>제국 시장</span>
     </button>
   </nav>
@@ -210,109 +225,126 @@
   <!-- ========================================================= -->
   <!-- 3. 메인 콘텐츠 뷰 영역 (탭별 동적 렌더링)                 -->
   <!-- ========================================================= -->
-  <main class="flex-1 p-2.5 pb-36 max-w-xl mx-auto w-full space-y-3">
+  <main class="flex-1 p-2.5 pb-44 max-w-xl mx-auto w-full space-y-3.5">
 
     <!-- [탭 1] 보드 구역 (Board Spaces) -->
-    <section id="view_board" class="space-y-3">
-      <!-- 구역 필터 및 상태 알림 -->
-      <div class="flex items-center justify-between text-xs text-slate-300 px-1">
-        <span class="font-bold text-amber-300">에이전트 파견 구역 선택</span>
-        <span id="boardFilterGuide" class="text-slate-400 text-[12px]">손패 카드의 심볼과 일치하는 칸에만 파견 가능합니다.</span>
+    <section id="view_board" class="space-y-3.5">
+      
+      <!-- 선택된 손패 카드와 매칭 안내 배너 -->
+      <div id="matchingStatusBar" class="p-2.5 rounded-xl border border-white/10 bg-[#121724] text-xs flex items-center justify-between gap-2 shadow-md">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="text-slate-400 shrink-0">선택된 카드:</span>
+          <div id="matchingCardPreview" class="truncate font-extrabold text-amber-300">
+            [선택 없음 - 하단 손패를 터치하세요]
+          </div>
+        </div>
+        <div id="matchingSymbolsPreview" class="flex items-center gap-1 shrink-0">
+          <!-- 선택된 카드의 심볼들 -->
+        </div>
       </div>
 
       <!-- 4대 파벌 구역 그리드 -->
-      <div class="space-y-1.5">
-        <div class="text-[12px] font-extrabold uppercase tracking-wider text-amber-400/90 flex items-center gap-1">
-          <span>4대 파벌 제휴 구역</span>
-          <span class="text-slate-500 text-[12px] font-normal">(파견 시 해당 파벌 영향력 +1 상승)</span>
+      <div class="space-y-2">
+        <div class="flex items-center justify-between text-xs">
+          <div class="flex items-center gap-1 font-extrabold text-amber-400">
+            <span>4대 파벌 동맹 구역</span>
+            <span class="text-[12px] text-slate-400 font-normal">(방문 시 파벌 영향력 +1 상승)</span>
+          </div>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="gridFactionSpaces">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5" id="gridFactionSpaces">
           <!-- JS 동적 렌더링 -->
         </div>
       </div>
 
-      <!-- 아라키스 사막 구역 (스파이스 수확) -->
-      <div class="space-y-1.5">
-        <div class="text-[12px] font-extrabold uppercase tracking-wider text-orange-400/90 flex items-center justify-between">
-          <span>아라키스 사막 구역 (스파이스 수확 & 분쟁 개입)</span>
-          <span class="text-slate-400 text-[12px] font-normal">물 지불 필요 · 모래벌레 누적 스파이스 획득</span>
+      <!-- 아라키스 사막 구역 (스파이스 수확 & 전투 출격) -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between text-xs">
+          <div class="flex items-center gap-1 font-extrabold text-orange-400">
+            <span>아라키스 사막 구역 (스파이스 & 분쟁지 출격)</span>
+          </div>
+          <span class="text-[12px] text-slate-400">물 지불 필요 · 주둔지 병력 분쟁지 파견 가능</span>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="gridDesertSpaces">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5" id="gridDesertSpaces">
           <!-- JS 동적 렌더링 -->
         </div>
       </div>
 
-      <!-- 랜드스라드 & 초암 구역 (도시/의회) -->
-      <div class="space-y-1.5">
-        <div class="text-[12px] font-extrabold uppercase tracking-wider text-sky-400/90">
-          <span>랜드스라드 & 초암 무역 구역</span>
+      <!-- 랜드스라드 & 초암 구역 -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between text-xs">
+          <span class="font-extrabold text-sky-400">랜드스라드 & 초암 무역 구역</span>
+          <span class="text-[12px] text-slate-400">솔라리 화폐 소비 및 일꾼 증원</span>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="gridCitySpaces">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5" id="gridCitySpaces">
           <!-- JS 동적 렌더링 -->
         </div>
       </div>
 
-      <!-- [익스 확장 전용] 익스 보드 대체 구역 (조건부 표시) -->
-      <div id="sectionIxSpaces" class="hidden space-y-1.5 border-t border-cyan-800/40 pt-2">
-        <div class="text-[12px] font-extrabold uppercase tracking-wider text-cyan-300 flex items-center justify-between">
-          <span>[익스의 부상] 익스 특수 기술 및 화물 구역</span>
-          <span class="px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 text-[12px]">익스 확장 활성화</span>
+      <!-- [익스 확장 전용] 익스 보드 대체 구역 -->
+      <div id="sectionIxSpaces" class="hidden space-y-2 border-t border-cyan-800/40 pt-3">
+        <div class="flex items-center justify-between text-xs">
+          <span class="font-extrabold text-cyan-300">[익스의 부상] 익스 기술 및 초암 화물 구역</span>
+          <span class="px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 font-bold text-[12px]">익스 확장</span>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="gridIxSpaces">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5" id="gridIxSpaces">
           <!-- JS 동적 렌더링 -->
         </div>
       </div>
 
-      <!-- [불멸 확장 전용] 틀레이락스 연구 구역 (조건부 표시) -->
-      <div id="sectionImmSpaces" class="hidden space-y-1.5 border-t border-emerald-800/40 pt-2">
-        <div class="text-[12px] font-extrabold uppercase tracking-wider text-emerald-300 flex items-center justify-between">
-          <span>[불멸] 베네 틀레이락스 연구 및 재생 구역</span>
-          <span class="px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 text-[12px]">불멸 확장 활성화</span>
+      <!-- [불멸 확장 전용] 틀레이락스 연구 구역 -->
+      <div id="sectionImmSpaces" class="hidden space-y-2 border-t border-emerald-800/40 pt-3">
+        <div class="flex items-center justify-between text-xs">
+          <span class="font-extrabold text-emerald-300">[불멸] 베네 틀레이락스 연구소</span>
+          <span class="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 font-bold text-[12px]">불멸 확장</span>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="gridImmSpaces">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5" id="gridImmSpaces">
           <!-- JS 동적 렌더링 -->
         </div>
       </div>
     </section>
 
-    <!-- [탭 2] 영향력 & 확장 트랙 (Tracks) -->
-    <section id="view_tracks" class="hidden space-y-3">
+    <!-- [탭 2] 영향력 & 트랙 (Tracks) -->
+    <section id="view_tracks" class="hidden space-y-3.5">
       <!-- 4대 파벌 상세 트랙 -->
-      <div class="bg-[#121620] border border-amber-900/40 rounded-xl p-3 space-y-3">
-        <div class="flex items-center justify-between border-b border-white/10 pb-2">
-          <span class="font-extrabold text-sm text-amber-200">4대 파벌 영향력 현황</span>
-          <span class="text-xs text-slate-400">2레벨 도달 시 1 VP / 4레벨 동맹 최다 보유 시 +1 VP</span>
+      <div class="bg-[#111622] border border-amber-900/40 rounded-xl p-3.5 space-y-3 shadow-md">
+        <div class="flex items-center justify-between border-b border-white/10 pb-2 text-xs">
+          <span class="font-extrabold text-amber-200 text-sm">4대 파벌 영향력 현황</span>
+          <span class="text-slate-400">2단계 도달 시 1 VP / 4단계 동맹 최고자 +1 VP</span>
         </div>
-        <div class="space-y-2.5" id="factionTrackDetails">
+        <div class="space-y-3" id="factionTrackDetails">
           <!-- JS 렌더링 -->
         </div>
       </div>
 
       <!-- [익스] 화물선 (Freighter) 수송 트랙 -->
-      <div id="boxIxFreighterTrack" class="hidden bg-[#0e1724] border border-cyan-800/40 rounded-xl p-3 space-y-2">
+      <div id="boxIxFreighterTrack" class="hidden bg-[#0d1724] border border-cyan-800/50 rounded-xl p-3.5 space-y-2.5 shadow-md">
         <div class="flex items-center justify-between">
-          <div class="flex items-center gap-1.5">
+          <div class="flex items-center gap-2">
             <div id="iconFreighterLg" class="text-cyan-300"></div>
             <span class="font-extrabold text-sm text-cyan-200">초암 우주 화물선 트랙</span>
           </div>
-          <span class="text-xs text-cyan-300 font-bold" id="freighterStageBadge">0단계 (미배치)</span>
+          <span class="text-xs text-cyan-300 font-extrabold" id="freighterStageBadge">0단계 (미배치)</span>
         </div>
-        <p class="text-xs text-slate-300">익스 구역 행동으로 화물선을 1~3단계로 전진시키거나, 화물선을 회수하며 대량의 솔라리/스파이스/영향력 보상을 일괄 수령합니다.</p>
+        <p class="text-xs text-slate-300 leading-relaxed">
+          화물선 전진 행동으로 1~3단계로 밀어 올린 후, 화물선을 본성으로 회수하여 대량의 솔라리/스파이스/병력 보상을 한 번에 수령합니다.
+        </p>
         <div class="grid grid-cols-3 gap-2 text-center text-xs pt-1" id="freighterStepsBox">
           <!-- JS 렌더링 -->
         </div>
       </div>
 
       <!-- [불멸] 베네 틀레이락스 연구 트랙 (Research Track) -->
-      <div id="boxImmResearchTrack" class="hidden bg-[#101b1b] border border-emerald-800/40 rounded-xl p-3 space-y-2">
+      <div id="boxImmResearchTrack" class="hidden bg-[#0d1a18] border border-emerald-800/50 rounded-xl p-3.5 space-y-2.5 shadow-md">
         <div class="flex items-center justify-between">
-          <div class="flex items-center gap-1.5">
+          <div class="flex items-center gap-2">
             <div id="iconDnaLg" class="text-emerald-300"></div>
             <span class="font-extrabold text-sm text-emerald-200">베네 틀레이락스 연구 트랙</span>
           </div>
-          <span class="text-xs text-emerald-300 font-bold" id="researchProgressBadge">진척도 0 / 7</span>
+          <span class="text-xs text-emerald-300 font-extrabold" id="researchProgressBadge">진척도 0 / 7</span>
         </div>
-        <p class="text-xs text-slate-300">유전자 연구를 진척시켜 갈래길에서 표본 획득, 파벌 승점 업그레이드, 유전자 변형 카드를 획득합니다.</p>
+        <p class="text-xs text-slate-300 leading-relaxed">
+          유전자 연구를 진척시켜 갈래길에서 표본 획득 및 4단계 도달 시 즉시 영구 승점 +1 VP를 획득합니다.
+        </p>
         <div class="flex items-center justify-between gap-1 overflow-x-auto py-2 no-scrollbar" id="researchNodesRow">
           <!-- JS 렌더링 -->
         </div>
@@ -320,11 +352,11 @@
     </section>
 
     <!-- [탭 3] 분쟁 & 전투 (Combat & Conflict) -->
-    <section id="view_combat" class="hidden space-y-3">
-      <!-- 이번 라운드 분쟁 카드 보상 안내 -->
-      <div class="bg-gradient-to-br from-[#260f14] via-[#1a1218] to-[#121622] border border-rose-500/40 rounded-xl p-3.5 space-y-2.5 combat-glow">
-        <div class="flex items-center justify-between border-b border-rose-500/20 pb-2">
-          <div class="flex items-center gap-1.5">
+    <section id="view_combat" class="hidden space-y-3.5">
+      <!-- 이번 라운드 분쟁 카드 보상 -->
+      <div class="bg-gradient-to-br from-[#2a0e16] via-[#1a111a] to-[#0f1420] border border-rose-500/50 rounded-xl p-3.5 space-y-3 shadow-lg">
+        <div class="flex items-center justify-between border-b border-rose-500/30 pb-2">
+          <div class="flex items-center gap-2">
             <div id="iconConflictSwords" class="text-rose-400"></div>
             <span class="font-extrabold text-sm text-rose-200" id="conflictCardName">제 1단계 분쟁: 협곡 교전</span>
           </div>
@@ -334,92 +366,77 @@
         </div>
 
         <div class="space-y-1.5 text-xs">
-          <div class="flex items-center justify-between bg-black/40 p-2 rounded-lg border border-amber-500/30">
-            <span class="font-bold text-amber-300">1위 보상</span>
+          <div class="flex items-center justify-between bg-black/40 p-2.5 rounded-lg border border-amber-500/30">
+            <span class="font-extrabold text-amber-300">1위 보상</span>
             <span class="font-extrabold text-amber-200 text-right" id="conflictReward1">승점 +1 VP & 스파이스 +2</span>
           </div>
-          <div class="flex items-center justify-between bg-black/30 p-2 rounded-lg border border-white/5">
+          <div class="flex items-center justify-between bg-black/30 p-2.5 rounded-lg border border-white/10">
             <span class="font-bold text-slate-300">2위 보상</span>
             <span class="text-slate-200 text-right" id="conflictReward2">물 +1 & 솔라리 +2</span>
           </div>
-          <div class="flex items-center justify-between bg-black/20 p-2 rounded-lg border border-white/5">
+          <div class="flex items-center justify-between bg-black/20 p-2.5 rounded-lg border border-white/5">
             <span class="font-bold text-slate-400">3위 보상</span>
             <span class="text-slate-300 text-right" id="conflictReward3">스파이스 +1</span>
           </div>
         </div>
       </div>
 
-      <!-- 전투력 실시간 비교 3인 현황 -->
-      <div class="bg-[#121622] border border-white/10 rounded-xl p-3 space-y-2.5">
-        <span class="font-extrabold text-xs text-slate-200">현재 전투력 랭킹 (병력 1기 = 2 전투력, 드레드노트 = 3 전투력)</span>
-        
-        <div class="space-y-2" id="combatRankingList">
-          <!-- JS 렌더링 (플레이어 vs 하우스 할갈 봇 1 vs 하우스 할갈 봇 2) -->
-        </div>
-      </div>
-
-      <!-- 전투 단계 인터랙션: 책략 카드 발동 & 병력 투입 -->
-      <div class="bg-[#141b2b] border border-amber-500/30 rounded-xl p-3 space-y-2">
-        <span class="font-bold text-xs text-amber-300">전투 책략(Plot) 카드 발동</span>
-        <div class="flex items-center justify-between gap-2">
-          <span class="text-xs text-slate-300">보유 전투 책략 카드: <strong class="text-amber-200" id="combatIntrigueCount">0장</strong></span>
-          <button onclick="openPlayIntrigueModal()" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-slate-950 font-extrabold text-xs">
-            책략 카드 사용
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- [탭 4] 제국 시장 & 기술/틀레이락스 (Market) -->
-    <section id="view_market" class="hidden space-y-3">
-      <!-- 설득력 보유 현황 바 -->
-      <div class="flex items-center justify-between bg-[#191f2d] border border-amber-400/40 p-2.5 rounded-xl text-xs">
-        <div class="flex items-center gap-1.5">
-          <div id="iconPersuasionMarket" class="text-amber-400"></div>
-          <span class="text-slate-200">공개 턴 가용 설득력(Persuasion):</span>
-        </div>
-        <strong class="text-sm font-extrabold text-amber-300" id="marketPersuasionTotal">0</strong>
-        <span class="text-xs text-amber-400 font-bold ml-1">설득력</span>
-      </div>
-
-      <!-- 제국 카드 시장 (5장 진열) -->
-      <div class="space-y-2">
+      <!-- 실시간 3인 전투력 랭킹 -->
+      <div class="bg-[#111622] border border-white/10 rounded-xl p-3.5 space-y-3 shadow-md">
         <div class="flex items-center justify-between text-xs">
-          <span class="font-extrabold text-amber-300">제국 덱 시장 카드 (5장)</span>
-          <span class="text-slate-400 text-[12px]">설득력을 지불하여 내 덱 버린 더미로 구매</span>
+          <span class="font-extrabold text-slate-200">현재 전투력 랭킹 (병사 = 2, 드레드노트 = 3)</span>
+          <span class="text-slate-400 text-[12px]">공개 턴 보너스 합산</span>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="gridImperiumMarket">
-          <!-- JS 동적 렌더링 -->
-        </div>
-      </div>
-
-      <!-- 고정 구매 카드 (아라키스 정예군, 향신료 장사, 폴드스페이스 우주선) -->
-      <div class="space-y-2 border-t border-white/10 pt-2">
-        <span class="font-extrabold text-xs text-slate-300">상시 공급 카드 (언제든 구매 가능)</span>
-        <div class="grid grid-cols-3 gap-1.5 text-xs text-center" id="gridReserveCards">
+        <div class="space-y-2.5" id="combatRankingList">
           <!-- JS 렌더링 -->
         </div>
       </div>
 
-      <!-- [익스 확장 전용] 기술 타일 시장 (스파이스로 구매) -->
-      <div id="sectionIxTechMarket" class="hidden space-y-2 border-t border-cyan-800/40 pt-2">
+      <!-- 책략(Intrigue) 카드 사용 바 -->
+      <div class="bg-[#141a28] border border-amber-500/30 rounded-xl p-3 flex items-center justify-between text-xs">
+        <div>
+          <span class="font-extrabold text-amber-300">전투 책략(Plot) 카드</span>
+          <div class="text-slate-400 text-[12px]">보유: <strong class="text-amber-200" id="combatIntrigueCount">0장</strong></div>
+        </div>
+        <button onclick="openPlayIntrigueModal()" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-slate-950 font-extrabold text-xs shadow-md">
+          전투 책략 발동 (+2 전투력)
+        </button>
+      </div>
+    </section>
+
+    <!-- [탭 4] 제국 시장 & 기술 (Market) -->
+    <section id="view_market" class="hidden space-y-3.5">
+      <!-- 설득력 바 -->
+      <div class="flex items-center justify-between bg-[#151c2a] border border-amber-400/50 p-3 rounded-xl text-xs shadow-md">
+        <div class="flex items-center gap-2">
+          <div id="iconPersuasionMarket" class="text-amber-400"></div>
+          <span class="text-slate-200 font-bold">공개 턴 가용 설득력 (Persuasion):</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <strong class="text-base font-extrabold text-amber-300" id="marketPersuasionTotal">0</strong>
+          <span class="text-xs text-amber-400 font-bold">설득력</span>
+        </div>
+      </div>
+
+      <!-- 제국 시장 5장 -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between text-xs">
+          <span class="font-extrabold text-amber-300">제국 덱 시장 카드 (5장 진열)</span>
+          <span class="text-slate-400 text-[12px]">설득력을 지불하여 획득</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5" id="gridImperiumMarket">
+          <!-- JS 동적 렌더링 -->
+        </div>
+      </div>
+
+      <!-- [익스 확장] 기술 타일 진열대 -->
+      <div id="sectionIxTechMarket" class="hidden space-y-2 border-t border-cyan-800/40 pt-3">
         <div class="flex items-center justify-between text-xs">
           <span class="font-extrabold text-cyan-300">[익스] 기술 타일 진열대 (3종)</span>
           <span class="text-slate-400 text-[12px]">스파이스를 지불하여 영구 패시브 획득</span>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-2" id="gridTechTiles">
-          <!-- JS 렌더링 -->
-        </div>
-      </div>
-
-      <!-- [불멸 확장 전용] 틀레이락스 유전자 시장 (표본으로 구매) -->
-      <div id="sectionImmMarket" class="hidden space-y-2 border-t border-emerald-800/40 pt-2">
-        <div class="flex items-center justify-between text-xs">
-          <span class="font-extrabold text-emerald-300">[불멸] 틀레이락스 생체 카드 시장 (2장)</span>
-          <span class="text-slate-400 text-[12px]">표본(Specimens)을 지불하여 획득</span>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="gridTleilaxuMarket">
-          <!-- JS 렌더링 -->
+          <!-- JS 동적 렌더링 -->
         </div>
       </div>
     </section>
@@ -429,38 +446,35 @@
   <!-- ========================================================= -->
   <!-- 4. 하단 접이식 손패 도크 (Hand Dock)                       -->
   <!-- ========================================================= -->
-  <footer class="fixed bottom-0 left-0 right-0 z-40 bg-[#0e121a]/95 backdrop-blur-md border-t border-amber-900/40 shadow-2xl transition-all duration-200">
-    <!-- 손패 상단 바: 접기/펼치기 토글 + 모드 전환 + 공개 턴 버튼 -->
-    <div class="flex items-center justify-between px-3 py-1.5 bg-[#141a24] border-b border-white/5 text-xs">
+  <footer class="fixed bottom-0 left-0 right-0 z-40 bg-[#0d111a]/95 backdrop-blur-md border-t border-amber-900/50 shadow-2xl transition-all duration-200">
+    <!-- 손패 바 헤더 -->
+    <div class="flex items-center justify-between px-3 py-1.5 bg-[#131924] border-b border-white/5 text-xs">
       <div class="flex items-center gap-2">
-        <button onclick="toggleHandCollapse()" class="flex items-center gap-1 text-slate-300 hover:text-white font-bold">
+        <button onclick="toggleHandCollapse()" class="flex items-center gap-1.5 text-slate-200 hover:text-white font-extrabold">
           <span id="handChevronIcon">▼</span>
-          <span>내 손패 (<strong id="handCountText">5장</strong>)</span>
+          <span>내 손패 (<strong id="handCountText" class="text-amber-300">5장</strong>)</span>
         </button>
-        <!-- 불멸 유전자 접합 모드 인디케이터 -->
-        <span id="badgeGraftMode" class="hidden px-1.5 py-0.5 rounded bg-emerald-950 border border-emerald-500/50 text-emerald-300 font-bold text-[12px]">
-          유전자 접합 대기중
-        </span>
+        <span class="text-[12px] text-slate-400 font-normal">카드를 터치해 파견할 구역을 선택하세요</span>
       </div>
 
-      <div class="flex items-center gap-1.5">
+      <div class="flex items-center gap-2">
         <button onclick="onExecuteRevealTurn()" id="btnRevealTurn" class="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs shadow-md">
-          공개 턴 진행 (설득/구매)
+          공개 턴 진행
         </button>
       </div>
     </div>
 
-    <!-- 손패 카드 가로 스크롤 캐러셀 -->
-    <div id="handCardsContainer" class="p-2 overflow-x-auto flex items-stretch gap-2 max-w-xl mx-auto no-scrollbar min-h-[148px]">
+    <!-- 카드 가로 스크롤 캐러셀 -->
+    <div id="handCardsContainer" class="p-2.5 overflow-x-auto flex items-stretch gap-2.5 max-w-xl mx-auto no-scrollbar min-h-[160px]">
       <!-- JS 렌더링 -->
     </div>
   </footer>
 
   <!-- ========================================================= -->
-  <!-- 5. 모달 레이어 (설정 / 파견 확인 / 전투 결산 / 안내 등)     -->
+  <!-- 5. 모달 레이어                                             -->
   <!-- ========================================================= -->
 
-  <!-- [모달 1] 게임 설정 & 확장팩 선택 모달 -->
+  <!-- [모달 1] 게임 설정 모달 -->
   <div id="modalSettings" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3">
     <div class="bg-[#121622] border border-amber-500/40 rounded-2xl w-full max-w-md p-4 space-y-4 max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-white/10 pb-2">
@@ -468,43 +482,41 @@
         <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-white font-bold text-sm">X</button>
       </div>
 
-      <!-- 확장팩 선택 옵션 (체크박스형) -->
+      <!-- 확장팩 토글 -->
       <div class="space-y-2">
         <label class="text-xs font-extrabold text-slate-200">확장팩 포함 여부 선택</label>
         
-        <!-- 익스의 부상 -->
         <label class="flex items-start gap-2.5 p-2.5 rounded-xl border border-cyan-800/40 bg-cyan-950/20 cursor-pointer">
           <input type="checkbox" id="cfgOptIx" class="mt-1 w-4 h-4 accent-cyan-500" checked onchange="onToggleExpansionConfig()">
           <div class="text-xs space-y-0.5">
             <span class="font-bold text-cyan-200">《익스의 부상 (Rise of Ix)》</span>
-            <p class="text-slate-400">드레드노트(전투력 3 & 거점 장악), 기술 타일 패시브, 초암 화물선 3단계 트랙 및 익스 교체 보드 구역 활성화</p>
+            <p class="text-slate-400">드레드노트(전투력 3 & 거점 장악), 기술 타일 패시브, 초암 화물선 3단계 트랙 및 익스 대체 구역 활성화</p>
           </div>
         </label>
 
-        <!-- 불멸 -->
         <label class="flex items-start gap-2.5 p-2.5 rounded-xl border border-emerald-800/40 bg-emerald-950/20 cursor-pointer">
           <input type="checkbox" id="cfgOptImm" class="mt-1 w-4 h-4 accent-emerald-500" checked onchange="onToggleExpansionConfig()">
           <div class="text-xs space-y-0.5">
             <span class="font-bold text-emerald-200">《불멸 (Immortality)》</span>
-            <p class="text-slate-400">베네 틀레이락스 연구 갈래길 트랙, 유전자 접합(Grafting) 2장 카드 융합 발동, 표본 자원 및 전용 생체 시장 활성화</p>
+            <p class="text-slate-400">베네 틀레이락스 연구 트랙, 유전자 접합(Grafting) 2장 연계, 표본 자원 및 전용 생체 연구 활성화</p>
           </div>
         </label>
       </div>
 
-      <!-- 지도자(Leader) 선택 -->
+      <!-- 지도자 선택 -->
       <div class="space-y-1.5">
         <label class="text-xs font-extrabold text-slate-200">내 지도자 선택</label>
         <select id="cfgSelectLeader" class="w-full bg-[#0d1017] border border-white/20 rounded-xl p-2.5 text-xs text-amber-200 font-bold focus:outline-none focus:border-amber-400">
           <option value="paul">폴 아트레이데스 (Paul Atreides) - 미래 예지 & 카드 드로우</option>
           <option value="leto">레토 공작 (Duke Leto) - 의회 좌석 할인 & 랜드스라드 보너스</option>
           <option value="vladimir">블라디미르 남작 (Baron Harkonnen) - 시작 파벌 영향력 조작</option>
-          <option value="glossu">글로수 라반 (Glossu Rabban) - 막강한 초기 병력 & 스파이스 수확 시 징집</option>
-          <option value="ilban">일반 리체스 (Ilban Richese) - [익스] 자원 변환 시 카드 드로우</option>
+          <option value="glossu">글로수 라반 (Glossu Rabban) - 초기 병력 4기 & 스파이스 수확 보너스</option>
+          <option value="ilban">일반 리체스 (Ilban Richese) - [익스] 화폐 소비 시 카드 드로우</option>
           <option value="tessia">테시아 베르니우스 (Tessia Vernius) - [익스] 기술 협약 & 물 보너스</option>
         </select>
       </div>
 
-      <!-- 오토마 난이도 -->
+      <!-- 난이도 -->
       <div class="space-y-1.5">
         <label class="text-xs font-extrabold text-slate-200">하우스 할갈 (오토마 봇 2가문) 난이도</label>
         <div class="grid grid-cols-3 gap-2 text-xs text-center font-bold">
@@ -514,27 +526,24 @@
         </div>
       </div>
 
-      <div class="pt-2">
-        <button onclick="applySettingsAndStart()" class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-extrabold text-sm shadow-lg">
-          설정 적용하고 새 게임 시작
-        </button>
-      </div>
+      <button onclick="applySettingsAndStart()" class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-extrabold text-sm shadow-lg">
+        설정 적용하고 새 게임 시작
+      </button>
     </div>
   </div>
 
-  <!-- [모달 2] 에이전트 파견 세부 설정 (병력 투입 여부 결정) -->
+  <!-- [모달 2] 병력 출격 모달 -->
   <div id="modalDeployTroops" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3">
-    <div class="bg-[#121622] border border-rose-500/50 rounded-2xl w-full max-w-sm p-4 space-y-3">
+    <div class="bg-[#121622] border border-rose-500/50 rounded-2xl w-full max-w-sm p-4 space-y-3.5">
       <div class="flex items-center justify-between border-b border-white/10 pb-2">
         <h4 class="font-extrabold text-sm text-rose-300" id="deploySpaceTitle">분쟁 지역 병력 파견</h4>
         <button onclick="closeDeployModal()" class="text-slate-400 hover:text-white font-bold text-sm">X</button>
       </div>
-      <p class="text-xs text-slate-300" id="deploySpaceDesc">전투 아이콘이 있는 구역에 진입했습니다! 주둔지 병력을 분쟁 지역으로 보낼 수 있습니다.</p>
+      <p class="text-xs text-slate-300">사막 분쟁 구역에 진입했습니다! 주둔지 병력을 분쟁 지역으로 보낼 수 있습니다.</p>
 
-      <!-- 병력 투입 슬라이더 및 카운터 -->
       <div class="bg-black/40 p-3 rounded-xl border border-white/10 space-y-2">
         <div class="flex items-center justify-between text-xs">
-          <span class="text-slate-300">투입할 주둔지 병력 (보유: <strong id="deployAvailTroops">0</strong>기)</span>
+          <span class="text-slate-300">투입할 병력 (보유: <strong id="deployAvailTroops" class="text-purple-300">0</strong>기)</span>
           <strong class="text-rose-400 text-sm" id="deployCountText">0 기</strong>
         </div>
         <div class="flex items-center justify-center gap-3">
@@ -544,29 +553,26 @@
         </div>
       </div>
 
-      <!-- 드레드노트 투입 옵션 (익스 활성화 시) -->
       <div id="deployDreadnoughtBox" class="hidden bg-cyan-950/40 p-2.5 rounded-xl border border-cyan-500/40 flex items-center justify-between text-xs">
         <span class="text-cyan-200 font-bold">드레드노트 1기 추가 출격 (+3 전투력)</span>
         <input type="checkbox" id="chkDeployDreadnought" class="w-4 h-4 accent-cyan-500">
       </div>
 
       <button onclick="confirmDeployAndSendAgent()" class="w-full py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs">
-        파견 및 병력 출격 확정
+        파견 및 출격 확정
       </button>
     </div>
   </div>
 
-  <!-- [모달 3] 라운드 전투 결산 모달 -->
+  <!-- [모달 3] 전투 결산 모달 -->
   <div id="modalCombatResult" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3">
-    <div class="bg-[#150f16] border border-rose-500/50 rounded-2xl w-full max-w-md p-4 space-y-3.5 combat-glow">
+    <div class="bg-[#150f16] border border-rose-500/50 rounded-2xl w-full max-w-md p-4 space-y-3.5">
       <div class="text-center space-y-1">
         <span class="px-2.5 py-0.5 rounded bg-rose-950 text-rose-300 text-xs font-bold border border-rose-500/40">전투 단계 종료</span>
         <h3 class="font-extrabold text-base text-rose-200" id="combatResultHeader">분쟁 결산 결과</h3>
       </div>
 
-      <div class="space-y-2 text-xs" id="combatResultRanksList">
-        <!-- JS 렌더링 -->
-      </div>
+      <div class="space-y-2 text-xs" id="combatResultRanksList"></div>
 
       <button onclick="closeCombatResultAndNextRound()" class="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs">
         보상 수령 및 다음 라운드 진행
@@ -574,20 +580,103 @@
     </div>
   </div>
 
-  <!-- 토스트 알림창 컨테이너 -->
+  <!-- 토스트 알림창 -->
   <div id="toastArea" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-1.5 pointer-events-none w-11/12 max-w-sm"></div>
 
   <!-- ========================================================= -->
-  <!-- 6. 인라인 SVG 벡터 아이콘 및 전체 게임 엔진 스크립트       -->
+  <!-- 6. 인라인 SVG 벡터 아이콘 & 심볼 체계 & 게임 스크립트       -->
   <!-- ========================================================= -->
   <script>
     // ---------------------------------------------------------
-    // (A) 커스텀 인라인 SVG 벡터 시스템 (유니코드 이모지 0개)
+    // (A) 7대 공식 에이전트 심볼 정의 및 SVG 렌더러
     // ---------------------------------------------------------
+    const SYMBOLS_DEF = {
+      emperor: {
+        id: "emperor",
+        name: "황제",
+        color: "text-amber-400",
+        bg: "bg-amber-950/80",
+        border: "border-amber-500/60",
+        desc: "황제 파벌 구역 진입 가능"
+      },
+      guild: {
+        id: "guild",
+        name: "우주조합",
+        color: "text-orange-400",
+        bg: "bg-orange-950/80",
+        border: "border-orange-500/60",
+        desc: "우주조합 파벌 구역 진입 가능"
+      },
+      bene: {
+        id: "bene",
+        name: "베네 게세리트",
+        color: "text-blue-400",
+        bg: "bg-blue-950/80",
+        border: "border-blue-500/60",
+        desc: "베네 게세리트 파벌 구역 진입 가능"
+      },
+      fremen: {
+        id: "fremen",
+        name: "프레멘",
+        color: "text-yellow-400",
+        bg: "bg-yellow-950/80",
+        border: "border-yellow-500/60",
+        desc: "프레멘 파벌 구역 진입 가능"
+      },
+      city: {
+        id: "city",
+        name: "도시",
+        color: "text-emerald-300",
+        bg: "bg-emerald-950/80",
+        border: "border-emerald-500/60",
+        desc: "랜드스라드 도시 및 초암 구역 진입 가능"
+      },
+      desert: {
+        id: "desert",
+        name: "사막",
+        color: "text-orange-300",
+        bg: "bg-stone-900",
+        border: "border-orange-500/60",
+        desc: "아라키스 사막 스파이스 수확 구역 진입 가능"
+      },
+      landsraad: {
+        id: "landsraad",
+        name: "의회",
+        color: "text-purple-300",
+        bg: "bg-purple-950/80",
+        border: "border-purple-500/60",
+        desc: "랜드스라드 제국 의회 구역 진입 가능"
+      }
+    };
+
     function iconSvg(name, size = 16, className = "") {
       const s = size;
       const c = className;
       switch (name) {
+        // 7대 에이전트 심볼 SVG
+        case "sym_emperor":
+        case "emperor":
+          return `<svg class="${c} symbol-glow" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L15 8L21 9L17 14L18 20L12 17L6 20L7 14L3 9L9 8Z"/><circle cx="12" cy="12" r="2"/></svg>`;
+        case "sym_guild":
+        case "guild":
+          return `<svg class="${c} symbol-glow" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="9" ry="3"/><circle cx="12" cy="12" r="2"/></svg>`;
+        case "sym_bene":
+        case "bene":
+          return `<svg class="${c} symbol-glow" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 22 19 2 19"/><circle cx="12" cy="13" r="3"/><circle cx="12" cy="13" r="1"/></svg>`;
+        case "sym_fremen":
+        case "fremen":
+          return `<svg class="${c} symbol-glow" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/><path d="M12 9a3 3 0 0 0 0 6"/></svg>`;
+        case "sym_city":
+        case "city":
+          return `<svg class="${c} symbol-glow" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="10" width="18" height="11" rx="1"/><polygon points="12 3 2 10 22 10"/><line x1="8" y1="14" x2="8" y2="18"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="16" y1="14" x2="16" y2="18"/></svg>`;
+        case "sym_desert":
+        case "desert":
+          return `<svg class="${c} symbol-glow" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18c4-4 8-1 12-5s6 3 8 1"/><path d="M6 18c3-3 6-1 9-4"/><circle cx="18" cy="6" r="3"/></svg>`;
+        case "sym_landsraad":
+        case "landsraad":
+          return `<svg class="${c} symbol-glow" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l7 4v6c0 5-3.5 9.5-7 11-3.5-1.5-7-6-7-11V6l7-4z"/><line x1="12" y1="6" x2="12" y2="14"/></svg>`;
+
+        // 자원 및 UI SVG
         case "water":
           return `<svg class="${c}" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>`;
         case "solari":
@@ -624,8 +713,21 @@
       }
     }
 
+    // 심볼 태그 뱃지 생성 헬퍼
+    function renderSymbolBadge(symId, isSmall = false) {
+      const def = SYMBOLS_DEF[symId];
+      if (!def) return "";
+      const pad = isSmall ? "px-1.5 py-0.5 text-[12px]" : "px-2 py-0.5 text-xs";
+      return `
+        <span class="inline-flex items-center gap-1 rounded-md border ${pad} font-extrabold ${def.bg} ${def.border} ${def.color}">
+          ${iconSvg(symId, isSmall ? 13 : 15)}
+          <span>${def.name}</span>
+        </span>
+      `;
+    }
+
     // ---------------------------------------------------------
-    // (B) 듄 임페리움 핵심 데이터베이스 (카드, 구역, 지도자 등)
+    // (B) 정식 데이터베이스 (지도자, 카드, 보드 구역)
     // ---------------------------------------------------------
     const FACTIONS = {
       emperor: { id: "emperor", name: "황제 (Emperor)", short: "황", color: "text-amber-400" },
@@ -634,7 +736,6 @@
       fremen: { id: "fremen", name: "프레멘 (Fremen)", short: "프", color: "text-yellow-400" }
     };
 
-    // 지도자 6종 (기본판 + 익스)
     const LEADERS = {
       paul: {
         id: "paul",
@@ -680,65 +781,59 @@
       }
     };
 
-    // 시작 덱 10장 구성
+    // 정식 10장 시작 덱
     const STARTING_DECK = [
-      { id: "s_01", name: "설득", symbols: ["city", "desert"], agentDesc: "기본 에이전트 파견", revealPersuasion: 1, revealCombat: 0 },
-      { id: "s_02", name: "설득", symbols: ["city", "desert"], agentDesc: "기본 에이전트 파견", revealPersuasion: 1, revealCombat: 0 },
-      { id: "s_03", name: "스파이스 수색", symbols: ["desert"], agentDesc: "스파이스 1개 획득", gainSpice: 1, revealPersuasion: 0, revealCombat: 1 },
-      { id: "s_04", name: "스파이스 수색", symbols: ["desert"], agentDesc: "스파이스 1개 획득", gainSpice: 1, revealPersuasion: 0, revealCombat: 1 },
-      { id: "s_05", name: "단검", symbols: ["desert"], agentDesc: "전투력 +1", revealPersuasion: 0, revealCombat: 2 },
-      { id: "s_06", name: "단검", symbols: ["desert"], agentDesc: "전투력 +1", revealPersuasion: 0, revealCombat: 2 },
-      { id: "s_07", name: "정찰", symbols: ["emperor", "guild", "bene", "fremen"], agentDesc: "파벌 접촉", revealPersuasion: 0, revealCombat: 0 },
-      { id: "s_08", name: "사막 외교", symbols: ["fremen"], agentDesc: "물 1개 획득", gainWater: 1, revealPersuasion: 1, revealCombat: 0 },
-      { id: "s_09", name: "시그넷 링", symbols: ["city", "desert"], agentDesc: "지도자 시그넷 능력 발동", useLeaderRing: true, revealPersuasion: 1, revealCombat: 0 },
+      { id: "s_01", name: "설득", symbols: ["city", "landsraad"], agentDesc: "기본 에이전트 파견", revealPersuasion: 1, revealCombat: 0 },
+      { id: "s_02", name: "설득", symbols: ["city", "landsraad"], agentDesc: "기본 에이전트 파견", revealPersuasion: 1, revealCombat: 0 },
+      { id: "s_03", name: "스파이스 수색", symbols: ["desert"], agentDesc: "스파이스 +1 획득", gainSpice: 1, revealPersuasion: 0, revealCombat: 1 },
+      { id: "s_04", name: "스파이스 수색", symbols: ["desert"], agentDesc: "스파이스 +1 획득", gainSpice: 1, revealPersuasion: 0, revealCombat: 1 },
+      { id: "s_05", name: "단검", symbols: ["landsraad"], agentDesc: "전투력 +1", revealPersuasion: 0, revealCombat: 2 },
+      { id: "s_06", name: "단검", symbols: ["landsraad"], agentDesc: "전투력 +1", revealPersuasion: 0, revealCombat: 2 },
+      { id: "s_07", name: "외교 정찰", symbols: ["emperor", "guild", "bene", "fremen"], agentDesc: "4대 파벌 접촉 및 영향력 증진", revealPersuasion: 0, revealCombat: 0 },
+      { id: "s_08", name: "사막 외교", symbols: ["fremen", "desert"], agentDesc: "물 +1개 획득", gainWater: 1, revealPersuasion: 1, revealCombat: 0 },
+      { id: "s_09", name: "시그넷 링", symbols: ["city", "landsraad", "desert"], agentDesc: "지도자 시그넷 능력 발동", useLeaderRing: true, revealPersuasion: 1, revealCombat: 0 },
       { id: "s_10", name: "통제된 무력", symbols: ["city"], agentDesc: "주둔지 병력 1기 징집", gainTroops: 1, revealPersuasion: 0, revealCombat: 1 }
     ];
 
-    // 제국 시장 카드 DB (선별 25종 + 익스/불멸 전용 카드)
+    // 제국 카드 20종
     const IMPERIUM_CARDS = [
-      { id: "imp_01", name: "사다우카 지휘관", cost: 5, symbols: ["emperor"], agentDesc: "사다우카 병력 2기 징집", gainTroops: 2, revealCombat: 2, revealPersuasion: 0 },
-      { id: "imp_02", name: "길드 은행가", cost: 3, symbols: ["guild"], agentDesc: "솔라리 +3 획득", gainSolari: 3, revealPersuasion: 2, revealCombat: 0 },
-      { id: "imp_03", name: "베네 게세리트 수련생", cost: 2, symbols: ["bene"], agentDesc: "카드 1장 드로우", drawCards: 1, revealPersuasion: 1, revealCombat: 0 },
-      { id: "imp_04", name: "프레멘 전사", cost: 3, symbols: ["fremen"], agentDesc: "병력 2기 징집", gainTroops: 2, revealCombat: 2, revealPersuasion: 0 },
-      { id: "imp_05", name: "오르니솝터 정찰", cost: 4, symbols: ["desert", "city"], agentDesc: "카드 2장 드로우", drawCards: 2, revealPersuasion: 1, revealCombat: 0 },
+      { id: "imp_01", name: "사다우카 지휘관", cost: 5, symbols: ["emperor", "city"], agentDesc: "사다우카 병력 2기 징집", gainTroops: 2, revealCombat: 2, revealPersuasion: 0 },
+      { id: "imp_02", name: "길드 은행가", cost: 3, symbols: ["guild", "city"], agentDesc: "솔라리 +3 획득", gainSolari: 3, revealPersuasion: 2, revealCombat: 0 },
+      { id: "imp_03", name: "베네 게세리트 수련생", cost: 2, symbols: ["bene", "city"], agentDesc: "카드 1장 드로우", drawCards: 1, revealPersuasion: 1, revealCombat: 0 },
+      { id: "imp_04", name: "프레멘 전사", cost: 3, symbols: ["fremen", "desert"], agentDesc: "병력 2기 징집", gainTroops: 2, revealCombat: 2, revealPersuasion: 0 },
+      { id: "imp_05", name: "오르니솝터 정찰", cost: 4, symbols: ["desert", "landsraad"], agentDesc: "카드 2장 드로우", drawCards: 2, revealPersuasion: 1, revealCombat: 0 },
       { id: "imp_06", name: "스파이스 정제기", cost: 4, symbols: ["desert"], agentDesc: "스파이스 +2 획득", gainSpice: 2, revealPersuasion: 2, revealCombat: 0 },
-      { id: "imp_07", name: "비밀 공작원", cost: 3, symbols: ["bene", "city"], agentDesc: "책략 카드 1장 획득", drawIntrigue: 1, revealPersuasion: 1, revealCombat: 1 },
-      { id: "imp_08", name: "모래벌레 기수", cost: 6, symbols: ["fremen", "desert"], agentDesc: "물 1개 소모해 병력 3기 즉시 분쟁지 파견", costWater: 1, gainTroops: 3, autoDeploy: true, revealCombat: 3, revealPersuasion: 0 },
-      { id: "imp_09", name: "초암 이사", cost: 5, symbols: ["city"], agentDesc: "솔라리 +5 획득", gainSolari: 5, revealPersuasion: 3, revealCombat: 0 },
+      { id: "imp_07", name: "비밀 공작원", cost: 3, symbols: ["bene", "landsraad"], agentDesc: "책략 카드 1장 획득", drawIntrigue: 1, revealPersuasion: 1, revealCombat: 1 },
+      { id: "imp_08", name: "모래벌레 기수", cost: 6, symbols: ["fremen", "desert"], agentDesc: "물 1개 소모해 병력 3기 즉시 분쟁지 파견", costWater: 1, gainTroops: 3, revealCombat: 3, revealPersuasion: 0 },
+      { id: "imp_09", name: "초암 이사", cost: 5, symbols: ["city", "landsraad"], agentDesc: "솔라리 +5 획득", gainSolari: 5, revealPersuasion: 3, revealCombat: 0 },
       { id: "imp_10", name: "사막 매복조", cost: 4, symbols: ["desert"], agentDesc: "병력 1기 징집 & 스파이스 +1", gainTroops: 1, gainSpice: 1, revealCombat: 2, revealPersuasion: 1 },
       { id: "imp_11", name: "황실 근위대", cost: 6, symbols: ["emperor"], agentDesc: "병력 3기 징집", gainTroops: 3, revealCombat: 3, revealPersuasion: 1 },
       { id: "imp_12", name: "스페이스 폴딩 항법사", cost: 7, symbols: ["guild"], agentDesc: "스파이스 3개 소모 → 승점 +1 VP", costSpice: 3, gainVp: 1, revealPersuasion: 2, revealCombat: 0 },
-      { id: "imp_13", name: "목소리의 지령", cost: 5, symbols: ["bene"], agentDesc: "상대 병력 1기 제거", drawCards: 1, revealPersuasion: 2, revealCombat: 1 },
-      { id: "imp_14", name: "사막 지하수고", cost: 4, symbols: ["fremen"], agentDesc: "물 +2개 획득", gainWater: 2, revealPersuasion: 1, revealCombat: 1 },
-      { id: "imp_15", name: "암살자의 칼날", cost: 3, symbols: ["city"], agentDesc: "전투력 +2", revealCombat: 3, revealPersuasion: 0 },
+      { id: "imp_13", name: "목소리의 지령", cost: 5, symbols: ["bene", "city"], agentDesc: "상대 병력 1기 제거", drawCards: 1, revealPersuasion: 2, revealCombat: 1 },
+      { id: "imp_14", name: "사막 지하수고", cost: 4, symbols: ["fremen", "desert"], agentDesc: "물 +2개 획득", gainWater: 2, revealPersuasion: 1, revealCombat: 1 },
+      { id: "imp_15", name: "암살자의 칼날", cost: 3, symbols: ["city", "landsraad"], agentDesc: "전투력 +2", revealCombat: 3, revealPersuasion: 0 },
 
       // [익스 확장 카드]
-      { id: "imp_ix_01", ext: "ix", name: "익스 무기상", cost: 4, symbols: ["city", "ix"], agentDesc: "솔라리 +2 & 드레드노트 건조 지원", gainSolari: 2, revealPersuasion: 1, revealCombat: 2 },
-      { id: "imp_ix_02", ext: "ix", name: "기술 밀수선", cost: 5, symbols: ["desert", "ix"], agentDesc: "화물선 1단계 전진 & 스파이스 +1", advanceFreighter: 1, gainSpice: 1, revealPersuasion: 2, revealCombat: 0 },
-      { id: "imp_ix_03", ext: "ix", name: "궤도 요새", cost: 6, symbols: ["ix"], agentDesc: "드레드노트 1기 즉시 주둔지 징집", buildDreadnought: 1, revealCombat: 3, revealPersuasion: 0 },
+      { id: "imp_ix_01", ext: "ix", name: "익스 무기상", cost: 4, symbols: ["city", "landsraad"], agentDesc: "솔라리 +2 & 드레드노트 건조 지원", gainSolari: 2, revealPersuasion: 1, revealCombat: 2 },
+      { id: "imp_ix_02", ext: "ix", name: "기술 밀수선", cost: 5, symbols: ["desert", "guild"], agentDesc: "화물선 1단계 전진 & 스파이스 +1", advanceFreighter: 1, gainSpice: 1, revealPersuasion: 2, revealCombat: 0 },
+      { id: "imp_ix_03", ext: "ix", name: "궤도 요새", cost: 6, symbols: ["city", "landsraad"], agentDesc: "드레드노트 1기 즉시 주둔지 징집", buildDreadnought: 1, revealCombat: 3, revealPersuasion: 0 },
 
       // [불멸 확장 카드 - 유전자 접합(Grafting) 지원]
-      { id: "imp_imm_01", ext: "imm", name: "변형 복제인간", cost: 4, symbols: ["city"], isGraft: true, agentDesc: "[접합] 다른 카드 1장과 함께 파견! 표본 +1 획득", gainSpecimen: 1, revealPersuasion: 2, revealCombat: 1 },
-      { id: "imp_imm_02", ext: "imm", name: "틀레이락스 외과의", cost: 3, symbols: ["bene"], isGraft: true, agentDesc: "[접합] 연구 트랙 1단계 전진", advanceResearch: 1, revealPersuasion: 1, revealCombat: 0 },
-      { id: "imp_imm_03", ext: "imm", name: "생체 병기", cost: 5, symbols: ["desert"], isGraft: true, agentDesc: "[접합] 병력 2기 징집 & 표본 +1", gainTroops: 2, gainSpecimen: 1, revealCombat: 3, revealPersuasion: 0 }
+      { id: "imp_imm_01", ext: "imm", name: "변형 복제인간", cost: 4, symbols: ["city", "landsraad"], isGraft: true, agentDesc: "[접합] 다른 카드 1장과 함께 파견! 표본 +1 획득", gainSpecimen: 1, revealPersuasion: 2, revealCombat: 1 },
+      { id: "imp_imm_02", ext: "imm", name: "틀레이락스 외과의", cost: 3, symbols: ["bene", "city"], isGraft: true, agentDesc: "[접합] 연구 트랙 1단계 전진", advanceResearch: 1, revealPersuasion: 1, revealCombat: 0 }
     ];
 
-    // [익스] 기술 타일 6종
     const TECH_TILES = [
-      { id: "tech_01", name: "자동 드레드노트", costSpice: 3, desc: "드레드노트 전투력이 영구히 3에서 4로 증가합니다." },
+      { id: "tech_01", name: "자동 드레드노트", costSpice: 3, desc: "드레드노트 전투력이 3에서 4로 증가합니다." },
       { id: "tech_02", name: "궤도 보급선", costSpice: 2, desc: "매 라운드 시작 시 솔라리 +1을 무료로 획득합니다." },
-      { id: "tech_03", name: "스파이스 정제탑", costSpice: 2, desc: "스파이스 수확 구역 방문 시 스파이스 +1을 추가 획득합니다." },
-      { id: "tech_04", name: "초암 화물 계약", costSpice: 3, desc: "화물선 전진 시 솔라리 +1을 즉시 추가로 얻습니다." },
-      { id: "tech_05", name: "클론 양성소", costSpice: 2, desc: "주둔지 병력 징집 시 추가 병력 1기를 얻습니다." },
-      { id: "tech_06", name: "홀츠만 방어막", costSpice: 1, desc: "공개 턴마다 추가 전투력 +1을 상시 제공합니다." }
+      { id: "tech_03", name: "스파이스 정제탑", costSpice: 2, desc: "스파이스 수확 구역 방문 시 스파이스 +1 추가 획득." }
     ];
 
-    // 분쟁 카드 3단계 (라운드별 1장씩 진행)
     const CONFLICT_DECK = [
       { round: 1, level: 1, name: "협곡 교전", reward1: { vp: 1, spice: 1 }, reward2: { water: 1, solari: 1 }, reward3: { troops: 1 } },
       { round: 2, level: 1, name: "바위틈 매복", reward1: { vp: 1, solari: 2 }, reward2: { spice: 1 }, reward3: { troops: 1 } },
       { round: 3, level: 1, name: "국경 습격", reward1: { vp: 1, troops: 2 }, reward2: { water: 1 }, reward3: { solari: 1 } },
-      { round: 4, level: 2, name: "제국 분지 공방전", reward1: { vp: 1, spice: 3 }, reward2: { vp: 0, solari: 3 }, reward3: { spice: 1 } },
+      { round: 4, level: 2, name: "제국 분지 공방전", reward1: { vp: 1, spice: 3 }, reward2: { solari: 3 }, reward3: { spice: 1 } },
       { round: 5, level: 2, name: "시치 방어전", reward1: { vp: 2 }, reward2: { spice: 2 }, reward3: { water: 1 } },
       { round: 6, level: 2, name: "스파이스 호송선 탈취", reward1: { vp: 1, spice: 4 }, reward2: { solari: 4 }, reward3: { troops: 2 } },
       { round: 7, level: 2, name: "사막 패권 다툼", reward1: { vp: 2, water: 1 }, reward2: { spice: 2, solari: 2 }, reward3: { troops: 2 } },
@@ -747,24 +842,191 @@
       { round: 10, level: 3, name: "제국 종말 결전", reward1: { vp: 3 }, reward2: { vp: 2 }, reward3: { vp: 1 } }
     ];
 
+    // 공식 보드 구역 정의 (각 칸에 정확한 요구 심볼 명시)
+    const BOARD_SPACES = [
+      // --- 4대 파벌 구역 ---
+      {
+        id: "conscription",
+        faction: "emperor",
+        name: "황제: 제국 징집",
+        requiredSymbol: "emperor",
+        costSolari: 4,
+        desc: "4 솔라리 지불 → 병력 2기 징집 & 황제 영향력 +1",
+        action: (p) => { p.garrison += 2; changeFaction(p, "emperor", 1); }
+      },
+      {
+        id: "heighliner",
+        faction: "guild",
+        name: "우주조합: 하이라이너",
+        requiredSymbol: "guild",
+        costSpice: 6,
+        desc: "스파이스 6개 지불 → 병력 5기 징집, 물 +2 & 조합 영향력 +1",
+        action: (p) => { p.garrison += 5; p.water += 2; changeFaction(p, "guild", 1); }
+      },
+      {
+        id: "selective_breeding",
+        faction: "bene",
+        name: "베네: 선택적 유전자 육종",
+        requiredSymbol: "bene",
+        costSpice: 1,
+        desc: "스파이스 1개 지불 → 카드 2장 드로우 & 베네 영향력 +1",
+        action: (p) => { drawPlayerCards(2); changeFaction(p, "bene", 1); }
+      },
+      {
+        id: "sietch_tabr",
+        faction: "fremen",
+        name: "프레멘: 시치 타브르",
+        requiredSymbol: "fremen",
+        costWater: 1,
+        desc: "물 1개 지불 → 병력 1기 징집 & 물 저수고 환원, 프레멘 영향력 +1",
+        action: (p) => { p.garrison += 1; changeFaction(p, "fremen", 1); }
+      },
+
+      // --- 아라키스 사막 구역 (스파이스 사막 심볼 desert 요구) ---
+      {
+        id: "basin",
+        category: "desert",
+        name: "제국 분지 (Imperial Basin)",
+        requiredSymbol: "desert",
+        costWater: 0,
+        isCombatSpace: true,
+        desc: "스파이스 1개 수확 (+누적 보너스) · 주둔지 병력 분쟁 지역 출격 가능",
+        action: (p) => { p.spice += 1 + D.desertSpiceBonus.basin; D.desertSpiceBonus.basin = 0; }
+      },
+      {
+        id: "hagga",
+        category: "desert",
+        name: "남부 하가 분지",
+        requiredSymbol: "desert",
+        costWater: 1,
+        isCombatSpace: true,
+        desc: "물 1개 지불 → 스파이스 2개 수확 (+누적 보너스) · 분쟁 출격",
+        action: (p) => { p.spice += 2 + D.desertSpiceBonus.hagga; D.desertSpiceBonus.hagga = 0; }
+      },
+      {
+        id: "flat",
+        category: "desert",
+        name: "위대한 모래바다 (Great Flat)",
+        requiredSymbol: "desert",
+        costWater: 2,
+        isCombatSpace: true,
+        desc: "물 2개 지불 → 스파이스 3개 대량 수확 (+누적 보너스) · 분쟁 출격",
+        action: (p) => { p.spice += 3 + D.desertSpiceBonus.flat; D.desertSpiceBonus.flat = 0; }
+      },
+
+      // --- 랜드스라드 & 초암 구역 (도시/의회 심볼 요구) ---
+      {
+        id: "high_council",
+        category: "city",
+        name: "랜드스라드: 의회 좌석",
+        requiredSymbol: "landsraad",
+        costSolari: 5,
+        desc: "5 솔라리 지불 → 영구 설득력 +2 좌석 획득",
+        action: (p) => { p.highCouncil = true; log("의회 좌석 획득! 앞으로 공개 턴마다 영구 설득력 +2"); }
+      },
+      {
+        id: "swordmaster",
+        category: "city",
+        name: "검술 훈련소 (Swordmaster)",
+        requiredSymbol: "city",
+        costSolari: 8,
+        desc: "8 솔라리 지불 → 영구 3번째 에이전트 일꾼 해금!",
+        action: (p) => { p.agentsMax = 3; p.agentsLeft += 1; log("검술사 고용 완료! 영구 3번째 에이전트 획득"); }
+      },
+      {
+        id: "mentat",
+        category: "city",
+        name: "멘타트 고용",
+        requiredSymbol: "city",
+        costSolari: 2,
+        desc: "2 솔라리 지불 → 이번 라운드 임시 멘타트 에이전트 1기 추가",
+        action: (p) => { p.hasMentat = true; p.agentsLeft += 1; log("멘타트 고용! 이번 라운드 추가 1회 행동"); }
+      },
+      {
+        id: "sell_spice",
+        category: "city",
+        name: "초암: 스파이스 매각",
+        requiredSymbol: "city",
+        desc: "스파이스 2개를 팔아 솔라리 +6 대량 환전",
+        action: (p) => {
+          if (p.spice >= 2) {
+            p.spice -= 2;
+            p.solari += 6;
+            log("스파이스 2개 매각 → 솔라리 +6 획득");
+          }
+        }
+      },
+
+      // --- [익스 대체 구역] ---
+      {
+        id: "ix_shipping",
+        ext: "ix",
+        category: "ix",
+        name: "[익스] 성간 화물 수송",
+        requiredSymbol: "landsraad",
+        desc: "초암 화물선 1단계 전진 or 화물선 초기화 후 누적 보상 일괄 수령",
+        action: (p) => { advanceOrResetFreighter(p); }
+      },
+      {
+        id: "ix_tech",
+        ext: "ix",
+        category: "ix",
+        name: "[익스] 기술 협약소",
+        requiredSymbol: "city",
+        desc: "스파이스를 지불하여 진열된 익스 기술 타일 1장 구매",
+        action: (p) => { openTechBuyModal(); }
+      },
+      {
+        id: "ix_dreadnought",
+        ext: "ix",
+        category: "ix",
+        name: "[익스] 드레드노트 건조소",
+        requiredSymbol: "landsraad",
+        costSolari: 3,
+        desc: "3 솔라리 지불 → 드레드노트 1기 건조 (전투력 3, 거점 장악)",
+        action: (p) => {
+          if (p.dreadnoughtsGarrison + p.dreadnoughtsCombat < 2) {
+            p.dreadnoughtsGarrison += 1;
+            log("드레드노트 1기 건조 완료! 주둔지에 배치되었습니다.");
+          } else {
+            pushToast("이미 최대 보유량(2기)을 건조했습니다.", true);
+          }
+        }
+      },
+
+      // --- [불멸 연구 구역] ---
+      {
+        id: "imm_research",
+        ext: "imm",
+        category: "imm",
+        name: "[불멸] 틀레이락스 유전자 연구소",
+        requiredSymbol: "bene",
+        desc: "스파이스 1개 소모 → 틀레이락스 연구 트랙 1단계 전진 & 표본 +1",
+        action: (p) => {
+          if (p.spice >= 1) {
+            p.spice -= 1;
+            p.specimens += 1;
+            advanceResearchTrack(p);
+          }
+        }
+      }
+    ];
+
     // ---------------------------------------------------------
-    // (C) 게임 상태 전역 관리 객체 (DuneState)
+    // (C) 게임 상태 전역 객체
     // ---------------------------------------------------------
     let D = {};
 
-    // 설정 기본값
     let cfgIx = true;
     let cfgImm = true;
     let cfgLeaderId = "paul";
-    let cfgDifficulty = "regular"; // novice | regular | expert
+    let cfgDifficulty = "regular";
     let coachEnabled = true;
     let activeTab = "board";
     let isHandCollapsed = false;
 
-    // 모달 대기 임시 상태
     let pendingSpace = null;
     let selectedHandCardIdx = null;
-    let selectedGraftCardIdx = null; // 불멸 유전자 접합용 2번째 카드
 
     function initNewDuneGame() {
       const leader = LEADERS[cfgLeaderId] || LEADERS.paul;
@@ -772,13 +1034,12 @@
 
       D = {
         round: 1,
-        phase: "agent", // "agent" | "reveal" | "combat" | "recall" | "ended"
+        phase: "agent",
         ended: false,
         useIx: cfgIx,
         useImm: cfgImm,
         diff: cfgDifficulty,
 
-        // 내 플레이어 상태
         player: {
           leader,
           vp: 0,
@@ -790,7 +1051,7 @@
           agentsMax: 2,
           agentsLeft: 2,
           hasMentat: false,
-          highCouncil: false, // 의회 좌석 보유 여부 (+2 영구 설득력)
+          highCouncil: false,
           factions: { emperor: 0, guild: 0, bene: 0, fremen: 0 },
           alliances: { emperor: false, guild: false, bene: false, fremen: false },
           deck: shuffle([...STARTING_DECK]),
@@ -798,19 +1059,15 @@
           discard: [],
           played: [],
           techTiles: [],
-          intrigueCards: 1, // 시작 책략 카드 1장
+          intrigueCards: 1,
 
-          // [익스]
           dreadnoughtsGarrison: 0,
           dreadnoughtsCombat: 0,
-          freighterStage: 0, // 0: 미배치, 1~3단계
-
-          // [불멸]
+          freighterStage: 0,
           specimens: 0,
-          researchStep: 0 // 0~7
+          researchStep: 0
         },
 
-        // 하우스 할갈 봇 2인 상태
         bot1: {
           name: "하코넨 봇",
           vp: 0,
@@ -828,47 +1085,32 @@
           alliances: { emperor: false, guild: false, bene: false, fremen: false }
         },
 
-        // 보드 점유 상태: spaceId -> "player" | "bot1" | "bot2" | null
         occupiedSpaces: {},
+        desertSpiceBonus: { basin: 0, flat: 0, hagga: 0 },
 
-        // 아라키스 사막 누적 스파이스 (모래벌레)
-        desertSpiceBonus: {
-          basin: 0,
-          flat: 0,
-          hagga: 0
-        },
-
-        // 시장 덱 & 진열대
         marketDeck: shuffle([...IMPERIUM_CARDS.filter(c => (!c.ext) || (c.ext === "ix" && cfgIx) || (c.ext === "imm" && cfgImm))]),
         marketRow: [],
         techMarket: cfgIx ? shuffle([...TECH_TILES]).slice(0, 3) : [],
 
-        // 분쟁 덱
         conflictCard: CONFLICT_DECK[0],
         logs: []
       };
 
-      // 블라디미르 남작 패시브: 시작 시 임의 파벌 2개 +1 영향력
       if (leader.id === "vladimir") {
         D.player.factions.emperor += 1;
         D.player.factions.guild += 1;
       }
 
-      // 제국 시장 5장 드로우
       for (let i = 0; i < 5; i++) {
         if (D.marketDeck.length > 0) D.marketRow.push(D.marketDeck.shift());
       }
 
-      // 플레이어 손패 5장 드로우
       drawPlayerCards(5);
 
       log(`새 게임 시작: 지도자 [${leader.name}], 확장팩 [${cfgIx ? "익스 " : ""}${cfgImm ? "불멸 " : ""}포함]`);
       renderAll();
     }
 
-    // ---------------------------------------------------------
-    // (D) 유틸리티 함수 (셔플, 드로우, 토스트, 로그)
-    // ---------------------------------------------------------
     function shuffle(arr) {
       const a = [...arr];
       for (let i = a.length - 1; i > 0; i--) {
@@ -911,188 +1153,14 @@
       }
     }
 
-    // ---------------------------------------------------------
-    // (E) 보드 구역 정의 및 에이전트 파견 유효성 판별기
-    // ---------------------------------------------------------
-    const BOARD_SPACES = [
-      // --- 4대 파벌 구역 ---
-      {
-        id: "conscription",
-        faction: "emperor",
-        name: "황제: 제국 징집",
-        symbols: ["emperor"],
-        costSolari: 4,
-        desc: "4 솔라리 지불 → 병력 2기 & 사다우카 징집, 황제 영향력 +1",
-        action: (p) => { p.garrison += 2; changeFaction(p, "emperor", 1); }
-      },
-      {
-        id: "heighliner",
-        faction: "guild",
-        name: "우주조합: 하이라이너",
-        symbols: ["guild"],
-        costSpice: 6,
-        desc: "스파이스 6개 지불 → 병력 5기 대규모 징집 & 물 +2, 조합 영향력 +1",
-        action: (p) => { p.garrison += 5; p.water += 2; changeFaction(p, "guild", 1); }
-      },
-      {
-        id: "selective_breeding",
-        faction: "bene",
-        name: "베네: 선택적 유전자 육종",
-        symbols: ["bene"],
-        costSpice: 1,
-        desc: "스파이스 1개 지불 → 카드 2장 드로우, 베네 영향력 +1",
-        action: (p) => { drawPlayerCards(2); changeFaction(p, "bene", 1); }
-      },
-      {
-        id: "sietch_tabr",
-        faction: "fremen",
-        name: "프레멘: 시치 타브르",
-        symbols: ["fremen"],
-        costWater: 1,
-        desc: "물 1개 지불 → 병력 1기 징집 & 물 1개 저수고 환원, 프레멘 영향력 +1",
-        action: (p) => { p.garrison += 1; changeFaction(p, "fremen", 1); }
-      },
-
-      // --- 아라키스 사막 구역 (전투 발생 구역) ---
-      {
-        id: "basin",
-        category: "desert",
-        name: "제국 분지 (Imperial Basin)",
-        symbols: ["desert"],
-        costWater: 0,
-        isCombatSpace: true,
-        desc: "스파이스 1개 수확 (+누적 보너스) · 분쟁 지역으로 병력 즉시 출격 가능",
-        action: (p) => { p.spice += 1 + D.desertSpiceBonus.basin; D.desertSpiceBonus.basin = 0; }
-      },
-      {
-        id: "hagga",
-        category: "desert",
-        name: "남부 하가 분지",
-        symbols: ["desert"],
-        costWater: 1,
-        isCombatSpace: true,
-        desc: "물 1개 지불 → 스파이스 2개 수확 (+누적 보너스) · 분쟁 출격",
-        action: (p) => { p.spice += 2 + D.desertSpiceBonus.hagga; D.desertSpiceBonus.hagga = 0; }
-      },
-      {
-        id: "flat",
-        category: "desert",
-        name: "위대한 모래바다 (Great Flat)",
-        symbols: ["desert"],
-        costWater: 2,
-        isCombatSpace: true,
-        desc: "물 2개 지불 → 스파이스 3개 대량 수확 (+누적 보너스) · 분쟁 출격",
-        action: (p) => { p.spice += 3 + D.desertSpiceBonus.flat; D.desertSpiceBonus.flat = 0; }
-      },
-
-      // --- 랜드스라드 & 초암 구역 ---
-      {
-        id: "high_council",
-        category: "city",
-        name: "랜드스라드: 의회 좌석",
-        symbols: ["city"],
-        costSolari: 5,
-        desc: "5 솔라리 지불 → 영구 설득력 +2 좌석 획득 (게임당 1회)",
-        action: (p) => { p.highCouncil = true; log("의회 좌석 획득! 앞으로 공개 턴마다 영구 설득력 +2 획득"); }
-      },
-      {
-        id: "swordmaster",
-        category: "city",
-        name: "검술 훈련소 (Swordmaster)",
-        symbols: ["city"],
-        costSolari: 8,
-        desc: "8 솔라리 지불 → 영구 3번째 에이전트 일꾼 해금!",
-        action: (p) => { p.agentsMax = 3; p.agentsLeft += 1; log("검술사 고용 완료! 영구 3번째 에이전트 획득"); }
-      },
-      {
-        id: "mentat",
-        category: "city",
-        name: "멘타트 고용",
-        symbols: ["city"],
-        costSolari: 2,
-        desc: "2 솔라리 지불 → 이번 라운드에만 쓸 수 있는 임시 에이전트 1기 추가",
-        action: (p) => { p.hasMentat = true; p.agentsLeft += 1; log("멘타트 고용! 이번 라운드 추가 1회 행동 가능"); }
-      },
-      {
-        id: "sell_spice",
-        category: "city",
-        name: "초암: 스파이스 매각",
-        symbols: ["city"],
-        desc: "보유 스파이스 2개를 팔아 솔라리 +6 대량 환전",
-        action: (p) => {
-          if (p.spice >= 2) {
-            p.spice -= 2;
-            p.solari += 6;
-            log("스파이스 2개 매각 → 솔라리 +6 획득");
-          }
-        }
-      },
-
-      // --- [익스 확장 대체 구역] ---
-      {
-        id: "ix_shipping",
-        ext: "ix",
-        category: "ix",
-        name: "[익스] 성간 화물 수송",
-        symbols: ["ix", "city"],
-        desc: "초암 화물선 1단계 전진 or 화물선 초기화 후 누적 보상 일괄 수령",
-        action: (p) => { advanceOrResetFreighter(p); }
-      },
-      {
-        id: "ix_tech",
-        ext: "ix",
-        category: "ix",
-        name: "[익스] 기술 협약소",
-        symbols: ["ix"],
-        desc: "스파이스를 지불하여 진열된 익스 기술 타일 1장 구매",
-        action: (p) => { openTechBuyModal(); }
-      },
-      {
-        id: "ix_dreadnought",
-        ext: "ix",
-        category: "ix",
-        name: "[익스] 드레드노트 건조소",
-        symbols: ["ix", "city"],
-        costSolari: 3,
-        desc: "3 솔라리 지불 → 드레드노트 1기 건조 (전투력 3, 거점 장악)",
-        action: (p) => {
-          if (p.dreadnoughtsGarrison + p.dreadnoughtsCombat < 2) {
-            p.dreadnoughtsGarrison += 1;
-            log("드레드노트 1기 건조 완료! 주둔지에 배치되었습니다.");
-          } else {
-            pushToast("이미 최대 보유량(2기)을 건조했습니다.", true);
-          }
-        }
-      },
-
-      // --- [불멸 확장 연구 구역] ---
-      {
-        id: "imm_research",
-        ext: "imm",
-        category: "imm",
-        name: "[불멸] 틀레이락스 유전자 연구소",
-        symbols: ["imm", "bene"],
-        desc: "스파이스 1개 소모 → 틀레이락스 연구 트랙 1단계 전진 & 표본 +1",
-        action: (p) => {
-          if (p.spice >= 1) {
-            p.spice -= 1;
-            p.specimens += 1;
-            advanceResearchTrack(p);
-          }
-        }
-      }
-    ];
-
     function changeFaction(p, factionKey, delta) {
       p.factions[factionKey] = Math.min(4, p.factions[factionKey] + delta);
-      // 2레벨 달성 시 승점 1점 획득 (최초 1회)
       if (p.factions[factionKey] >= 2 && !p[`factionVp_${factionKey}`]) {
         p[`factionVp_${factionKey}`] = true;
         p.vp += 1;
         pushToast(`${FACTIONS[factionKey].name} 2레벨 달성! +1 VP 획득!`);
         log(`[파벌 승점] ${FACTIONS[factionKey].name} 2레벨 진입 → 승점 +1 VP`);
       }
-      // 4레벨 달성 시 동맹 토큰 (+1 VP)
       if (p.factions[factionKey] >= 4 && !p.alliances[factionKey]) {
         p.alliances[factionKey] = true;
         p.vp += 1;
@@ -1102,35 +1170,56 @@
     }
 
     // ---------------------------------------------------------
-    // (F) 에이전트 파견 실행 및 인터랙션
+    // (D) 심볼 매칭 및 에이전트 파견 판정기
     // ---------------------------------------------------------
     function onSelectHandCard(idx) {
       if (D.phase !== "agent" || D.player.agentsLeft <= 0) return;
-      selectedHandCardIdx = idx;
-      renderHand();
-      renderBoardSpaces();
-      pushToast(`선택된 카드: [${D.player.hand[idx].name}] → 일치하는 구역을 터치하세요.`);
+      if (selectedHandCardIdx === idx) {
+        // 이미 선택된 카드를 다시 누르면 선택 해제
+        selectedHandCardIdx = null;
+        pushToast("카드 선택이 해제되었습니다.");
+      } else {
+        selectedHandCardIdx = idx;
+        const c = D.player.hand[idx];
+        pushToast(`[${c.name}] 선택됨 → 매칭되는 빛나는 구역을 터치하세요!`);
+      }
+      renderAll();
     }
 
-    function canSendAgentTo(space) {
-      if (D.phase !== "agent" || D.player.agentsLeft <= 0) return false;
-      if (D.occupiedSpaces[space.id]) return false; // 이미 누가 방문한 칸
+    // 특정 보드 구역에 현재 선택된 카드로 갈 수 있는지 검사
+    function checkSpaceEligibility(space) {
+      if (D.phase !== "agent" || D.player.agentsLeft <= 0) {
+        return { ok: false, reason: "에이전트 행동 단계가 아닙니다." };
+      }
+      if (D.occupiedSpaces[space.id]) {
+        return { ok: false, reason: "이미 다른 에이전트가 선점한 구역입니다." };
+      }
 
-      // 자원 지불 가능 여부
       const p = D.player;
       const costSol = (space.id === "high_council" && p.leader.id === "leto") ? Math.max(0, space.costSolari - 1) : (space.costSolari || 0);
-      if (p.solari < costSol) return false;
-      if (space.costWater && p.water < space.costWater) return false;
-      if (space.costSpice && p.spice < space.costSpice) return false;
+      if (p.solari < costSol) {
+        return { ok: false, reason: `솔라리 부족 (필요: ${costSol}, 보유: ${p.solari})` };
+      }
+      if (space.costWater && p.water < space.costWater) {
+        return { ok: false, reason: `물 부족 (필요: ${space.costWater}, 보유: ${p.water})` };
+      }
+      if (space.costSpice && p.spice < space.costSpice) {
+        return { ok: false, reason: `스파이스 부족 (필요: ${space.costSpice}, 보유: ${p.spice})` };
+      }
 
-      // 손패 카드의 심볼 매칭
-      if (selectedHandCardIdx === null) return false;
+      // 손패 카드가 선택되었는지 확인
+      if (selectedHandCardIdx === null) {
+        // 카드가 선택되지 않았을 때는 손패 중에 갈 수 있는 카드가 하나라도 있는지 검사
+        const hasAnyMatchingCard = p.hand.some(c => c.symbols.includes(space.requiredSymbol));
+        return { ok: false, reason: hasAnyMatchingCard ? "하단 손패에서 카드를 먼저 선택하세요." : "이 구역 심볼을 가진 카드가 손패에 없습니다." };
+      }
+
       const card = p.hand[selectedHandCardIdx];
-      if (!card) return false;
+      if (!card.symbols.includes(space.requiredSymbol)) {
+        return { ok: false, reason: `심볼 불일치 (필요: ${SYMBOLS_DEF[space.requiredSymbol]?.name || space.requiredSymbol})` };
+      }
 
-      // 불멸 유전자 접합 카드의 경우, 심볼 공유
-      const hasMatch = space.symbols.some(sym => card.symbols.includes(sym));
-      return hasMatch;
+      return { ok: true, reason: "파견 가능!" };
     }
 
     function onClickBoardSpace(spaceId) {
@@ -1138,18 +1227,26 @@
       if (!space) return;
 
       if (selectedHandCardIdx === null) {
-        pushToast("먼저 하단 손패에서 파견에 사용할 카드를 선택해 주세요!", true);
-        return;
+        // 손패 중 이 구역으로 갈 수 있는 첫 번째 카드를 자동 선택해주는 편의 기능!
+        const matchingCardIdx = D.player.hand.findIndex(c => c.symbols.includes(space.requiredSymbol));
+        if (matchingCardIdx >= 0) {
+          onSelectHandCard(matchingCardIdx);
+          pushToast(`'${space.name}'에 갈 수 있는 [${D.player.hand[matchingCardIdx].name}] 카드를 자동 선택했습니다!`);
+          return;
+        } else {
+          pushToast(`손패에 '${space.name}'의 필요 심볼(${SYMBOLS_DEF[space.requiredSymbol]?.name}) 카드가 없습니다.`, true);
+          return;
+        }
       }
 
-      if (!canSendAgentTo(space)) {
-        pushToast("이 구역에는 에이전트를 파견할 수 없습니다 (자원 부족 또는 심볼 불일치).", true);
+      const check = checkSpaceEligibility(space);
+      if (!check.ok) {
+        pushToast(`[파견 불가] ${check.reason}`, true);
         return;
       }
 
       pendingSpace = space;
 
-      // 전투 구역(아라키스 사막)인 경우 병력 투입 모달 띄우기
       if (space.isCombatSpace && D.player.garrison > 0) {
         openDeployModal(space);
       } else {
@@ -1199,17 +1296,14 @@
       const card = p.hand.splice(selectedHandCardIdx, 1)[0];
       p.played.push(card);
 
-      // 자원 차감
       const costSol = (space.id === "high_council" && p.leader.id === "leto") ? Math.max(0, space.costSolari - 1) : (space.costSolari || 0);
       p.solari -= costSol;
       if (space.costWater) p.water -= space.costWater;
       if (space.costSpice) p.spice -= space.costSpice;
 
-      // 구역 점유 및 일꾼 차감
       D.occupiedSpaces[space.id] = "player";
       p.agentsLeft -= 1;
 
-      // 카드 에이전트 효과 발동
       if (card.gainWater) p.water += card.gainWater;
       if (card.gainSolari) p.solari += card.gainSolari;
       if (card.gainSpice) p.spice += card.gainSpice;
@@ -1217,7 +1311,6 @@
       if (card.drawCards) drawPlayerCards(card.drawCards);
       if (card.gainVp) p.vp += card.gainVp;
 
-      // 병력 출격 처리
       if (troopsToDeploy > 0) {
         p.garrison -= troopsToDeploy;
         p.combatStr += troopsToDeploy * 2;
@@ -1230,7 +1323,6 @@
         log(`[드레드노트 출격] 전함 1기 투입 → 전투력 +3!`);
       }
 
-      // 구역 고유 액션 실행
       space.action(p);
 
       log(`[에이전트 파견] [${card.name}] 사용하여 '${space.name}' 방문`);
@@ -1239,33 +1331,24 @@
       selectedHandCardIdx = null;
       pendingSpace = null;
 
-      // 오토마(하우스 할갈) 봇 응수 턴 실행
       runHouseHagalBotTurns();
-
       renderAll();
     }
 
-    // ---------------------------------------------------------
-    // (G) 하우스 할갈 오토마 (AI 라이벌 2가문) 엔진
-    // ---------------------------------------------------------
     function runHouseHagalBotTurns() {
-      // 봇 1 (하코넨), 봇 2 (토르발드) 순차 행동
       [D.bot1, D.bot2].forEach((bot, bIdx) => {
-        // 비어있는 무작위 유효 구역 탐색
         const availableSpaces = BOARD_SPACES.filter(s => !D.occupiedSpaces[s.id] && (!s.ext || (s.ext === "ix" && D.useIx) || (s.ext === "imm" && D.useImm)));
         if (availableSpaces.length === 0) return;
 
         const picked = availableSpaces[Math.floor(Math.random() * availableSpaces.length)];
         D.occupiedSpaces[picked.id] = `bot${bIdx + 1}`;
 
-        // 봇의 파벌 영향력 증강
         if (picked.faction) {
           bot.factions[picked.faction] = Math.min(4, bot.factions[picked.faction] + 1);
           if (bot.factions[picked.faction] === 2) bot.vp += 1;
           if (bot.factions[picked.faction] === 4) bot.vp += 1;
         }
 
-        // 봇의 전투력 파견
         const deployTroops = Math.min(bot.garrison, Math.floor(Math.random() * 2) + 1);
         bot.garrison -= deployTroops;
         bot.combatStr += deployTroops * 2;
@@ -1274,14 +1357,10 @@
       });
     }
 
-    // ---------------------------------------------------------
-    // (H) 공개 턴 (Reveal Turn) & 카드 구매
-    // ---------------------------------------------------------
     function onExecuteRevealTurn() {
       if (D.phase !== "agent") return;
       D.phase = "reveal";
 
-      // 손패에 남은 카드들의 공개 효과 일괄 정산 (설득력 + 추가 전투력)
       let gainedPersuasion = D.player.highCouncil ? 2 : 0;
       let gainedCombat = 0;
 
@@ -1290,7 +1369,6 @@
         gainedCombat += (c.revealCombat || 0);
       });
 
-      // 홀츠만 방어막 패시브
       if (D.player.techTiles.some(t => t.id === "tech_06")) gainedCombat += 1;
 
       D.player.combatStr += gainedCombat;
@@ -1299,7 +1377,6 @@
       log(`[공개 턴 진행] 남은 손패 공개 → 총 설득력 ${gainedPersuasion} 획득, 추가 전투력 +${gainedCombat}`);
       pushToast(`공개 턴: 가용 설득력 ${gainedPersuasion} 획득!`);
 
-      // 자동으로 제국 시장 탭으로 이동하여 쇼핑 유도
       switchTab("market");
       renderAll();
     }
@@ -1322,7 +1399,6 @@
       D.marketRow.splice(idx, 1);
       D.player.discard.push(card);
 
-      // 시장에 새 카드 보충
       if (D.marketDeck.length > 0) {
         D.marketRow.push(D.marketDeck.shift());
       }
@@ -1332,9 +1408,6 @@
       renderAll();
     }
 
-    // ---------------------------------------------------------
-    // (I) 전투 해결 (Combat Resolution) 및 라운드 결산
-    // ---------------------------------------------------------
     function proceedToCombatResolution() {
       D.phase = "combat";
 
@@ -1354,7 +1427,6 @@
           ? `2위 보상: ${conflict.reward2.water ? `물 +${conflict.reward2.water} ` : ""}${conflict.reward2.solari ? `솔라리 +${conflict.reward2.solari} ` : ""}`
           : `3위 보상`;
 
-        // 플레이어 보상 지급
         if (r.isPlayer) {
           if (rankNum === 1) {
             if (conflict.reward1.vp) D.player.vp += conflict.reward1.vp;
@@ -1385,13 +1457,11 @@
     function closeCombatResultAndNextRound() {
       document.getElementById("modalCombatResult").classList.add("hidden");
 
-      // 게임 종료 판정 (누군가 10 VP 도달 or 10라운드 완료)
       if (D.player.vp >= 10 || D.bot1.vp >= 10 || D.bot2.vp >= 10 || D.round >= 10) {
         finishGame();
         return;
       }
 
-      // 다음 라운드 리셋
       D.round += 1;
       D.phase = "agent";
       D.occupiedSpaces = {};
@@ -1400,22 +1470,18 @@
       D.bot1.combatStr = 0;
       D.bot2.combatStr = 0;
 
-      // 드레드노트는 주둔지로 귀환
       D.player.dreadnoughtsGarrison += D.player.dreadnoughtsCombat;
       D.player.dreadnoughtsCombat = 0;
 
-      // 아라키스 사막 스파이스 누적 (모래벌레 소환)
       D.desertSpiceBonus.basin += 1;
       D.desertSpiceBonus.flat += 1;
       D.desertSpiceBonus.hagga += 1;
 
-      // 사용한 카드 버린 더미로 이동 및 새 손패 5장 드로우
       D.player.discard.push(...D.player.played, ...D.player.hand);
       D.player.played = [];
       D.player.hand = [];
       drawPlayerCards(5);
 
-      // 다음 분쟁 카드 갱신
       D.conflictCard = CONFLICT_DECK[Math.min(D.round - 1, CONFLICT_DECK.length - 1)];
 
       log(`=== 제 ${D.round} 라운드 시작 ===`);
@@ -1432,16 +1498,12 @@
       renderAll();
     }
 
-    // ---------------------------------------------------------
-    // (J) 확장팩 전용 메커니즘 (화물선, 기술 타일, 연구 트랙)
-    // ---------------------------------------------------------
     function advanceOrResetFreighter(p) {
       if (p.freighterStage < 3) {
         p.freighterStage += 1;
         log(`[익스 화물선] 초암 수송선 ${p.freighterStage}단계로 전진`);
         pushToast(`화물선 수송선 ${p.freighterStage}단계 전진!`);
       } else {
-        // 3단계 도달 후 회수 시 보너스 수령
         p.freighterStage = 0;
         p.solari += 5;
         p.spice += 2;
@@ -1490,7 +1552,7 @@
     }
 
     // ---------------------------------------------------------
-    // (K) UI 렌더링 엔진 (DOM 업데이트 & 탭 전환)
+    // (E) 고품질 렌더링 엔진
     // ---------------------------------------------------------
     function switchTab(tabKey) {
       activeTab = tabKey;
@@ -1501,8 +1563,8 @@
         if (viewEl) viewEl.classList.toggle("hidden", !isActive);
         if (btnEl) {
           btnEl.className = isActive
-            ? "flex-1 py-1.5 px-1 rounded-lg text-center transition flex items-center justify-center gap-1 bg-amber-500/20 text-amber-300 border border-amber-500/40"
-            : "flex-1 py-1.5 px-1 rounded-lg text-center transition flex items-center justify-center gap-1 text-slate-400 hover:text-slate-200";
+            ? "flex-1 py-1.5 px-1 rounded-lg text-center transition flex items-center justify-center gap-1.5 bg-amber-500/20 text-amber-300 border border-amber-500/40"
+            : "flex-1 py-1.5 px-1 rounded-lg text-center transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-slate-200";
         }
       });
       renderAll();
@@ -1528,12 +1590,13 @@
       banner.classList.toggle("hidden", !coachEnabled);
       btn.textContent = coachEnabled ? "코치 ON" : "코치 OFF";
       btn.className = coachEnabled
-        ? "px-2 py-0.5 rounded text-xs font-bold bg-amber-900/60 border border-amber-600/40 text-amber-200 hover:bg-amber-800/80"
+        ? "px-2 py-0.5 rounded text-xs font-bold bg-amber-900/70 border border-amber-600/50 text-amber-200 hover:bg-amber-800"
         : "px-2 py-0.5 rounded text-xs font-bold bg-slate-800 text-slate-400 hover:bg-slate-700";
     }
 
     function renderAll() {
       renderHUD();
+      renderMatchingStatusBar();
       renderBoardSpaces();
       renderTracksTab();
       renderCombatTab();
@@ -1557,12 +1620,10 @@
       document.getElementById("hudAgentsLeft").textContent = `${p.agentsLeft}/${p.agentsMax}`;
       document.getElementById("hudMentatStatus").textContent = p.hasMentat ? "고용됨" : "미고용";
 
-      // 4대 파벌 미니 트랙
       ["emperor", "guild", "bene", "fremen"].forEach(f => {
         document.getElementById(`trackVal_${f}`).textContent = p.factions[f];
       });
 
-      // 익스 확장 HUD
       const ixBox = document.getElementById("hudIxBox");
       if (D.useIx) {
         ixBox.classList.remove("hidden");
@@ -1571,7 +1632,6 @@
         ixBox.classList.add("hidden");
       }
 
-      // 불멸 확장 HUD
       const immBox = document.getElementById("hudImmBox");
       if (D.useImm) {
         immBox.classList.remove("hidden");
@@ -1581,22 +1641,33 @@
       }
     }
 
+    // 선택된 카드의 심볼 현황을 보드 상단 바에 명확하게 노출
+    function renderMatchingStatusBar() {
+      const bar = document.getElementById("matchingStatusBar");
+      const titleEl = document.getElementById("matchingCardPreview");
+      const symEl = document.getElementById("matchingSymbolsPreview");
+
+      if (selectedHandCardIdx === null) {
+        bar.className = "p-2.5 rounded-xl border border-white/10 bg-[#121724] text-xs flex items-center justify-between gap-2 shadow-md";
+        titleEl.textContent = "[손패를 터치해 카드를 고르세요]";
+        titleEl.className = "truncate font-extrabold text-slate-400";
+        symEl.innerHTML = `<span class="text-[12px] text-slate-500">대기 중</span>`;
+      } else {
+        const c = D.player.hand[selectedHandCardIdx];
+        bar.className = "p-2.5 rounded-xl border border-amber-500/70 bg-[#1f1912] text-xs flex items-center justify-between gap-2 shadow-lg";
+        titleEl.textContent = `[${c.name}] 선택됨`;
+        titleEl.className = "truncate font-extrabold text-amber-300";
+        symEl.innerHTML = c.symbols.map(s => renderSymbolBadge(s, true)).join("");
+      }
+    }
+
     function renderBoardSpaces() {
       const p = D.player;
 
-      // 파벌 구역
-      const factionEl = document.getElementById("gridFactionSpaces");
-      factionEl.innerHTML = BOARD_SPACES.filter(s => s.faction).map(s => renderSpaceCard(s)).join("");
+      document.getElementById("gridFactionSpaces").innerHTML = BOARD_SPACES.filter(s => s.faction).map(s => renderSpaceCard(s)).join("");
+      document.getElementById("gridDesertSpaces").innerHTML = BOARD_SPACES.filter(s => s.category === "desert").map(s => renderSpaceCard(s)).join("");
+      document.getElementById("gridCitySpaces").innerHTML = BOARD_SPACES.filter(s => s.category === "city").map(s => renderSpaceCard(s)).join("");
 
-      // 사막 구역
-      const desertEl = document.getElementById("gridDesertSpaces");
-      desertEl.innerHTML = BOARD_SPACES.filter(s => s.category === "desert").map(s => renderSpaceCard(s)).join("");
-
-      // 도시/의회 구역
-      const cityEl = document.getElementById("gridCitySpaces");
-      cityEl.innerHTML = BOARD_SPACES.filter(s => s.category === "city").map(s => renderSpaceCard(s)).join("");
-
-      // 익스 구역
       const ixSec = document.getElementById("sectionIxSpaces");
       if (D.useIx) {
         ixSec.classList.remove("hidden");
@@ -1605,7 +1676,6 @@
         ixSec.classList.add("hidden");
       }
 
-      // 불멸 구역
       const immSec = document.getElementById("sectionImmSpaces");
       if (D.useImm) {
         immSec.classList.remove("hidden");
@@ -1620,26 +1690,73 @@
       const occupier = D.occupiedSpaces[space.id];
       const occupierLabel = occupier === "player" ? "내 에이전트" : occupier === "bot1" ? D.bot1.name : occupier === "bot2" ? D.bot2.name : "";
 
-      const canGo = canSendAgentTo(space);
-      const isHighlighted = canGo && selectedHandCardIdx !== null;
+      const check = checkSpaceEligibility(space);
+      const isCardSelected = (selectedHandCardIdx !== null);
+      const isMatched = isCardSelected && check.ok;
 
-      let borderClass = "border-white/10 bg-[#121622]";
+      // 비용 라벨
+      let costBadges = [];
+      if (space.costSolari) costBadges.push(`<span class="px-1.5 py-0.5 rounded bg-amber-950/80 border border-amber-500/50 text-amber-300 font-bold text-[12px]">${space.costSolari} 솔라리</span>`);
+      if (space.costWater) costBadges.push(`<span class="px-1.5 py-0.5 rounded bg-sky-950/80 border border-sky-500/50 text-sky-300 font-bold text-[12px]">${space.costWater} 물</span>`);
+      if (space.costSpice) costBadges.push(`<span class="px-1.5 py-0.5 rounded bg-orange-950/80 border border-orange-500/50 text-orange-300 font-bold text-[12px]">${space.costSpice} 스파이스</span>`);
+
+      // 누적 스파이스 보너스 뱃지 (사막 구역)
+      let bonusSpiceBadge = "";
+      if (space.id === "basin" && D.desertSpiceBonus.basin > 0) {
+        bonusSpiceBadge = `<span class="px-1.5 py-0.5 rounded bg-orange-600 text-white font-extrabold text-[12px] animate-bounce">+${D.desertSpiceBonus.basin} 누적</span>`;
+      } else if (space.id === "hagga" && D.desertSpiceBonus.hagga > 0) {
+        bonusSpiceBadge = `<span class="px-1.5 py-0.5 rounded bg-orange-600 text-white font-extrabold text-[12px] animate-bounce">+${D.desertSpiceBonus.hagga} 누적</span>`;
+      } else if (space.id === "flat" && D.desertSpiceBonus.flat > 0) {
+        bonusSpiceBadge = `<span class="px-1.5 py-0.5 rounded bg-orange-600 text-white font-extrabold text-[12px] animate-bounce">+${D.desertSpiceBonus.flat} 누적</span>`;
+      }
+
+      // 카드 상태에 따른 시각 스타일 결정
+      let borderClass = "border-white/10 bg-[#121622] hover:border-white/20";
+      let statusTag = "";
+
       if (isOccupied) {
-        borderClass = "border-red-900/40 bg-[#181114] opacity-75 cursor-not-allowed";
-      } else if (isHighlighted) {
-        borderClass = "border-amber-400 bg-amber-950/30 pulse-highlight cursor-pointer";
+        borderClass = "border-rose-900/40 bg-[#171014] opacity-60 cursor-not-allowed";
+        statusTag = `<span class="px-2 py-0.5 rounded bg-rose-950 border border-rose-500/40 text-rose-300 font-bold text-[12px]">${occupierLabel} 선점</span>`;
+      } else if (isMatched) {
+        borderClass = "border-amber-400 bg-amber-950/30 pulse-match cursor-pointer shadow-lg";
+        statusTag = `<span class="px-2 py-0.5 rounded bg-amber-500 text-slate-950 font-extrabold text-[12px] animate-pulse">파견 가능 (터치)</span>`;
+      } else if (isCardSelected) {
+        borderClass = "border-white/5 bg-[#0f131c] opacity-50 cursor-not-allowed";
+        statusTag = `<span class="text-slate-400 text-[12px]">${check.reason}</span>`;
       } else {
-        borderClass = "border-white/10 hover:border-white/20 bg-[#121622] cursor-pointer";
+        // 카드 미선택 상태
+        const pHand = D.player.hand;
+        const canVisitWithHand = pHand.some(c => c.symbols.includes(space.requiredSymbol));
+        statusTag = canVisitWithHand
+          ? `<span class="text-emerald-400/90 text-[12px] font-semibold">내 손패 가능</span>`
+          : `<span class="text-slate-400 text-[12px]">손패 심볼 없음</span>`;
       }
 
       return `
-        <div onclick="onClickBoardSpace('${space.id}')" class="p-2.5 rounded-xl border text-xs flex flex-col justify-between gap-1.5 transition ${borderClass}">
-          <div class="flex items-center justify-between gap-1">
-            <span class="font-extrabold text-slate-100">${space.name}</span>
-            ${isOccupied ? `<span class="px-1.5 py-0.5 rounded bg-rose-950 text-rose-300 font-bold text-[12px]">${occupierLabel} 선점</span>` : ""}
-            ${space.isCombatSpace ? `<span class="px-1.5 py-0.5 rounded bg-rose-900/80 text-rose-200 font-bold text-[12px]">전투 분쟁지</span>` : ""}
+        <div onclick="onClickBoardSpace('${space.id}')" class="p-3 rounded-xl border text-xs flex flex-col justify-between gap-2 transition ${borderClass}">
+          <!-- 상단: 구역 이름 & 필요 심볼 & 상태 -->
+          <div class="flex items-center justify-between gap-1.5 flex-wrap">
+            <div class="flex items-center gap-1.5">
+              ${renderSymbolBadge(space.requiredSymbol, true)}
+              <strong class="text-slate-100 text-sm font-extrabold">${space.name}</strong>
+            </div>
+            <div class="flex items-center gap-1">
+              ${bonusSpiceBadge}
+              ${statusTag}
+            </div>
           </div>
-          <p class="text-slate-300 text-xs">${space.desc}</p>
+
+          <!-- 중단: 행동 효과 설명 -->
+          <p class="text-slate-300 text-xs leading-relaxed">${space.desc}</p>
+
+          <!-- 하단: 요구 비용 & 특수 태그 -->
+          <div class="flex items-center justify-between border-t border-white/5 pt-1.5 text-[12px]">
+            <div class="flex items-center gap-1">
+              ${costBadges.join("")}
+              ${costBadges.length === 0 ? `<span class="text-slate-400 text-[12px]">비용 없음</span>` : ""}
+            </div>
+            ${space.isCombatSpace ? `<span class="px-1.5 py-0.5 rounded bg-rose-950 border border-rose-500/40 text-rose-300 font-bold text-[12px]">전투 분쟁지</span>` : ""}
+          </div>
         </div>
       `;
     }
@@ -1651,35 +1768,42 @@
 
       const container = document.getElementById("handCardsContainer");
       if (p.hand.length === 0) {
-        container.innerHTML = `<div class="text-xs text-slate-400 py-6 text-center w-full">사용할 수 있는 손패 카드가 없습니다. 공개 턴을 진행하세요.</div>`;
+        container.innerHTML = `<div class="text-xs text-slate-400 py-8 text-center w-full font-bold">사용 가능한 손패가 없습니다. [공개 턴 진행]을 누르세요.</div>`;
         return;
       }
 
       container.innerHTML = p.hand.map((c, i) => {
         const isSelected = (selectedHandCardIdx === i);
         return `
-          <div onclick="onSelectHandCard(${i})" class="shrink-0 w-36 sm:w-40 p-2.5 rounded-xl border flex flex-col justify-between gap-1.5 transition cursor-pointer select-none ${
-            isSelected ? "border-amber-400 bg-amber-950/40 gold-glow -translate-y-1" : "border-white/15 bg-[#141a24] hover:border-amber-500/50"
+          <div onclick="onSelectHandCard(${i})" class="shrink-0 w-44 p-3 rounded-2xl border flex flex-col justify-between gap-2 transition cursor-pointer select-none ${
+            isSelected
+              ? "border-amber-400 bg-gradient-to-b from-[#2a1d13] to-[#181d29] card-selected"
+              : "border-white/15 bg-gradient-to-b from-[#161c28] to-[#10141e] hover:border-amber-500/50"
           }">
-            <div class="flex items-center justify-between">
-              <span class="font-extrabold text-xs text-amber-200 truncate">${c.name}</span>
-              ${c.cost ? `<span class="px-1.5 py-0.2 rounded bg-amber-950 border border-amber-500/40 text-amber-300 text-[12px] font-bold">${c.cost} 설득</span>` : ""}
+            <!-- 카드 헤더: 이름 & 비용 -->
+            <div class="flex items-center justify-between border-b border-white/10 pb-1.5">
+              <strong class="text-xs font-extrabold text-amber-200 truncate">${c.name}</strong>
+              ${c.cost ? `<span class="px-1.5 py-0.5 rounded bg-amber-950 border border-amber-500/50 text-amber-300 text-[12px] font-extrabold">${c.cost} 설득</span>` : ""}
             </div>
 
-            <!-- 에이전트 기호 태그 -->
-            <div class="flex items-center gap-1 flex-wrap text-[12px]">
-              ${c.symbols.map(s => `<span class="px-1 py-0.2 rounded bg-slate-800 text-slate-300 font-medium">${s}</span>`).join("")}
+            <!-- 지원 에이전트 심볼 뱃지 바 -->
+            <div class="space-y-1">
+              <span class="text-[12px] text-slate-400 font-bold">파견 가능 심볼:</span>
+              <div class="flex items-center gap-1 flex-wrap">
+                ${c.symbols.map(s => renderSymbolBadge(s, true)).join("")}
+              </div>
             </div>
 
-            <!-- 에이전트 효과 설명 -->
-            <div class="text-[12px] text-slate-300 line-clamp-2">
-              <span class="text-amber-400 font-bold">[파견]</span> ${c.agentDesc || "기본 진입"}
+            <!-- 에이전트 효과 -->
+            <div class="text-xs text-slate-200 bg-black/30 p-2 rounded-lg border border-white/5 space-y-0.5">
+              <span class="text-amber-400 font-extrabold text-[12px]">[파견 효과]</span>
+              <p class="text-xs line-clamp-2 leading-snug">${c.agentDesc || "기본 에이전트 파견"}</p>
             </div>
 
-            <!-- 공개 턴 보너스 바 -->
-            <div class="border-t border-white/10 pt-1 flex items-center justify-between text-[12px] text-slate-400 font-semibold">
-              <span>설득: <strong class="text-amber-300">+${c.revealPersuasion || 0}</strong></span>
-              <span>전투: <strong class="text-rose-400">+${c.revealCombat || 0}</strong></span>
+            <!-- 공개 턴 (Reveal) 효과 바 -->
+            <div class="border-t border-white/10 pt-1.5 flex items-center justify-between text-[12px] text-slate-400 font-bold">
+              <span>설득: <strong class="text-amber-300 text-xs">+${c.revealPersuasion || 0}</strong></span>
+              <span>전투: <strong class="text-rose-400 text-xs">+${c.revealCombat || 0}</strong></span>
             </div>
           </div>
         `;
@@ -1688,26 +1812,26 @@
 
     function renderTracksTab() {
       const p = D.player;
-      const factionEl = document.getElementById("factionTrackDetails");
-      factionEl.innerHTML = ["emperor", "guild", "bene", "fremen"].map(k => {
+      document.getElementById("factionTrackDetails").innerHTML = ["emperor", "guild", "bene", "fremen"].map(k => {
         const f = FACTIONS[k];
         const val = p.factions[k];
         const hasAlli = p.alliances[k];
         return `
-          <div class="p-2.5 rounded-xl bg-slate-900 border border-white/5 space-y-1.5">
+          <div class="p-3 rounded-xl bg-slate-900/90 border border-white/10 space-y-2">
             <div class="flex items-center justify-between text-xs">
-              <span class="font-bold ${f.color}">${f.name}</span>
-              <span class="text-slate-300">영향력: <strong class="text-amber-300">${val} / 4</strong> ${hasAlli ? "(동맹 +1 VP 획득)" : ""}</span>
+              <div class="flex items-center gap-1.5">
+                ${iconSvg(k, 16)}
+                <span class="font-extrabold ${f.color}">${f.name}</span>
+              </div>
+              <span class="text-slate-300">영향력: <strong class="text-amber-300 text-sm">${val}</strong> / 4 ${hasAlli ? `<span class="ml-1 px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-extrabold text-[12px]">동맹(+1VP)</span>` : ""}</span>
             </div>
-            <!-- 진행 게이지 바 -->
-            <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden flex">
+            <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden flex">
               <div class="bg-amber-500 h-full transition-all duration-300" style="width: ${(val / 4) * 100}%"></div>
             </div>
           </div>
         `;
       }).join("");
 
-      // 익스 화물선 트랙
       const ixBox = document.getElementById("boxIxFreighterTrack");
       if (D.useIx) {
         ixBox.classList.remove("hidden");
@@ -1717,25 +1841,24 @@
           { s: 2, text: "스파이스 +1" },
           { s: 3, text: "솔라리+5 / 스파이스+2 / 병력+2 회수!" }
         ].map(step => `
-          <div class="p-2 rounded-lg border text-xs ${p.freighterStage >= step.s ? "border-cyan-400 bg-cyan-950/40 text-cyan-200" : "border-white/5 bg-slate-900 text-slate-500"}">
-            <span class="font-bold">${step.s}단계</span>
-            <div class="text-[12px]">${step.text}</div>
+          <div class="p-2.5 rounded-lg border text-xs ${p.freighterStage >= step.s ? "border-cyan-400 bg-cyan-950/50 text-cyan-200 font-extrabold shadow-md" : "border-white/5 bg-slate-900 text-slate-500"}">
+            <span class="font-extrabold">${step.s}단계</span>
+            <div class="text-[12px] mt-0.5">${step.text}</div>
           </div>
         `).join("");
       } else {
         ixBox.classList.add("hidden");
       }
 
-      // 불멸 연구 트랙
       const immBox = document.getElementById("boxImmResearchTrack");
       if (D.useImm) {
         immBox.classList.remove("hidden");
         document.getElementById("researchProgressBadge").textContent = `진척도 ${p.researchStep} / 7`;
         document.getElementById("researchNodesRow").innerHTML = [0, 1, 2, 3, 4, 5, 6, 7].map(step => `
-          <div class="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center font-extrabold text-xs border ${
-            p.researchStep >= step ? "border-emerald-400 bg-emerald-950 text-emerald-200" : "border-white/10 bg-slate-900 text-slate-500"
+          <div class="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center font-extrabold text-xs border ${
+            p.researchStep >= step ? "border-emerald-400 bg-emerald-950 text-emerald-200 shadow-md" : "border-white/10 bg-slate-900 text-slate-500"
           }">
-            ${step === 4 ? "1 VP" : step}
+            ${step === 4 ? "★1VP" : step}
           </div>
         `).join("");
       } else {
@@ -1759,12 +1882,12 @@
       ].sort((a, b) => b.str - a.str);
 
       document.getElementById("combatRankingList").innerHTML = ranking.map((r, i) => `
-        <div class="flex items-center justify-between p-2 rounded-lg ${r.isPlayer ? "bg-amber-950/30 border border-amber-500/40" : "bg-slate-900 border border-white/5"} text-xs">
+        <div class="flex items-center justify-between p-2.5 rounded-xl ${r.isPlayer ? "bg-amber-950/40 border border-amber-500/50 shadow-md" : "bg-slate-900/80 border border-white/5"} text-xs">
           <div class="flex items-center gap-2">
-            <span class="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center font-extrabold ${i === 0 ? "text-amber-300" : "text-slate-400"}">${i + 1}</span>
-            <strong class="${r.isPlayer ? "text-amber-200" : "text-slate-200"}">${r.name}</strong>
+            <span class="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center font-extrabold ${i === 0 ? "text-amber-300" : "text-slate-400"}">${i + 1}</span>
+            <strong class="${r.isPlayer ? "text-amber-200 text-sm" : "text-slate-200"}">${r.name}</strong>
           </div>
-          <span class="text-rose-400 font-extrabold text-sm">${r.str} 전투력</span>
+          <span class="text-rose-400 font-extrabold text-base">${r.str} 전투력</span>
         </div>
       `).join("");
     }
@@ -1772,35 +1895,38 @@
     function renderMarketTab() {
       document.getElementById("marketPersuasionTotal").textContent = `${D.currentPersuasion || 0}`;
 
-      // 제국 시장 카드 5장
       document.getElementById("gridImperiumMarket").innerHTML = D.marketRow.map(c => `
-        <div class="p-2.5 rounded-xl border border-white/10 bg-[#121622] flex flex-col justify-between gap-1.5 text-xs">
+        <div class="p-3 rounded-xl border border-white/10 bg-[#121622] flex flex-col justify-between gap-2 text-xs">
           <div class="flex items-center justify-between">
-            <strong class="text-slate-100">${c.name}</strong>
-            <span class="px-2 py-0.5 rounded bg-amber-950 border border-amber-500/40 text-amber-300 font-extrabold">${c.cost} 설득</span>
+            <strong class="text-slate-100 text-sm">${c.name}</strong>
+            <span class="px-2 py-0.5 rounded bg-amber-950 border border-amber-500/50 text-amber-300 font-extrabold">${c.cost} 설득</span>
           </div>
+
+          <div class="flex items-center gap-1 flex-wrap">
+            ${c.symbols.map(s => renderSymbolBadge(s, true)).join("")}
+          </div>
+
           <p class="text-slate-300 text-xs">${c.agentDesc || "제국 특수 효과"}</p>
-          <div class="flex items-center justify-between border-t border-white/10 pt-1.5">
+          <div class="flex items-center justify-between border-t border-white/10 pt-2">
             <span class="text-[12px] text-slate-400">공개: +${c.revealPersuasion || 0} 설득 / +${c.revealCombat || 0} 전투</span>
-            <button onclick="buyMarketCard('${c.id}')" class="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs">
+            <button onclick="buyMarketCard('${c.id}')" class="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs shadow-md">
               구매
             </button>
           </div>
         </div>
       `).join("");
 
-      // [익스] 기술 타일 진열대
       const techSec = document.getElementById("sectionIxTechMarket");
       if (D.useIx) {
         techSec.classList.remove("hidden");
         document.getElementById("gridTechTiles").innerHTML = D.techMarket.map(t => `
-          <div class="p-2 rounded-xl border border-cyan-800/40 bg-[#0d1622] flex flex-col justify-between gap-1 text-xs">
+          <div class="p-2.5 rounded-xl border border-cyan-800/50 bg-[#0d1624] flex flex-col justify-between gap-1.5 text-xs">
             <div class="flex items-center justify-between">
               <strong class="text-cyan-200">${t.name}</strong>
-              <span class="text-orange-400 font-bold">${t.costSpice} 스파이스</span>
+              <span class="text-orange-400 font-extrabold">${t.costSpice} 스파이스</span>
             </div>
-            <p class="text-slate-300 text-[12px]">${t.desc}</p>
-            <button onclick="buyTechTile('${t.id}')" class="w-full mt-1 py-1 rounded bg-cyan-700 hover:bg-cyan-600 text-white font-bold text-xs">
+            <p class="text-slate-300 text-[12px] leading-snug">${t.desc}</p>
+            <button onclick="buyTechTile('${t.id}')" class="w-full mt-1 py-1 rounded-lg bg-cyan-700 hover:bg-cyan-600 text-white font-extrabold text-xs shadow-sm">
               기술 획득
             </button>
           </div>
@@ -1815,18 +1941,20 @@
       if (!el) return;
       if (D.phase === "agent") {
         if (D.player.agentsLeft > 0) {
-          el.textContent = "하단 손패 카드를 터치하여 빛나는 구역 중 가장 유리한 곳에 에이전트를 파견하세요!";
+          if (selectedHandCardIdx === null) {
+            el.textContent = "하단 손패 카드를 먼저 터치하세요! 일치하는 보드 구역의 심볼이 골드 네온으로 빛납니다.";
+          } else {
+            const card = D.player.hand[selectedHandCardIdx];
+            el.textContent = `[${card.name}] 카드가 선택되었습니다. 황금빛 테두리로 빛나는 구역 중 원하는 곳을 터치하세요!`;
+          }
         } else {
-          el.textContent = "모든 에이전트를 파견했습니다! 우측 하단 [공개 턴 진행] 버튼을 눌러 설득력으로 시장 카드를 구매하세요.";
+          el.textContent = "에이전트를 모두 파견했습니다! 우측 하단 [공개 턴 진행] 버튼을 눌러 남은 손패의 설득력으로 시장 카드를 구매하세요.";
         }
       } else if (D.phase === "reveal") {
-        el.textContent = "공개 턴 진행 중: 시장에서 강력한 제국 카드를 구매한 뒤 전투 결산으로 이동하세요.";
+        el.textContent = "공개 턴 진행 중: 설득력으로 제국 시장 카드를 구매한 뒤 분쟁 탭에서 전투 결산을 진행하세요.";
       }
     }
 
-    // ---------------------------------------------------------
-    // (L) 모달 조작 및 초기화
-    // ---------------------------------------------------------
     function openSettingsModal() {
       document.getElementById("cfgOptIx").checked = cfgIx;
       document.getElementById("cfgOptImm").checked = cfgImm;
@@ -1864,20 +1992,17 @@
     }
 
     function openRulesModal() {
-      alert("《듄: 임페리움 규칙 요약》\n1. 10 승점(VP)을 먼저 달성하거나 10라운드 종료 시 승리합니다.\n2. 매 턴 손패 카드를 내고 일치하는 기호의 구역에 에이전트를 파견합니다.\n3. 아라키스 사막 구역 방문 시 주둔지 병력을 분쟁 지역으로 출격시킬 수 있습니다.\n4. 에이전트를 다 쓰면 남은 손패를 공개하여 설득력으로 제국 카드를 구매합니다.\n5. 모든 플레이어 공개 후 분쟁 지역 전투력을 비교하여 1~3위 보상을 지급합니다.");
+      alert("《듄: 임페리움 규칙 핵심 요약》\n\n1. 승점(VP): 10점을 먼저 달성하거나 10라운드 종료 시 최종 승자가 됩니다.\n2. 심볼 매칭: 손패 카드의 심볼 아이콘과 보드 구역의 심볼 아이콘이 일치해야 에이전트를 파견할 수 있습니다.\n3. 아라키스 사막: 스파이스를 수확하며 주둔지의 병력을 분쟁 전장으로 출격시킬 수 있습니다.\n4. 공개 턴: 에이전트를 다 쓴 후 손패를 공개하여 설득력으로 시장 카드를 구매합니다.\n5. 전투 단계: 분쟁 지역 내 총 전투력을 비교하여 1~3위 강력한 보상을 획득합니다.");
     }
 
     function openPlayIntrigueModal() {
-      pushToast("사용 가능한 전투 책략 카드를 정산했습니다 (전투력 +2 보너스!).");
+      pushToast("전투 책략 카드를 발동하여 이번 전투력 +2를 즉시 보강했습니다!");
       D.player.combatStr += 2;
       renderAll();
     }
 
-    // ---------------------------------------------------------
-    // (M) 앱 초기 시동 및 아이콘 삽입
-    // ---------------------------------------------------------
+    // 초기화
     window.addEventListener("DOMContentLoaded", () => {
-      // 상단 SVG 아이콘 주입
       document.getElementById("iconVpMini").innerHTML = iconSvg("vp", 16);
       document.getElementById("iconHelpMini").innerHTML = iconSvg("help", 15);
       document.getElementById("iconGearMini").innerHTML = iconSvg("gear", 15);
@@ -1890,6 +2015,12 @@
       document.getElementById("hudIconSwords").innerHTML = iconSvg("swords", 15);
       document.getElementById("hudIconDreadnought").innerHTML = iconSvg("dreadnought", 14);
       document.getElementById("hudIconSpecimen").innerHTML = iconSvg("specimen", 14);
+      document.getElementById("hudIconAgent").innerHTML = iconSvg("agent", 13);
+
+      document.getElementById("miniIconEmp").innerHTML = iconSvg("emperor", 13);
+      document.getElementById("miniIconGuild").innerHTML = iconSvg("guild", 13);
+      document.getElementById("miniIconBene").innerHTML = iconSvg("bene", 13);
+      document.getElementById("miniIconFremen").innerHTML = iconSvg("fremen", 13);
 
       document.getElementById("tabIconBoard").innerHTML = iconSvg("agent", 14);
       document.getElementById("tabIconTracks").innerHTML = iconSvg("vp", 14);
@@ -1901,7 +2032,6 @@
       document.getElementById("iconConflictSwords").innerHTML = iconSvg("swords", 18);
       document.getElementById("iconPersuasionMarket").innerHTML = iconSvg("persuasion", 16);
 
-      // 게임 초기화
       initNewDuneGame();
     });
   </script>
