@@ -947,7 +947,8 @@
 
     // 공식 보드 구역 정의 (각 칸에 정확한 요구 심볼 명시)
     const BOARD_SPACES = [
-      // --- 4대 파벌 구역 ---
+      // --- 4대 파벌 구역 (각 파벌당 2칸 = 총 8칸 공식 룰) ---
+      // 1. 황제 파벌
       {
         id: "conscription",
         faction: "emperor",
@@ -958,34 +959,81 @@
         action: (p) => { p.garrison += 2; changeFaction(p, "emperor", 1); }
       },
       {
+        id: "sardaukar",
+        faction: "emperor",
+        name: "황제: 사다우카 원조",
+        requiredSymbol: "emperor",
+        minFactionLevel: 2,
+        costSpice: 2,
+        desc: "황제 영향력 2 이상 필요 · 스파이스 2개 지불 → 병력 1기 징집 & 황제 영향력 +1",
+        action: (p) => { p.garrison += 1; changeFaction(p, "emperor", 1); }
+      },
+
+      // 2. 우주조합 파벌
+      {
         id: "heighliner",
         faction: "guild",
         name: "우주조합: 하이라이너",
         requiredSymbol: "guild",
         costSpice: 6,
-        desc: "스파이스 6개 지불 → 병력 5기 징집, 물 +2 & 조합 영향력 +1",
+        desc: "스파이스 6개 지불 → 병력 5기 대량 징집, 물 +2 & 조합 영향력 +1",
         action: (p) => { p.garrison += 5; p.water += 2; changeFaction(p, "guild", 1); }
       },
+      {
+        id: "foldspace_space",
+        faction: "guild",
+        name: "우주조합: 스페이스 폴딩",
+        requiredSymbol: "guild",
+        costSpice: 1,
+        desc: "스파이스 1개 지불 → [스페이스 폴딩] 카드 1장 획득 & 조합 영향력 +1",
+        action: (p) => {
+          const foldCard = RESERVE_CARDS.find(c => c.id === "res_foldspace");
+          if (foldCard) p.discard.push({ ...foldCard, id: `fold_${Date.now()}` });
+          changeFaction(p, "guild", 1);
+        }
+      },
+
+      // 3. 베네 게세리트 파벌
       {
         id: "selective_breeding",
         faction: "bene",
         name: "베네: 선택적 유전자 육종",
         requiredSymbol: "bene",
-        costSpice: 1,
-        desc: "스파이스 1개 지불 → 카드 2장 드로우 & 베네 영향력 +1",
+        costSpice: 2,
+        desc: "스파이스 2개 지불 → 카드 2장 드로우 & 베네 영향력 +1",
         action: (p) => { drawPlayerCards(2); changeFaction(p, "bene", 1); }
+      },
+      {
+        id: "secrets",
+        faction: "bene",
+        name: "베네: 비밀의 방 (Secrets)",
+        requiredSymbol: "bene",
+        costWater: 1,
+        desc: "물 1개 지불 → 전투 책략(Plot) 카드 1장 획득 & 베네 영향력 +1",
+        action: (p) => { p.intrigueCards += 1; changeFaction(p, "bene", 1); }
+      },
+
+      // 4. 프레멘 파벌
+      {
+        id: "hard_sell",
+        faction: "fremen",
+        name: "프레멘: 사막 지원군",
+        requiredSymbol: "fremen",
+        costWater: 1,
+        desc: "물 1개 지불 → 병력 2기 징집 & 프레멘 영향력 +1",
+        action: (p) => { p.garrison += 2; changeFaction(p, "fremen", 1); }
       },
       {
         id: "sietch_tabr",
         faction: "fremen",
         name: "프레멘: 시치 타브르",
         requiredSymbol: "fremen",
-        costWater: 1,
-        desc: "물 1개 지불 → 병력 1기 징집 & 물 저수고 환원, 프레멘 영향력 +1",
-        action: (p) => { p.garrison += 1; changeFaction(p, "fremen", 1); }
+        minFactionLevel: 2,
+        desc: "프레멘 영향력 2 이상 필요 → 물 +1, 병력 1기 징집 & 프레멘 영향력 +1",
+        action: (p) => { p.water += 1; p.garrison += 1; changeFaction(p, "fremen", 1); }
       },
 
-      // --- 아라키스 사막 구역 (스파이스 사막 심볼 desert 요구) ---
+      // --- 아라키스 사막 구역 (스파이스 & 분쟁지 출격, 총 3칸) ---
       {
         id: "basin",
         category: "desert",
@@ -1017,14 +1065,15 @@
         action: (p) => { p.spice += 3 + D.desertSpiceBonus.flat; D.desertSpiceBonus.flat = 0; }
       },
 
-      // --- 랜드스라드 & 초암 구역 (도시/의회 심볼 요구) ---
+      // --- 랜드스라드 & 도시 구역 (공식 8칸 정규 구현) ---
       {
         id: "high_council",
         category: "city",
         name: "랜드스라드: 의회 좌석",
         requiredSymbol: "landsraad",
         costSolari: 5,
-        desc: "5 솔라리 지불 → 영구 설득력 +2 좌석 획득",
+        isOncePerGame: true,
+        desc: "5 솔라리 지불 → 매 라운드 영구 설득력 +2 획득 [게임당 1회 한정!]",
         action: (p) => { p.highCouncil = true; log("의회 좌석 획득! 앞으로 공개 턴마다 영구 설득력 +2"); }
       },
       {
@@ -1033,8 +1082,9 @@
         name: "검술 훈련소 (Swordmaster)",
         requiredSymbol: "city",
         costSolari: 8,
-        desc: "8 솔라리 지불 → 영구 3번째 에이전트 일꾼 해금!",
-        action: (p) => { p.agentsMax = 3; p.agentsLeft += 1; log("검술사 고용 완료! 영구 3번째 에이전트 획득"); }
+        isOncePerGame: true,
+        desc: "8 솔라리 지불 → 영구 3번째 에이전트 일꾼 해금! [게임당 1회 한정!]",
+        action: (p) => { p.hasSwordmaster = true; p.agentsMax = 3; p.agentsLeft += 1; log("검술사 고용 완료! 영구 3번째 에이전트 획득"); }
       },
       {
         id: "mentat",
@@ -1042,8 +1092,43 @@
         name: "멘타트 고용",
         requiredSymbol: "city",
         costSolari: 2,
-        desc: "2 솔라리 지불 → 이번 라운드 임시 멘타트 에이전트 1기 추가",
-        action: (p) => { p.hasMentat = true; p.agentsLeft += 1; log("멘타트 고용! 이번 라운드 추가 1회 행동"); }
+        desc: "2 솔라리 지불 → 이번 라운드 임시 멘타트 에이전트 + 카드 1장 드로우 [라운드당 1회]",
+        action: (p) => { p.hasMentat = true; p.agentsLeft += 1; drawPlayerCards(1); log("멘타트 고용! 이번 라운드 추가 1회 행동 및 카드 드로우"); }
+      },
+      {
+        id: "rally_troops",
+        category: "city",
+        name: "랜드스라드: 군사 집결",
+        requiredSymbol: "landsraad",
+        costSolari: 4,
+        desc: "4 솔라리 지불 → 주둔지 병력 4기 대량 징집",
+        action: (p) => { p.garrison += 4; log("랜드스라드 군사 집결: 병력 4기 징집 완료"); }
+      },
+      {
+        id: "hall_of_oratory",
+        category: "city",
+        name: "명예의 전당 (Hall of Oratory)",
+        requiredSymbol: "landsraad",
+        desc: "비용 없음 → 주둔지 병력 1기 징집 & 카드 1장 드로우",
+        action: (p) => { p.garrison += 1; drawPlayerCards(1); log("명예의 전당 방문: 병력 1기 징집 및 카드 드로우"); }
+      },
+      {
+        id: "arrakeen",
+        category: "city",
+        name: "아라킨 수도 (Arrakeen)",
+        requiredSymbol: "city",
+        isCombatSpace: true,
+        desc: "비용 없음 → 병력 1기 징집, 카드 1장 드로우 & 분쟁 지역 출격 가능!",
+        action: (p) => { p.garrison += 1; drawPlayerCards(1); log("아라킨 수도 방문: 병력 1기 징집 & 분쟁지 출격 지원"); }
+      },
+      {
+        id: "carthag",
+        category: "city",
+        name: "카르타고 (Carthag)",
+        requiredSymbol: "city",
+        isCombatSpace: true,
+        desc: "비용 없음 → 병력 1기 징집, 전투 책략 1장 & 분쟁 지역 출격 가능!",
+        action: (p) => { p.garrison += 1; p.intrigueCards += 1; log("카르타고 군사 거점: 병력 1기 & 전투 책략 1장 획득"); }
       },
       {
         id: "sell_spice",
@@ -1155,6 +1240,7 @@
           agentsLeft: 2,
           hasMentat: false,
           highCouncil: false,
+          hasSwordmaster: false,
           factions: { emperor: 0, guild: 0, bene: 0, fremen: 0 },
           alliances: { emperor: false, guild: false, bene: false, fremen: false },
           deck: shuffle([...STARTING_DECK]),
@@ -1174,7 +1260,7 @@
         bot1: {
           name: "하코넨 봇",
           vp: 0,
-          garrison: 3,
+          garrison: cfgDifficulty === "expert" ? 5 : (cfgDifficulty === "regular" ? 4 : 3),
           combatStr: 0,
           factions: { emperor: 0, guild: 0, bene: 0, fremen: 0 },
           alliances: { emperor: false, guild: false, bene: false, fremen: false }
@@ -1182,7 +1268,7 @@
         bot2: {
           name: "토르발드 봇",
           vp: 0,
-          garrison: 3,
+          garrison: cfgDifficulty === "expert" ? 5 : (cfgDifficulty === "regular" ? 4 : 3),
           combatStr: 0,
           factions: { emperor: 0, guild: 0, bene: 0, fremen: 0 },
           alliances: { emperor: false, guild: false, bene: false, fremen: false }
@@ -1209,6 +1295,11 @@
       }
 
       drawPlayerCards(5);
+
+      const finishModal = document.getElementById("modalGameFinish");
+      if (finishModal) finishModal.classList.add("hidden");
+      const combatModal = document.getElementById("modalCombatResult");
+      if (combatModal) combatModal.classList.add("hidden");
 
       log(`새 게임 시작: 지도자 [${leader.name}], 확장팩 [${cfgIx ? "익스 " : ""}${cfgImm ? "불멸 " : ""}포함]`);
       renderAll();
@@ -1299,6 +1390,21 @@
       }
 
       const p = D.player;
+
+      // 게임당 1회 / 라운드당 1회 한정 구역 검증 (공식 룰)
+      if (space.id === "high_council" && p.highCouncil) {
+        return { ok: false, reason: "이미 의회 좌석을 획득했습니다 (게임당 1회 한정)" };
+      }
+      if (space.id === "swordmaster" && p.hasSwordmaster) {
+        return { ok: false, reason: "이미 3번째 에이전트(검술 사범)를 획득했습니다 (게임당 1회 한정)" };
+      }
+      if (space.id === "mentat" && p.hasMentat) {
+        return { ok: false, reason: "이번 라운드에 이미 멘타트를 고용했습니다 (라운드당 1회)" };
+      }
+      if (space.minFactionLevel && p.factions[space.faction] < space.minFactionLevel) {
+        return { ok: false, reason: `${FACTIONS[space.faction]?.name || space.faction} 영향력 ${space.minFactionLevel} 이상 필요` };
+      }
+
       const costSol = (space.id === "high_council" && p.leader.id === "leto") ? Math.max(0, space.costSolari - 1) : (space.costSolari || 0);
       if (p.solari < costSol) {
         return { ok: false, reason: `솔라리 부족 (필요: ${costSol}, 보유: ${p.solari})` };
@@ -1440,24 +1546,47 @@
     }
 
     function runHouseHagalBotTurns() {
+      const diff = D.diff || cfgDifficulty || "regular";
+
       [D.bot1, D.bot2].forEach((bot, bIdx) => {
-        const availableSpaces = BOARD_SPACES.filter(s => !D.occupiedSpaces[s.id] && (!s.ext || (s.ext === "ix" && D.useIx) || (s.ext === "imm" && D.useImm)));
+        const availableSpaces = BOARD_SPACES.filter(s => 
+          !D.occupiedSpaces[s.id] &&
+          (!s.ext || (s.ext === "ix" && D.useIx) || (s.ext === "imm" && D.useImm)) &&
+          !(s.id === "high_council" || s.id === "swordmaster")
+        );
         if (availableSpaces.length === 0) return;
 
         const picked = availableSpaces[Math.floor(Math.random() * availableSpaces.length)];
         D.occupiedSpaces[picked.id] = `bot${bIdx + 1}`;
 
+        // 1) 파벌 영향력 증가
         if (picked.faction) {
           bot.factions[picked.faction] = Math.min(4, bot.factions[picked.faction] + 1);
           if (bot.factions[picked.faction] === 2) bot.vp += 1;
-          if (bot.factions[picked.faction] === 4) bot.vp += 1;
+          if (bot.factions[picked.faction] === 4) {
+            bot.vp += 1;
+            bot.alliances[picked.faction] = true;
+          }
         }
 
-        const deployTroops = Math.min(bot.garrison, Math.floor(Math.random() * 2) + 1);
-        bot.garrison -= deployTroops;
-        bot.combatStr += deployTroops * 2;
-
-        log(`[라이벌 오토마] ${bot.name}가 '${picked.name}'을(를) 선점했습니다! (병력 +${deployTroops * 2} 전투력)`);
+        // 2) 전투 구역 vs 내정 구역 지능형 병력 운용
+        if (picked.isCombatSpace) {
+          // 분쟁 구역 진입 시: 주둔지 병력 전장 출격
+          const minDeploy = (diff === "expert") ? 2 : 1;
+          if (bot.garrison < minDeploy) {
+            bot.garrison += minDeploy; // 최소 전투력 보장
+          }
+          const maxDeploy = (diff === "expert") ? 3 : (diff === "regular") ? 2 : 2;
+          const deployTroops = Math.min(bot.garrison, Math.floor(Math.random() * (maxDeploy - minDeploy + 1)) + minDeploy);
+          bot.garrison -= deployTroops;
+          bot.combatStr += deployTroops * 2;
+          log(`[라이벌 오토마] ${bot.name}가 분쟁지 '${picked.name}' 출격! (병력 +${deployTroops}기 투입, 현재 전투력 ${bot.combatStr})`);
+        } else {
+          // 내정/자원 구역 진입 시: 주둔지 병력 징집
+          const recruit = (diff === "expert") ? 2 : 1;
+          bot.garrison += recruit;
+          log(`[라이벌 오토마] ${bot.name}가 '${picked.name}' 선점 (주둔지 병력 +${recruit}기 보충)`);
+        }
       });
     }
 
@@ -1633,9 +1762,15 @@
       D.phase = "agent";
       D.occupiedSpaces = {};
       D.player.agentsLeft = D.player.agentsMax;
+      D.player.hasMentat = false; // 멘타트는 라운드 종료 시 회수
       D.player.combatStr = 0;
       D.bot1.combatStr = 0;
       D.bot2.combatStr = 0;
+
+      // 오토마 봇 주둔지 병력 라운드 보충 (하우스 할갈 공식 룰)
+      const botReinforce = (D.diff === "expert") ? 3 : 2;
+      D.bot1.garrison += botReinforce;
+      D.bot2.garrison += botReinforce;
 
       D.player.dreadnoughtsGarrison += D.player.dreadnoughtsCombat;
       D.player.dreadnoughtsCombat = 0;
@@ -1916,7 +2051,13 @@
       let borderClass = "border-white/10 bg-[#121622] hover:border-white/20";
       let statusTag = "";
 
-      if (isOccupied) {
+      const p = D.player;
+      const isAlreadyOnceUsed = (space.id === "high_council" && p.highCouncil) || (space.id === "swordmaster" && p.hasSwordmaster);
+
+      if (isAlreadyOnceUsed) {
+        borderClass = "border-slate-800 bg-[#0d1017] opacity-50 cursor-not-allowed";
+        statusTag = `<span class="px-2 py-0.5 rounded bg-slate-800 text-amber-400/80 font-extrabold text-[12px]">획득 완료 (1회 한정)</span>`;
+      } else if (isOccupied) {
         borderClass = "border-rose-900/40 bg-[#171014] opacity-60 cursor-not-allowed";
         statusTag = `<span class="px-2 py-0.5 rounded bg-rose-950 border border-rose-500/40 text-rose-300 font-bold text-[12px]">${occupierLabel} 선점</span>`;
       } else if (isMatched) {
@@ -2041,17 +2182,63 @@
         const f = FACTIONS[k];
         const val = p.factions[k];
         const hasAlli = p.alliances[k];
+        const bot1Val = D.bot1.factions[k];
+        const bot2Val = D.bot2.factions[k];
+
+        // 0부터 4단계까지의 5개 정규 노드 렌더링 (원작 보드판 트랙 규격)
+        const nodesHtml = [0, 1, 2, 3, 4].map(step => {
+          const isPlayerHere = (val === step);
+          const isBot1Here = (bot1Val === step);
+          const isBot2Here = (bot2Val === step);
+
+          let nodeStyle = "border-white/10 bg-slate-900 text-slate-400";
+          let badgeText = step === 2 ? "★1VP" : step === 4 ? "★동맹" : `${step}`;
+
+          if (step === 2) {
+            nodeStyle = val >= 2 ? "border-amber-400 bg-amber-950/60 text-amber-200" : "border-amber-700/50 bg-slate-900 text-amber-400/70";
+          } else if (step === 4) {
+            nodeStyle = hasAlli ? "border-amber-400 bg-gradient-to-br from-amber-600/40 to-yellow-600/30 text-amber-200 font-extrabold" : "border-amber-800/60 bg-slate-900 text-amber-500/60";
+          } else if (val >= step) {
+            nodeStyle = "border-sky-500/50 bg-sky-950/40 text-sky-200";
+          }
+
+          // 노드 안에 놓인 말들 (플레이어, 봇1, 봇2)
+          let markersHtml = [];
+          if (isPlayerHere) markersHtml.push(`<span class="px-1 py-0.2 rounded bg-amber-500 text-slate-950 font-extrabold text-[12px] shadow-sm">나</span>`);
+          if (isBot1Here) markersHtml.push(`<span class="px-1 py-0.2 rounded bg-rose-600 text-white font-extrabold text-[12px]">B1</span>`);
+          if (isBot2Here) markersHtml.push(`<span class="px-1 py-0.2 rounded bg-purple-600 text-white font-extrabold text-[12px]">B2</span>`);
+
+          return `
+            <div class="flex-1 flex flex-col items-center gap-1 p-1.5 rounded-xl border text-center transition ${nodeStyle}">
+              <span class="text-[12px] font-extrabold leading-tight">${badgeText}</span>
+              <div class="flex items-center gap-0.5 justify-center flex-wrap min-h-[16px]">
+                ${markersHtml.join("")}
+              </div>
+            </div>
+          `;
+        }).join("");
+
         return `
-          <div class="p-3 rounded-xl bg-slate-900/90 border border-white/10 space-y-2">
+          <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-white/10 space-y-2.5 shadow-md">
             <div class="flex items-center justify-between text-xs">
               <div class="flex items-center gap-1.5">
                 ${iconSvg(k, 16)}
-                <span class="font-extrabold ${f.color}">${f.name}</span>
+                <span class="font-extrabold ${f.color} text-sm">${f.name}</span>
               </div>
-              <span class="text-slate-300">영향력: <strong class="text-amber-300 text-sm">${val}</strong> / 4 ${hasAlli ? `<span class="ml-1 px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-extrabold text-[12px]">동맹(+1VP)</span>` : ""}</span>
+              <div class="flex items-center gap-1.5 text-xs">
+                <span class="text-slate-300">내 영향력: <strong class="text-amber-300 font-extrabold">${val}</strong> / 4</span>
+                ${hasAlli ? `<span class="px-2 py-0.5 rounded-md bg-amber-500 text-slate-950 font-extrabold text-[12px] animate-pulse">동맹 선점(+1 VP)</span>` : ""}
+              </div>
             </div>
-            <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden flex">
-              <div class="bg-amber-500 h-full transition-all duration-300" style="width: ${(val / 4) * 100}%"></div>
+
+            <!-- 공식 5단계 원형 핀 노드 트랙 -->
+            <div class="flex items-stretch gap-1.5 pt-0.5">
+              ${nodesHtml}
+            </div>
+
+            <div class="flex items-center justify-between text-[12px] text-slate-400 border-t border-white/5 pt-1.5">
+              <span>2단계: 즉시 영구 승점 +1 VP</span>
+              <span>4단계: 최고 도달자 가문 동맹 토큰(+1 VP)</span>
             </div>
           </div>
         `;
@@ -2264,6 +2451,12 @@
       cfgImm = document.getElementById("cfgOptImm").checked;
       cfgLeaderId = document.getElementById("cfgSelectLeader").value;
       closeSettingsModal();
+
+      const finishModal = document.getElementById("modalGameFinish");
+      if (finishModal) finishModal.classList.add("hidden");
+      const combatModal = document.getElementById("modalCombatResult");
+      if (combatModal) combatModal.classList.add("hidden");
+
       initNewDuneGame();
     }
 
