@@ -130,6 +130,13 @@
         <strong class="font-extrabold text-purple-200" id="hudResGarrison">2</strong>
       </div>
 
+      <!-- 책략 카드 (Intrigue Cards) -->
+      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#241a12] border border-amber-500/50 shrink-0" title="보유 중인 책략 카드 수">
+        <div id="hudIconIntrigue" class="text-amber-400"></div>
+        <span class="text-[12px] text-amber-300">책략</span>
+        <strong class="font-extrabold text-amber-200" id="hudResIntrigue">1</strong>
+      </div>
+
       <!-- 분쟁지 전투력 -->
       <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#260e15] border border-rose-500/60 shrink-0 shadow-md" title="현재 분쟁 지역 내 총 전투력">
         <div id="hudIconSwords" class="text-rose-400"></div>
@@ -409,9 +416,9 @@
       <div class="bg-[#141a28] border border-amber-500/30 rounded-xl p-3 flex items-center justify-between text-xs">
         <div>
           <span class="font-extrabold text-amber-300">전투 책략(Plot) 카드</span>
-          <div class="text-slate-400 text-[12px]">보유: <strong class="text-amber-200" id="combatIntrigueCount">0장</strong></div>
+          <div class="text-slate-400 text-[12px]">보유: <strong class="text-amber-200" id="combatIntrigueCount">1장</strong></div>
         </div>
-        <button onclick="openPlayIntrigueModal()" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-slate-950 font-extrabold text-xs shadow-md">
+        <button id="btnPlayCombatIntrigue" onclick="openPlayIntrigueModal()" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-slate-950 font-extrabold text-xs shadow-md transition">
           전투 책략 발동 (+2 전투력)
         </button>
       </div>
@@ -1945,6 +1952,7 @@
       document.getElementById("hudResSolari").textContent = p.solari;
       document.getElementById("hudResSpice").textContent = p.spice;
       document.getElementById("hudResGarrison").textContent = p.garrison;
+      document.getElementById("hudResIntrigue").textContent = p.intrigueCards || 0;
       document.getElementById("hudResCombatStr").textContent = p.combatStr;
 
       document.getElementById("hudAgentsLeft").textContent = `${p.agentsLeft}/${p.agentsMax}`;
@@ -2313,6 +2321,18 @@
           statusEl.textContent = "에이전트 파견 진행 중 (아라키스 사막 파견 시 병력 출격)";
         }
       }
+
+      const countEl = document.getElementById("combatIntrigueCount");
+      if (countEl) countEl.textContent = `${D.player.intrigueCards || 0}장`;
+
+      const btnIntrigue = document.getElementById("btnPlayCombatIntrigue");
+      if (btnIntrigue) {
+        const hasCard = ((D.player.intrigueCards || 0) > 0);
+        btnIntrigue.disabled = !hasCard;
+        btnIntrigue.className = hasCard
+          ? "px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-slate-950 font-extrabold text-xs shadow-md transition cursor-pointer"
+          : "px-3 py-1.5 rounded-lg bg-slate-800 text-slate-500 border border-white/5 font-extrabold text-xs cursor-not-allowed opacity-60";
+      }
     }
 
     function renderMarketTab() {
@@ -2465,8 +2485,20 @@
     }
 
     function openPlayIntrigueModal() {
-      pushToast("전투 책략 카드를 발동하여 이번 전투력 +2를 즉시 보강했습니다!");
-      D.player.combatStr += 2;
+      const p = D.player;
+      if (!p.intrigueCards || p.intrigueCards <= 0) {
+        pushToast("보유한 전투 책략 카드가 없습니다!", true);
+        return;
+      }
+      if (D.phase !== "combat" && D.phase !== "reveal") {
+        pushToast("전투 책략은 공개 턴 또는 전투 결산 단계에서만 사용할 수 있습니다.", true);
+        return;
+      }
+
+      p.intrigueCards -= 1;
+      p.combatStr += 2;
+      pushToast("전투 책략 카드를 발동했습니다! (책략 1장 소모 → 전투력 +2 보강)");
+      log(`[전투 책략 발동] 책략 카드 1장 소모 → 이번 전투력 +2 (총 전투력 ${p.combatStr})`);
       renderAll();
     }
 
@@ -2481,6 +2513,7 @@
       document.getElementById("hudIconSolari").innerHTML = iconSvg("solari", 14);
       document.getElementById("hudIconSpice").innerHTML = iconSvg("spice", 14);
       document.getElementById("hudIconGarrison").innerHTML = iconSvg("garrison", 14);
+      document.getElementById("hudIconIntrigue").innerHTML = iconSvg("help", 13);
       document.getElementById("hudIconSwords").innerHTML = iconSvg("swords", 15);
       document.getElementById("hudIconDreadnought").innerHTML = iconSvg("dreadnought", 14);
       document.getElementById("hudIconSpecimen").innerHTML = iconSvg("specimen", 14);
