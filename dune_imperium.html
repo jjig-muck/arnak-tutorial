@@ -243,6 +243,19 @@
         </div>
       </div>
 
+      <!-- 에이전트 소진 시 공개 턴 안내 배너 -->
+      <div id="bannerNeedReveal" class="hidden p-3 rounded-xl bg-gradient-to-r from-amber-950/90 via-orange-950/90 to-amber-900/80 border border-amber-500/70 text-xs flex items-center justify-between gap-2 shadow-lg animate-pulse">
+        <div class="space-y-0.5">
+          <strong class="text-amber-200 font-extrabold flex items-center gap-1">
+            <span>모든 에이전트를 파견했습니다!</span>
+          </strong>
+          <p class="text-slate-300 text-[12px]">남은 손패를 공개하여 설득력으로 시장 카드를 구매하세요.</p>
+        </div>
+        <button onclick="onExecuteRevealTurn()" class="shrink-0 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs shadow-md">
+          공개 턴 진행 →
+        </button>
+      </div>
+
       <!-- 4대 파벌 구역 그리드 -->
       <div class="space-y-2">
         <div class="flex items-center justify-between text-xs">
@@ -402,19 +415,49 @@
           전투 책략 발동 (+2 전투력)
         </button>
       </div>
+
+      <!-- 전투 결산 실행 메인 액션 버튼 -->
+      <div class="bg-gradient-to-r from-rose-950/70 via-black/40 to-slate-900 border border-rose-500/50 rounded-xl p-3.5 space-y-2 shadow-xl">
+        <div class="flex items-center justify-between text-xs">
+          <span class="font-extrabold text-rose-300">분쟁 전투 결산 준비 완료</span>
+          <span class="text-slate-400 text-[12px]" id="combatPhaseStatusText">전투력 순위에 따라 보상이 지급됩니다</span>
+        </div>
+        <button onclick="proceedToCombatResolution()" id="btnExecuteCombat" class="w-full py-3 rounded-xl bg-gradient-to-r from-rose-600 via-rose-500 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white font-extrabold text-sm shadow-lg flex items-center justify-center gap-2 transition active:scale-[0.98]">
+          <span id="iconExecuteCombatSwords"></span>
+          <span>최종 분쟁 결과 판정 (보상 결산 실행)</span>
+        </button>
+      </div>
     </section>
 
     <!-- [탭 4] 제국 시장 & 기술 (Market) -->
     <section id="view_market" class="hidden space-y-3.5">
-      <!-- 설득력 바 -->
-      <div class="flex items-center justify-between bg-[#151c2a] border border-amber-400/50 p-3 rounded-xl text-xs shadow-md">
+      <!-- 설득력 바 + 전투 단계 바로가기 헤더 -->
+      <div class="flex items-center justify-between bg-[#151c2a] border border-amber-400/50 p-3 rounded-xl text-xs shadow-md flex-wrap gap-2">
         <div class="flex items-center gap-2">
           <div id="iconPersuasionMarket" class="text-amber-400"></div>
-          <span class="text-slate-200 font-bold">공개 턴 가용 설득력 (Persuasion):</span>
+          <span class="text-slate-200 font-bold">공개 턴 가용 설득력:</span>
+          <strong class="text-base font-extrabold text-amber-300 ml-1" id="marketPersuasionTotal">0</strong>
+          <span class="text-xs text-amber-400 font-bold">설득</span>
         </div>
-        <div class="flex items-center gap-1">
-          <strong class="text-base font-extrabold text-amber-300" id="marketPersuasionTotal">0</strong>
-          <span class="text-xs text-amber-400 font-bold">설득력</span>
+        
+        <!-- 구매 완료 후 전투 단계로 넘어가는 원터치 버튼 -->
+        <button id="btnMarketFinishToCombat" onclick="finishRevealAndGoToCombat()" class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 transition">
+          <span id="marketFinishIcon"></span>
+          <span id="btnMarketFinishText">전투 단계로 진행 →</span>
+        </button>
+      </div>
+
+      <!-- 상시 구매 카드 (Reserve Cards 3종) -->
+      <div class="space-y-2 bg-[#0e131d] border border-white/10 rounded-xl p-2.5">
+        <div class="flex items-center justify-between text-xs">
+          <div class="flex items-center gap-1.5">
+            <span class="font-extrabold text-amber-300">상시 구매 카드</span>
+            <span class="text-[12px] text-slate-400">(항상 구매 가능)</span>
+          </div>
+          <span class="text-[12px] text-slate-400">설득력 충족 시 즉시 획득</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2" id="gridReserveCards">
+          <!-- JS 동적 렌더링 -->
         </div>
       </div>
 
@@ -438,6 +481,14 @@
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-2" id="gridTechTiles">
           <!-- JS 동적 렌더링 -->
         </div>
+      </div>
+
+      <!-- 시장 하단 전투 단계 진행 고정 바 -->
+      <div class="pt-2">
+        <button onclick="finishRevealAndGoToCombat()" class="w-full py-3 rounded-xl bg-gradient-to-r from-rose-700 via-rose-600 to-amber-600 hover:from-rose-600 hover:to-amber-500 text-white font-extrabold text-xs shadow-lg flex items-center justify-center gap-2">
+          <span id="marketBottomCombatIcon"></span>
+          <span>카드 구매 완료 및 분쟁 전투 단계로 진행</span>
+        </button>
       </div>
     </section>
 
@@ -576,6 +627,25 @@
 
       <button onclick="closeCombatResultAndNextRound()" class="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs">
         보상 수령 및 다음 라운드 진행
+      </button>
+    </div>
+  </div>
+
+  <!-- [모달 4] 최종 게임 종료 모달 -->
+  <div id="modalGameFinish" class="hidden fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-3">
+    <div class="bg-[#121622] border border-amber-500/60 rounded-2xl w-full max-w-md p-5 space-y-4 shadow-2xl text-center">
+      <div class="space-y-1">
+        <span class="px-3 py-1 rounded-full bg-amber-950 border border-amber-500/50 text-amber-300 font-extrabold text-xs" id="gameFinishRoundTag">제 10라운드 결전 종료</span>
+        <h3 class="text-xl font-extrabold text-amber-200" id="gameFinishTitle">아라키스의 패권 장악!</h3>
+        <p class="text-xs text-slate-300" id="gameFinishDesc">게임이 종료되었습니다. 최종 승점 순위를 확인하세요.</p>
+      </div>
+
+      <div class="space-y-2 text-xs" id="gameFinishScoresList">
+        <!-- JS 렌더링 -->
+      </div>
+
+      <button onclick="applySettingsAndStart()" class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-extrabold text-sm shadow-lg">
+        새로운 게임 시작
       </button>
     </div>
   </div>
@@ -821,6 +891,39 @@
       // [불멸 확장 카드 - 유전자 접합(Grafting) 지원]
       { id: "imp_imm_01", ext: "imm", name: "변형 복제인간", cost: 4, symbols: ["city", "landsraad"], isGraft: true, agentDesc: "[접합] 다른 카드 1장과 함께 파견! 표본 +1 획득", gainSpecimen: 1, revealPersuasion: 2, revealCombat: 1 },
       { id: "imp_imm_02", ext: "imm", name: "틀레이락스 외과의", cost: 3, symbols: ["bene", "city"], isGraft: true, agentDesc: "[접합] 연구 트랙 1단계 전진", advanceResearch: 1, revealPersuasion: 1, revealCombat: 0 }
+    ];
+
+    // 상시 구매 가능 카드 3종 (Reserve Cards)
+    const RESERVE_CARDS = [
+      {
+        id: "res_desert",
+        name: "아라키스 지원군",
+        cost: 1,
+        symbols: ["desert"],
+        agentDesc: "사막 지역 진입 지원",
+        revealPersuasion: 1,
+        revealCombat: 0
+      },
+      {
+        id: "res_foldspace",
+        name: "스페이스 폴딩",
+        cost: 2,
+        symbols: ["emperor", "guild", "bene", "fremen", "city", "desert", "landsraad"],
+        agentDesc: "전 구역 파견 지원 & 카드 1장 드로우",
+        drawCards: 1,
+        revealPersuasion: 0,
+        revealCombat: 0
+      },
+      {
+        id: "res_spiceflow",
+        name: "스파이스는 흘러야 한다",
+        cost: 9,
+        symbols: ["guild"],
+        agentDesc: "구매 시 즉시 영구 승점 +1 VP 획득!",
+        gainVp: 1,
+        revealPersuasion: 0,
+        revealCombat: 0
+      }
     ];
 
     const TECH_TILES = [
@@ -1293,6 +1396,7 @@
     function executeAgentDeployment(troopsToDeploy, useDreadnought) {
       const p = D.player;
       const space = pendingSpace;
+      if (!space || selectedHandCardIdx === null || !p.hand[selectedHandCardIdx]) return;
       const card = p.hand.splice(selectedHandCardIdx, 1)[0];
       p.played.push(card);
 
@@ -1357,8 +1461,24 @@
       });
     }
 
-    function onExecuteRevealTurn() {
+    function onExecuteRevealTurn(skipConfirm = false) {
+      if (D.phase === "reveal") {
+        // 이미 공개 턴인 상태에서 누르면 전투 단계로 진행
+        finishRevealAndGoToCombat();
+        return;
+      }
+      if (D.phase === "combat") {
+        proceedToCombatResolution();
+        return;
+      }
       if (D.phase !== "agent") return;
+
+      // 에이전트가 아직 남아있을 경우 확인창으로 사용자 실수 방지
+      if (D.player.agentsLeft > 0 && !skipConfirm) {
+        const ok = confirm(`아직 파견하지 않은 에이전트가 ${D.player.agentsLeft}명 남아있습니다.\n지금 손패를 모두 공개하고 [공개 턴]으로 넘어가시겠습니까?`);
+        if (!ok) return;
+      }
+
       D.phase = "reveal";
 
       let gainedPersuasion = D.player.highCouncil ? 2 : 0;
@@ -1374,8 +1494,8 @@
       D.player.combatStr += gainedCombat;
       D.currentPersuasion = gainedPersuasion;
 
-      log(`[공개 턴 진행] 남은 손패 공개 → 총 설득력 ${gainedPersuasion} 획득, 추가 전투력 +${gainedCombat}`);
-      pushToast(`공개 턴: 가용 설득력 ${gainedPersuasion} 획득!`);
+      log(`[공개 턴 진행] 남은 손패 공개 → 가용 설득력 ${gainedPersuasion} 획득, 추가 전투력 +${gainedCombat}`);
+      pushToast(`공개 턴 개시: 설득력 ${gainedPersuasion} 획득!`);
 
       switchTab("market");
       renderAll();
@@ -1404,7 +1524,49 @@
       }
 
       pushToast(`[${card.name}] 카드를 구매하여 버린 더미에 추가했습니다!`);
-      log(`[카드 구매] ${card.name} (비용 ${card.cost} 설득력 지불)`);
+      log(`[시장 카드 구매] ${card.name} (비용 ${card.cost} 설득력 지불, 남은 설득: ${D.currentPersuasion})`);
+      renderAll();
+    }
+
+    // 상시 구매 카드 3종 구매 처리
+    function buyReserveCard(cardId) {
+      if (D.phase !== "reveal") {
+        pushToast("공개 턴에만 카드를 구매할 수 있습니다.", true);
+        return;
+      }
+      const card = RESERVE_CARDS.find(c => c.id === cardId);
+      if (!card) return;
+
+      if (D.currentPersuasion < card.cost) {
+        pushToast(`설득력이 부족합니다 (필요: ${card.cost}, 보유: ${D.currentPersuasion})`, true);
+        return;
+      }
+
+      D.currentPersuasion -= card.cost;
+      const cardClone = { ...card, id: `${card.id}_${Date.now()}` };
+      D.player.discard.push(cardClone);
+
+      if (card.gainVp) {
+        D.player.vp += card.gainVp;
+        pushToast(`[${card.name}] 구매 즉시 영구 승점 +${card.gainVp} VP 획득!`);
+        log(`[상시 카드 구매] ${card.name} (비용 ${card.cost} 설득력 지불 → 승점 +${card.gainVp} VP!)`);
+      } else {
+        pushToast(`[${card.name}] 카드를 구매하여 버린 더미에 추가했습니다!`);
+        log(`[상시 카드 구매] ${card.name} (비용 ${card.cost} 설득력 지불, 남은 설득: ${D.currentPersuasion})`);
+      }
+
+      renderAll();
+    }
+
+    // 공개 턴 카드 구매를 마치고 전투 단계로 진행
+    function finishRevealAndGoToCombat() {
+      if (D.phase === "agent") {
+        onExecuteRevealTurn(true);
+      }
+      D.phase = "combat";
+      switchTab("combat");
+      pushToast("전투 단계에 진입했습니다! 책략 카드를 사용하거나 [최종 분쟁 결과 판정]을 누르세요.");
+      log(`[전투 단계 진입] 제 ${D.conflictCard.round}라운드 분쟁 결산 대기.`);
       renderAll();
     }
 
@@ -1422,18 +1584,23 @@
       listEl.innerHTML = ranking.map((r, i) => {
         const rankNum = i + 1;
         const rewardText = rankNum === 1
-          ? `1위 보상: ${conflict.reward1.vp ? `+${conflict.reward1.vp} VP ` : ""}${conflict.reward1.spice ? `스파이스 +${conflict.reward1.spice} ` : ""}`
+          ? `1위 보상: ${conflict.reward1.vp ? `+${conflict.reward1.vp} VP ` : ""}${conflict.reward1.spice ? `스파이스 +${conflict.reward1.spice} ` : ""}${conflict.reward1.troops ? `병력 +${conflict.reward1.troops}` : ""}`
           : rankNum === 2
-          ? `2위 보상: ${conflict.reward2.water ? `물 +${conflict.reward2.water} ` : ""}${conflict.reward2.solari ? `솔라리 +${conflict.reward2.solari} ` : ""}`
-          : `3위 보상`;
+          ? `2위 보상: ${conflict.reward2.water ? `물 +${conflict.reward2.water} ` : ""}${conflict.reward2.solari ? `솔라리 +${conflict.reward2.solari} ` : ""}${conflict.reward2.spice ? `스파이스 +${conflict.reward2.spice}` : ""}`
+          : `3위 보상: ${conflict.reward3?.spice ? `스파이스 +${conflict.reward3.spice} ` : ""}${conflict.reward3?.troops ? `병력 +${conflict.reward3.troops}` : "보상 없음"}`;
 
         if (r.isPlayer) {
           if (rankNum === 1) {
             if (conflict.reward1.vp) D.player.vp += conflict.reward1.vp;
             if (conflict.reward1.spice) D.player.spice += conflict.reward1.spice;
+            if (conflict.reward1.troops) D.player.garrison += conflict.reward1.troops;
           } else if (rankNum === 2) {
             if (conflict.reward2.water) D.player.water += conflict.reward2.water;
             if (conflict.reward2.solari) D.player.solari += conflict.reward2.solari;
+            if (conflict.reward2.spice) D.player.spice += conflict.reward2.spice;
+          } else if (rankNum === 3) {
+            if (conflict.reward3?.spice) D.player.spice += conflict.reward3.spice;
+            if (conflict.reward3?.troops) D.player.garrison += conflict.reward3.troops;
           }
         }
 
@@ -1494,7 +1661,35 @@
       D.phase = "ended";
       D.ended = true;
       const isWin = D.player.vp >= Math.max(D.bot1.vp, D.bot2.vp);
-      alert(`[게임 종료] 최종 점수 - 플레이어: ${D.player.vp} VP | 라이벌: ${D.bot1.vp} VP, ${D.bot2.vp} VP\n결과: ${isWin ? "화려한 승리! 아라키스의 패권을 장악했습니다!" : "패배... 다음 기회에 설욕하세요."}`);
+
+      const finishModal = document.getElementById("modalGameFinish");
+      if (finishModal) {
+        document.getElementById("gameFinishRoundTag").textContent = `제 ${D.round} 라운드 게임 종료`;
+        document.getElementById("gameFinishTitle").textContent = isWin ? "아라키스의 위대한 패권 장악! (승리)" : "아라키스의 권력 쟁탈전 종료 (패배)";
+        document.getElementById("gameFinishDesc").textContent = isWin
+          ? "축하합니다! 라이벌 가문들을 물리치고 듄 제국의 실권을 차지했습니다."
+          : "아쉽게도 라이벌 가문이 더 많은 승점을 선점했습니다. 다음 게임에 설욕하세요.";
+
+        const scores = [
+          { name: "내 가문 (플레이어)", vp: D.player.vp, isPlayer: true },
+          { name: D.bot1.name, vp: D.bot1.vp, isPlayer: false },
+          { name: D.bot2.name, vp: D.bot2.vp, isPlayer: false }
+        ].sort((a, b) => b.vp - a.vp);
+
+        document.getElementById("gameFinishScoresList").innerHTML = scores.map((s, i) => `
+          <div class="flex items-center justify-between p-3 rounded-xl ${s.isPlayer ? "bg-amber-950/60 border border-amber-500/70" : "bg-black/40 border border-white/5"}">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center font-extrabold ${i === 0 ? "text-amber-300" : "text-slate-400"}">${i + 1}위</span>
+              <strong class="${s.isPlayer ? "text-amber-200" : "text-slate-300"}">${s.name}</strong>
+            </div>
+            <strong class="text-base ${i === 0 ? "text-amber-300" : "text-slate-300"}">${s.vp} VP</strong>
+          </div>
+        `).join("");
+
+        finishModal.classList.remove("hidden");
+      } else {
+        alert(`[게임 종료] 최종 점수 - 플레이어: ${D.player.vp} VP | 라이벌: ${D.bot1.vp} VP, ${D.bot2.vp} VP\n결과: ${isWin ? "화려한 승리! 아라키스의 패권을 장악했습니다!" : "패배... 다음 기회에 설욕하세요."}`);
+      }
       renderAll();
     }
 
@@ -1664,6 +1859,13 @@
     function renderBoardSpaces() {
       const p = D.player;
 
+      // 에이전트 소진 시 공개 턴 안내 배너 노출 제어
+      const needRevealBanner = document.getElementById("bannerNeedReveal");
+      if (needRevealBanner) {
+        const shouldShow = (D.phase === "agent" && p.agentsLeft === 0);
+        needRevealBanner.classList.toggle("hidden", !shouldShow);
+      }
+
       document.getElementById("gridFactionSpaces").innerHTML = BOARD_SPACES.filter(s => s.faction).map(s => renderSpaceCard(s)).join("");
       document.getElementById("gridDesertSpaces").innerHTML = BOARD_SPACES.filter(s => s.category === "desert").map(s => renderSpaceCard(s)).join("");
       document.getElementById("gridCitySpaces").innerHTML = BOARD_SPACES.filter(s => s.category === "city").map(s => renderSpaceCard(s)).join("");
@@ -1765,6 +1967,29 @@
       const p = D.player;
       const countEl = document.getElementById("handCountText");
       if (countEl) countEl.textContent = `${p.hand.length}장`;
+
+      // 하단 바의 진행 버튼 상태를 현재 단계(에이전트 / 공개 / 전투)에 맞게 능동 전환
+      const btnRev = document.getElementById("btnRevealTurn");
+      if (btnRev) {
+        if (D.phase === "agent") {
+          if (p.agentsLeft === 0) {
+            btnRev.textContent = "★ 공개 턴 진행 (추천)";
+            btnRev.className = "px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 text-slate-950 font-extrabold text-xs shadow-md animate-pulse";
+          } else {
+            btnRev.textContent = "공개 턴 진행";
+            btnRev.className = "px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs shadow-md";
+          }
+        } else if (D.phase === "reveal") {
+          btnRev.textContent = "전투 단계로 진행 →";
+          btnRev.className = "px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 text-white font-extrabold text-xs shadow-md animate-pulse";
+        } else if (D.phase === "combat") {
+          btnRev.textContent = "전투 결과 판정";
+          btnRev.className = "px-3 py-1 rounded-lg bg-slate-800 text-rose-300 border border-rose-500/50 font-extrabold text-xs";
+        } else {
+          btnRev.textContent = "게임 종료";
+          btnRev.className = "px-3 py-1 rounded-lg bg-slate-800 text-slate-500 font-extrabold text-xs";
+        }
+      }
 
       const container = document.getElementById("handCardsContainer");
       if (p.hand.length === 0) {
@@ -1890,31 +2115,82 @@
           <span class="text-rose-400 font-extrabold text-base">${r.str} 전투력</span>
         </div>
       `).join("");
+
+      const statusEl = document.getElementById("combatPhaseStatusText");
+      if (statusEl) {
+        if (D.phase === "combat") {
+          statusEl.textContent = "전투 단계 진행 중! 책략 카드를 추가하거나 판정 버튼을 누르세요.";
+        } else if (D.phase === "reveal") {
+          statusEl.textContent = "공개 턴 진행 중 (시장 구매 후 전투 결산으로 이동)";
+        } else {
+          statusEl.textContent = "에이전트 파견 진행 중 (아라키스 사막 파견 시 병력 출격)";
+        }
+      }
     }
 
     function renderMarketTab() {
-      document.getElementById("marketPersuasionTotal").textContent = `${D.currentPersuasion || 0}`;
+      const curPersuasion = D.currentPersuasion || 0;
+      document.getElementById("marketPersuasionTotal").textContent = `${curPersuasion}`;
 
-      document.getElementById("gridImperiumMarket").innerHTML = D.marketRow.map(c => `
-        <div class="p-3 rounded-xl border border-white/10 bg-[#121622] flex flex-col justify-between gap-2 text-xs">
-          <div class="flex items-center justify-between">
-            <strong class="text-slate-100 text-sm">${c.name}</strong>
-            <span class="px-2 py-0.5 rounded bg-amber-950 border border-amber-500/50 text-amber-300 font-extrabold">${c.cost} 설득</span>
-          </div>
+      const btnFinishText = document.getElementById("btnMarketFinishText");
+      if (btnFinishText) {
+        btnFinishText.textContent = curPersuasion > 0 ? "구매 완료 & 전투 진행 →" : "구매 패스 & 전투 진행 →";
+      }
 
-          <div class="flex items-center gap-1 flex-wrap">
-            ${c.symbols.map(s => renderSymbolBadge(s, true)).join("")}
-          </div>
+      // 상시 구매 카드 3종 렌더링
+      const resContainer = document.getElementById("gridReserveCards");
+      if (resContainer) {
+        resContainer.innerHTML = RESERVE_CARDS.map(c => {
+          const canBuy = (D.phase === "reveal" && curPersuasion >= c.cost);
+          return `
+            <div class="p-2.5 rounded-xl border border-white/10 bg-[#141926] flex flex-col justify-between gap-1.5 text-xs">
+              <div class="flex items-center justify-between">
+                <strong class="text-slate-200 text-xs font-extrabold truncate">${c.name}</strong>
+                <span class="px-1.5 py-0.5 rounded bg-amber-950 border border-amber-500/50 text-amber-300 font-extrabold text-[12px]">${c.cost} 설득</span>
+              </div>
+              <p class="text-slate-400 text-[12px] line-clamp-2 leading-tight">${c.agentDesc}</p>
+              <button onclick="buyReserveCard('${c.id}')"
+                      class="w-full mt-1 py-1 rounded-lg font-extrabold text-xs shadow-sm transition ${
+                        canBuy
+                          ? "bg-amber-500 hover:bg-amber-400 text-slate-950 cursor-pointer"
+                          : "bg-slate-800 text-slate-500 opacity-60 cursor-not-allowed"
+                      }">
+                ${canBuy ? "구매" : "설득력 부족"}
+              </button>
+            </div>
+          `;
+        }).join("");
+      }
 
-          <p class="text-slate-300 text-xs">${c.agentDesc || "제국 특수 효과"}</p>
-          <div class="flex items-center justify-between border-t border-white/10 pt-2">
-            <span class="text-[12px] text-slate-400">공개: +${c.revealPersuasion || 0} 설득 / +${c.revealCombat || 0} 전투</span>
-            <button onclick="buyMarketCard('${c.id}')" class="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs shadow-md">
-              구매
-            </button>
+      // 제국 시장 5장 렌더링
+      document.getElementById("gridImperiumMarket").innerHTML = D.marketRow.map(c => {
+        const canBuy = (D.phase === "reveal" && curPersuasion >= c.cost);
+        return `
+          <div class="p-3 rounded-xl border border-white/10 bg-[#121622] flex flex-col justify-between gap-2 text-xs">
+            <div class="flex items-center justify-between">
+              <strong class="text-slate-100 text-sm">${c.name}</strong>
+              <span class="px-2 py-0.5 rounded bg-amber-950 border border-amber-500/50 text-amber-300 font-extrabold">${c.cost} 설득</span>
+            </div>
+
+            <div class="flex items-center gap-1 flex-wrap">
+              ${c.symbols.map(s => renderSymbolBadge(s, true)).join("")}
+            </div>
+
+            <p class="text-slate-300 text-xs">${c.agentDesc || "제국 특수 효과"}</p>
+            <div class="flex items-center justify-between border-t border-white/10 pt-2">
+              <span class="text-[12px] text-slate-400">공개: +${c.revealPersuasion || 0} 설득 / +${c.revealCombat || 0} 전투</span>
+              <button onclick="buyMarketCard('${c.id}')"
+                      class="px-3 py-1 rounded-lg font-extrabold text-xs shadow-md transition ${
+                        canBuy
+                          ? "bg-amber-500 hover:bg-amber-400 text-slate-950 cursor-pointer"
+                          : "bg-slate-800 text-slate-500 opacity-60 cursor-not-allowed"
+                      }">
+                ${canBuy ? "구매" : "설득력 부족"}
+              </button>
+            </div>
           </div>
-        </div>
-      `).join("");
+        `;
+      }).join("");
 
       const techSec = document.getElementById("sectionIxTechMarket");
       if (D.useIx) {
@@ -2031,6 +2307,13 @@
       document.getElementById("iconDnaLg").innerHTML = iconSvg("dna", 18);
       document.getElementById("iconConflictSwords").innerHTML = iconSvg("swords", 18);
       document.getElementById("iconPersuasionMarket").innerHTML = iconSvg("persuasion", 16);
+      
+      const mFinish = document.getElementById("marketFinishIcon");
+      if (mFinish) mFinish.innerHTML = iconSvg("swords", 13);
+      const mBottomCombat = document.getElementById("marketBottomCombatIcon");
+      if (mBottomCombat) mBottomCombat.innerHTML = iconSvg("swords", 15);
+      const execSwords = document.getElementById("iconExecuteCombatSwords");
+      if (execSwords) execSwords.innerHTML = iconSvg("swords", 18);
 
       initNewDuneGame();
     });
