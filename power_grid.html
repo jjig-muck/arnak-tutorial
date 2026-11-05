@@ -1,0 +1,2321 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>파워 그리드 (Power Grid) 모바일 프리미엄 시뮬레이터</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    body {
+      background-color: #090d16;
+      color: #f1f5f9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      touch-action: manipulation;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    @keyframes nodePulse {
+      0%, 100% { stroke-width: 3px; stroke: #38bdf8; filter: drop-shadow(0 0 6px #38bdf8); }
+      50% { stroke-width: 5px; stroke: #bae6fd; filter: drop-shadow(0 0 12px #38bdf8); }
+    }
+    .city-buildable {
+      animation: nodePulse 1.6s infinite ease-in-out;
+      cursor: pointer;
+    }
+    @keyframes auctionPulse {
+      0%, 100% { border-color: rgba(245, 158, 11, 0.9); box-shadow: 0 0 12px rgba(245, 158, 11, 0.35); }
+      50% { border-color: rgba(253, 224, 71, 1); box-shadow: 0 0 20px rgba(245, 158, 11, 0.65); }
+    }
+    .auction-active {
+      animation: auctionPulse 1.4s infinite ease-in-out;
+    }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.25); }
+    ::-webkit-scrollbar-thumb { background: rgba(56, 189, 248, 0.4); border-radius: 4px; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="flex flex-col h-screen max-w-xl mx-auto bg-[#090d16] text-slate-100 overflow-hidden relative">
+
+  <!-- ========================================================= -->
+  <!-- 1. 상단 고정 HUD (라운드, Step, 자금, 발전량, 코치/예산)    -->
+  <!-- ========================================================= -->
+  <header class="bg-[#0e1525]/95 border-b border-cyan-500/30 px-3 py-2 z-20 shrink-0 shadow-lg backdrop-blur-md">
+    <div class="flex items-center justify-between gap-1.5">
+      <div class="flex items-center gap-1.5 min-w-0">
+        <div id="hudIconBolt" class="text-amber-400 shrink-0"></div>
+        <div class="min-w-0">
+          <div class="flex items-center gap-1.5">
+            <h1 class="text-xs font-black text-amber-300 truncate tracking-tight">파워 그리드</h1>
+            <span class="px-1.5 py-0.5 rounded bg-cyan-950 border border-cyan-500/50 text-cyan-300 font-extrabold text-[12px]" id="hudRoundBadge">R 1</span>
+            <span class="px-1.5 py-0.5 rounded bg-amber-950 border border-amber-500/50 text-amber-300 font-extrabold text-[12px]" id="hudStepBadge">STEP 1</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 우측 컨트롤: 예산 계산기, 코치 ON/OFF, 설정 -->
+      <div class="flex items-center gap-1 shrink-0">
+        <button onclick="toggleBudgetCalc()" id="btnBudgetToggle" class="px-2 py-1 rounded-lg bg-slate-800 border border-cyan-500/40 text-cyan-300 hover:bg-slate-700 font-bold text-[12px] flex items-center gap-1 transition">
+          <span id="iconCalcMini"></span>
+          <span>예산기</span>
+        </button>
+        <button onclick="toggleCoach()" id="btnCoachToggle" class="px-2 py-1 rounded-lg bg-amber-900/70 border border-amber-500/50 text-amber-200 hover:bg-amber-800 font-bold text-[12px] transition">
+          코치 ON
+        </button>
+        <button onclick="openSettingsModal()" class="p-1.5 rounded-lg bg-slate-800 border border-slate-600/50 text-slate-300 hover:bg-slate-700 transition" title="설정">
+          <div id="iconGearMini"></div>
+        </button>
+      </div>
+    </div>
+
+    <!-- 2번째 줄: 내 핵심 지표 (보유 자금, 연결 도시/발전 용량, 턴 순위, 현재 단계) -->
+    <div class="flex items-center justify-between gap-1.5 mt-1.5 pt-1.5 border-t border-white/10 text-[12px] overflow-x-auto no-scrollbar">
+      <!-- 보유 자금 (Electro) -->
+      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-950/70 border border-amber-500/50 shrink-0">
+        <div id="hudIconMoney" class="text-amber-400"></div>
+        <span class="text-slate-300">자금:</span>
+        <strong class="text-amber-300 font-black text-xs" id="hudMoney">50 E</strong>
+      </div>
+
+      <!-- 도시 연결 수 & 최대 전력 공급량 -->
+      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-950/70 border border-emerald-500/40 shrink-0" title="연결한 도시 수 / 보유 발전소 최대 공급량 (목표 도시)">
+        <div id="hudIconCity" class="text-emerald-400"></div>
+        <span class="text-slate-300">도시:</span>
+        <strong class="text-emerald-300 font-black" id="hudCities">0</strong>
+        <span class="text-slate-400">/ 공급</span>
+        <strong class="text-cyan-300 font-black" id="hudCapacity">0</strong>
+        <span class="text-slate-400" id="hudGoalText">(목표12)</span>
+      </div>
+
+      <!-- 턴 오더 순위 -->
+      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-purple-950/70 border border-purple-500/40 shrink-0">
+        <span class="text-purple-300">순위:</span>
+        <strong class="text-purple-200 font-extrabold" id="hudTurnOrder">1위</strong>
+      </div>
+
+      <!-- 현재 단계 배지 -->
+      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-sky-950/80 border border-sky-500/50 shrink-0">
+        <strong class="text-sky-200 font-extrabold" id="hudPhaseName">2. 발전소 경매</strong>
+      </div>
+    </div>
+
+    <!-- 3번째 줄: 턴 오더 순서 바 (정순 vs 역순 실시간 시각화) -->
+    <div class="flex items-center justify-between gap-1 mt-1.5 pt-1 border-t border-white/5 text-[12px]">
+      <span class="text-slate-400 font-bold shrink-0" id="turnDirectionLabel">진행 순서 (정순 1→4):</span>
+      <div class="flex items-center gap-1 overflow-x-auto no-scrollbar" id="turnOrderBarList"></div>
+    </div>
+  </header>
+
+  <!-- ========================================================= -->
+  <!-- 2. 초보자 친화적 AI 코치 배너 & 스마트 예산 계산기         -->
+  <!-- ========================================================= -->
+  <div id="coachBanner" class="bg-gradient-to-r from-amber-950/90 via-[#1a1810] to-slate-900 border-b border-amber-500/40 px-3 py-2 flex items-start gap-2 text-xs shrink-0 z-10">
+    <div id="iconCoachBulb" class="text-amber-400 mt-0.5 shrink-0"></div>
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center justify-between">
+        <strong class="text-amber-300 font-extrabold text-[12px]">AI 전략 코치 브리핑</strong>
+        <span class="text-[12px] text-amber-400/90 font-bold" id="coachExpectedIncome">예상 전력 수입: +10 E</span>
+      </div>
+      <p id="coachAdviceText" class="text-slate-200 text-[12px] leading-snug mt-0.5">
+        1라운드 경매 단계입니다! 초반에는 3~5번 사이의 저렴한 발전소를 낙찰받아 자금을 아끼는 것이 유리합니다.
+      </p>
+    </div>
+  </div>
+
+  <!-- 스마트 예산 계산기 패널 (토글식, 암산 스트레스 해소) -->
+  <div id="budgetCalcPanel" class="hidden bg-[#101929] border-b border-cyan-500/50 px-3 py-2.5 text-xs space-y-2 shrink-0 z-10 shadow-xl">
+    <div class="flex items-center justify-between">
+      <strong class="text-cyan-300 font-black flex items-center gap-1">
+        <span>스마트 자금 배분 계산기 (암산 보조)</span>
+      </strong>
+      <button onclick="toggleBudgetCalc()" class="text-slate-400 hover:text-white font-bold text-xs">닫기 X</button>
+    </div>
+    <div class="grid grid-cols-4 gap-1.5 text-center text-[12px]">
+      <div class="p-1.5 rounded-lg bg-black/40 border border-white/10">
+        <div class="text-slate-400">보유 자금</div>
+        <strong class="text-amber-300 text-xs font-black" id="calcCurMoney">50 E</strong>
+      </div>
+      <div class="p-1.5 rounded-lg bg-black/40 border border-white/10">
+        <div class="text-slate-400">경매/연료비</div>
+        <strong class="text-rose-300 text-xs font-black" id="calcFuelNeed">0 E</strong>
+      </div>
+      <div class="p-1.5 rounded-lg bg-black/40 border border-white/10">
+        <div class="text-slate-400">최단 1도시</div>
+        <strong class="text-emerald-300 text-xs font-black" id="calcNextCityCost">10 E</strong>
+      </div>
+      <div class="p-1.5 rounded-lg bg-cyan-950/60 border border-cyan-500/40">
+        <div class="text-cyan-200">가용 여유금</div>
+        <strong class="text-cyan-300 text-xs font-black" id="calcSafeMargin">40 E</strong>
+      </div>
+    </div>
+    <div class="text-[12px] text-slate-300 bg-black/30 px-2.5 py-1.5 rounded-lg border border-white/5" id="calcSummaryTip">
+      현재 모든 발전소 가동에 필요한 최소 연료비와 가장 저렴한 도시 1곳 확장 비용을 제외한 여유 자금입니다.
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- 3. 메인 컨텐츠 영역 (4개 탭 뷰)                            -->
+  <!-- ========================================================= -->
+  <main class="flex-1 relative overflow-hidden flex flex-col">
+
+    <!-- [탭 1] 전력망 지도 뷰 (Grid Network Map) -->
+    <section id="view_map" class="flex-1 relative flex flex-col overflow-hidden bg-[#070b12]">
+      <!-- 맵 상단 플로팅 바 -->
+      <div class="absolute top-2.5 left-2.5 right-2.5 z-10 flex items-center justify-between pointer-events-none">
+        <div class="px-2.5 py-1 rounded-xl bg-black/80 border border-white/15 text-xs backdrop-blur-md pointer-events-auto flex items-center gap-2 shadow-lg">
+          <span class="font-extrabold text-cyan-300" id="mapRegionTitle">대한민국 전력망</span>
+          <span class="text-slate-400">|</span>
+          <span class="text-[12px] text-slate-300" id="mapStepLimitInfo">Step 1: 도시당 1명 (10 E)</span>
+        </div>
+        <div class="flex items-center gap-1 pointer-events-auto">
+          <button onclick="zoomGridMap(1.2)" class="w-8 h-8 rounded-lg bg-black/80 border border-white/20 text-slate-200 font-black text-sm flex items-center justify-center shadow-lg">+</button>
+          <button onclick="zoomGridMap(0.8)" class="w-8 h-8 rounded-lg bg-black/80 border border-white/20 text-slate-200 font-black text-sm flex items-center justify-center shadow-lg">-</button>
+          <button onclick="resetGridMapPan()" class="px-2 h-8 rounded-lg bg-black/80 border border-cyan-500/40 text-cyan-300 font-bold text-[12px] shadow-lg">중앙</button>
+        </div>
+      </div>
+
+      <!-- 인터랙티브 SVG 전력망 그래프 -->
+      <div id="gridMapContainer" class="flex-1 w-full h-full cursor-grab active:cursor-grabbing touch-none select-none">
+        <svg id="gridMapSvg" class="w-full h-full" viewBox="0 0 500 580" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="cityNodePlayer" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#34d399" />
+              <stop offset="100%" stop-color="#065f46" />
+            </radialGradient>
+            <radialGradient id="cityNodeEmpty" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#334155" />
+              <stop offset="100%" stop-color="#0f172a" />
+            </radialGradient>
+          </defs>
+          <g id="gridMapTransform">
+            <!-- 송전선 연결 파이프라인 레이어 -->
+            <g id="gridEdgesLayer"></g>
+            <!-- 도시 노드 레이어 -->
+            <g id="gridCitiesLayer"></g>
+          </g>
+        </svg>
+      </div>
+
+      <!-- 맵 하단: 내 보유 발전소 미니 카드 바 -->
+      <div class="bg-[#0d1322]/95 border-t border-white/10 p-2 shrink-0 space-y-1">
+        <div class="flex items-center justify-between text-[12px] px-1">
+          <span class="font-bold text-slate-300">내 보유 발전소 (최대 3기) & 적재 연료</span>
+          <span class="text-cyan-300 font-bold" id="miniPlantSummaryText">가동 가능: 0 도시</span>
+        </div>
+        <div class="grid grid-cols-3 gap-1.5" id="myPlantsMiniBar"></div>
+      </div>
+    </section>
+
+    <!-- [탭 2] 발전소 경매장 뷰 (Power Plants & Auction) -->
+    <section id="view_plants" class="hidden flex-1 overflow-y-auto p-3 space-y-3 bg-[#0a0f1a]">
+      <!-- 실시간 경매 진행 중일 때 뜨는 인터랙티브 경매 콘솔 -->
+      <div id="auctionActiveBox" class="hidden p-3.5 rounded-2xl bg-gradient-to-br from-amber-950/90 via-[#1f1608] to-slate-900 border-2 border-amber-400 auction-active space-y-2.5 shadow-2xl">
+        <div class="flex items-center justify-between border-b border-amber-500/30 pb-2">
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded bg-amber-500 text-slate-950 font-black text-xs">실시간 경매 진행 중!</span>
+            <strong class="text-amber-200 font-black text-sm" id="auctionPlantTitle">#03 석유 발전소</strong>
+          </div>
+          <span class="text-xs text-amber-300 font-extrabold" id="auctionCurrentBidBadge">현재 최고가: 3 E</span>
+        </div>
+
+        <div class="flex items-center justify-between text-xs bg-black/40 p-2.5 rounded-xl border border-white/10">
+          <div>
+            <div class="text-slate-400 text-[12px]">최고 입찰자: <strong class="text-white" id="auctionHighestBidder">없음</strong></div>
+            <div class="text-slate-300 text-[12px] mt-0.5" id="auctionPlantSpecText">필요 연료: 석유 2 → 전력 공급: 1 도시</div>
+          </div>
+          <div class="text-right">
+            <div class="text-slate-400 text-[12px]">내 입찰 가능 자금</div>
+            <strong class="text-amber-300 font-black text-sm" id="auctionMyMoneyText">50 E</strong>
+          </div>
+        </div>
+
+        <!-- AI 로봇 입찰 중계 로그 -->
+        <div class="text-[12px] text-cyan-200 bg-cyan-950/40 px-2.5 py-1.5 rounded-lg border border-cyan-500/30 font-semibold" id="auctionLiveTicker">
+          경매가 개시되었습니다. 입찰하거나 포기(패스)할 수 있습니다.
+        </div>
+
+        <!-- 입찰 액션 버튼들 -->
+        <div class="grid grid-cols-3 gap-2 pt-1">
+          <button onclick="playerBidAuction(1)" id="btnBidPlus1" class="py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-lg transition active:scale-95">
+            +1 E 입찰 (<span id="bidVal1">4</span> E)
+          </button>
+          <button onclick="playerBidAuction(2)" id="btnBidPlus2" class="py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-slate-950 font-black text-xs shadow-lg transition active:scale-95">
+            +2 E 압박 (<span id="bidVal2">5</span> E)
+          </button>
+          <button onclick="playerPassCurrentAuction()" class="py-2.5 rounded-xl bg-slate-800 hover:bg-rose-950 text-rose-300 border border-rose-500/40 font-extrabold text-xs transition active:scale-95">
+            입찰 포기 (패스)
+          </button>
+        </div>
+      </div>
+
+      <!-- 현재 시장 (Actual Market - 경매 입찰 가능 4장) -->
+      <div class="space-y-1.5">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-sm font-black text-amber-300">현재 시장 (Actual Market - 입찰 가능)</h2>
+            <p class="text-[12px] text-slate-400" id="marketPlantSubDesc">원하는 발전소를 터치하여 경매에 부치거나 라운드를 패스하세요.</p>
+          </div>
+          <button onclick="playerPassEntireAuctionPhase()" id="btnSkipAuctionPhase" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-white/15 text-slate-200 font-extrabold text-xs transition">
+            경매 불참 (패스)
+          </button>
+        </div>
+        <div class="grid grid-cols-2 gap-2" id="gridActualMarket"></div>
+      </div>
+
+      <!-- 미래 시장 (Future Market - 대기 4장) -->
+      <div class="space-y-1.5 pt-2 border-t border-white/10">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-extrabold text-cyan-300">미래 시장 (Future Market - 다음 순번 대기)</span>
+          <span class="text-[12px] text-slate-400" id="plantDeckRemainText">덱 잔여: 24장</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2" id="gridFutureMarket"></div>
+      </div>
+
+      <!-- 내 보유 발전소 상세 관리 -->
+      <div class="space-y-1.5 pt-2 border-t border-white/10">
+        <span class="text-xs font-extrabold text-emerald-300">내 보유 발전소 상세 (최대 3기)</span>
+        <div class="grid grid-cols-1 gap-2" id="myPlantsDetailList"></div>
+      </div>
+    </section>
+
+    <!-- [탭 3] 실시간 연료 시장 뷰 (Resource Market) -->
+    <section id="view_resources" class="hidden flex-1 overflow-y-auto p-3 space-y-3 bg-[#0a0f1a]">
+      <div class="flex items-center justify-between border-b border-white/10 pb-2">
+        <div>
+          <h2 class="text-sm font-black text-cyan-300">실시간 연료 거래소 (Resource Market)</h2>
+          <p class="text-[12px] text-slate-400">꼴찌부터 역순으로 구매합니다. 재고가 줄수록 가격이 급등합니다!</p>
+        </div>
+        <div class="text-right">
+          <span class="text-[12px] text-slate-400">보유 자금</span>
+          <div class="text-sm font-black text-amber-300" id="resMarketMyMoney">50 E</div>
+        </div>
+      </div>
+
+      <!-- 4대 연료 시장 슬롯 및 구매 컨트롤러 -->
+      <div class="space-y-2.5" id="fuelMarketListContainer"></div>
+
+      <!-- 다음 라운드 연료 리필량 안내 표 -->
+      <div class="p-3 rounded-xl bg-slate-900/90 border border-white/10 space-y-1.5 text-xs">
+        <div class="flex items-center justify-between">
+          <strong class="text-slate-200 font-extrabold">라운드 종료 시 연료 보충량 (현재 Step 기준)</strong>
+          <span class="text-[12px] text-cyan-300 font-bold" id="replenishStepBadge">Step 1 보충률</span>
+        </div>
+        <div class="grid grid-cols-4 gap-1.5 text-center text-[12px]" id="replenishRateGrid"></div>
+      </div>
+    </section>
+
+    <!-- [탭 4] 전체 기업 현황 & 공식 규칙 뷰 (Status & Rules) -->
+    <section id="view_status" class="hidden flex-1 overflow-y-auto p-3 space-y-3.5 bg-[#0a0f1a] text-xs">
+      <div class="space-y-2">
+        <h2 class="text-sm font-black text-amber-300">전력 기업 4사 실시간 현황</h2>
+        <div class="space-y-2" id="companyComparisonList"></div>
+      </div>
+
+      <!-- 최근 게임 진행 로그 -->
+      <div class="p-3 rounded-xl bg-black/40 border border-white/10 space-y-1.5">
+        <strong class="text-cyan-300 font-extrabold block">실시간 전력 거래소 기록 (Log)</strong>
+        <div id="gameLogsBox" class="max-h-40 overflow-y-auto space-y-1 text-[12px] text-slate-300 font-mono"></div>
+      </div>
+
+      <!-- 공식 전력 공급 수익표 -->
+      <div class="p-3 rounded-xl bg-slate-900/90 border border-white/10 space-y-2">
+        <strong class="text-emerald-300 font-extrabold block">공식 도시 전력 공급 수입표 (5단계 정산)</strong>
+        <div class="grid grid-cols-5 gap-1 text-center text-[12px]" id="incomeTableGrid"></div>
+      </div>
+
+      <!-- 핵심 규칙 요약 -->
+      <div class="p-3 rounded-xl bg-slate-900/90 border border-amber-500/30 space-y-2 leading-relaxed text-slate-300">
+        <strong class="text-amber-300 font-extrabold block text-sm">파워 그리드 핵심 공략 4계명</strong>
+        <p><strong>1. 역순의 법칙 (러버밴드)</strong>: 도시가 가장 많은 1등은 연료를 <strong>맨 마지막(가장 비싼 가격)</strong>에 사고, 도시도 맨 마지막에 짓습니다. 초반에는 일부러 도시를 1개 덜 지어 꼴찌를 유지하는 <strong>'숨죽이기'</strong>가 핵심 전략입니다.</p>
+        <p><strong>2. 연료 2배 비축</strong>: 각 발전소는 필요 연료량의 <strong>최대 2배</strong>까지 미리 저장할 수 있습니다. 내가 꼴찌여서 연료가 쌀 때 2배로 꽉 채워 두세요!</p>
+        <p><strong>3. 발전소 최대 3기</strong>: 발전소는 최대 3대까지만 보유할 수 있으며, 4번째 발전소를 사면 가장 낡은 발전소 1대를 폐기하고 새 발전소로 교체합니다.</p>
+        <p><strong>4. 최종 승리 조건</strong>: 누군가 목표 도시 수를 연결한 라운드에 게임이 끝나며, 단순히 도시가 많은 사람이 아니라 <strong>5단계에서 실제로 연료를 태워 전기를 공급한 도시가 가장 많은 사람</strong>이 승리합니다!</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================================= -->
+  <!-- 4. 하단 메인 액션 진행 바 & 탭 네비게이션                   -->
+  <!-- ========================================================= -->
+  <section class="bg-[#101726] border-t border-cyan-500/30 px-3 py-2 z-20 shrink-0 flex items-center justify-between gap-2 shadow-2xl">
+    <div class="min-w-0 flex-1">
+      <div class="text-[12px] text-cyan-300 font-extrabold truncate" id="bottomPhaseGuideTitle">2단계: 발전소 경매 진행 중</div>
+      <div class="text-[12px] text-slate-400 truncate" id="bottomPhaseGuideSub">시장에서 발전소를 선택해 입찰하거나 패스하세요.</div>
+    </div>
+    <button onclick="onClickMainNextButton()" id="btnMainNextAction" class="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs shadow-lg shrink-0 transition active:scale-95">
+      경매장 열기 →
+    </button>
+  </section>
+
+  <nav class="bg-[#080c14] border-t border-white/10 px-2 py-1.5 z-20 shrink-0 grid grid-cols-4 gap-1 text-xs">
+    <button onclick="switchTab('map')" id="tabBtn_map" class="py-1.5 rounded-lg flex flex-col items-center gap-0.5 bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-extrabold transition">
+      <div id="navIconMap"></div>
+      <span class="text-[12px]">전력망 지도</span>
+    </button>
+    <button onclick="switchTab('plants')" id="tabBtn_plants" class="py-1.5 rounded-lg flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-200 font-bold transition relative">
+      <div id="navIconPlants"></div>
+      <span class="text-[12px]">발전소·경매</span>
+    </button>
+    <button onclick="switchTab('resources')" id="tabBtn_resources" class="py-1.5 rounded-lg flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-200 font-bold transition">
+      <div id="navIconFuel"></div>
+      <span class="text-[12px]">연료 거래소</span>
+    </button>
+    <button onclick="switchTab('status')" id="tabBtn_status" class="py-1.5 rounded-lg flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-200 font-bold transition">
+      <div id="navIconStatus"></div>
+      <span class="text-[12px]">기업·규칙</span>
+    </button>
+  </nav>
+
+  <!-- ========================================================= -->
+  <!-- 5. 모달 팝업들 (발전소 교체, 설정, 라운드 정산, 최종 우승)  -->
+  <!-- ========================================================= -->
+
+  <!-- [모달 1] 4번째 발전소 구매 시 기존 발전소 폐기 선택 모달 -->
+  <div id="modalReplacePlant" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="bg-[#111827] border border-amber-500/60 rounded-2xl w-full max-w-sm p-4 space-y-3 shadow-2xl">
+      <h3 class="text-sm font-black text-amber-300">발전소 교체 (최대 3기 보유 제한)</h3>
+      <p class="text-xs text-slate-300">새 발전소를 도입하기 위해 기존에 보유한 발전소 3기 중 폐기할 1기를 선택하세요. (남은 연료는 새 발전소로 가능한 만큼 이전됩니다)</p>
+      <div class="space-y-2" id="replacePlantList"></div>
+    </div>
+  </div>
+
+  <!-- [모달 2] 5단계 전력 공급 및 라운드 수입 정산 모달 -->
+  <div id="modalBureaucracy" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="bg-[#0f172a] border border-emerald-500/60 rounded-2xl w-full max-w-md p-4 space-y-3.5 shadow-2xl">
+      <div class="text-center space-y-1">
+        <span class="px-2.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/40 font-extrabold text-[12px]" id="bureaucracyRoundBadge">제 1라운드 전력 정산</span>
+        <h3 class="text-base font-black text-emerald-200">5단계: 전력 공급 및 수익 배당</h3>
+      </div>
+      <div class="space-y-2 text-xs" id="bureaucracyResultList"></div>
+      <button onclick="closeBureaucracyAndNextRound()" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 text-slate-950 font-black text-xs shadow-lg">
+        수익 수령 및 다음 라운드 개시 →
+      </button>
+    </div>
+  </div>
+
+  <!-- [모달 3] 게임 설정 모달 (맵 선택, 오토마 난이도, 목표 도시 수) -->
+  <div id="modalSettings" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="bg-[#111827] border border-cyan-500/50 rounded-2xl w-full max-w-md p-4 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-white/10 pb-2">
+        <h3 class="font-black text-base text-cyan-300">파워 그리드 시뮬레이터 설정</h3>
+        <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-white font-bold text-xs">X</button>
+      </div>
+
+      <!-- 국가 전력망 맵 선택 -->
+      <div class="space-y-1.5">
+        <label class="text-xs font-extrabold text-slate-200">전력망 국가 맵 선택</label>
+        <select id="cfgSelectMap" class="w-full bg-[#090d16] border border-white/20 rounded-xl p-2.5 text-xs text-cyan-200 font-bold">
+          <option value="korea">대한민국 전력망 (서울·수도권 ~ 부산·제주 18개 거점)</option>
+          <option value="germany">독일 오리지널 맵 (베를린 ~ 뮌헨·프랑크푸르트 18개 거점)</option>
+        </select>
+      </div>
+
+      <!-- 오토마 로봇 난이도 -->
+      <div class="space-y-1.5">
+        <label class="text-xs font-extrabold text-slate-200">오토마 로봇 (The Robots 3사) 인공지능 수준</label>
+        <div class="grid grid-cols-3 gap-2 text-xs font-bold">
+          <button type="button" onclick="setCfgDiff('novice')" id="diffBtn_novice" class="py-2 rounded-xl border border-slate-700 bg-slate-800 text-slate-300">초보</button>
+          <button type="button" onclick="setCfgDiff('regular')" id="diffBtn_regular" class="py-2 rounded-xl border border-cyan-500 bg-cyan-500/20 text-cyan-300">보통</button>
+          <button type="button" onclick="setCfgDiff('expert')" id="diffBtn_expert" class="py-2 rounded-xl border border-slate-700 bg-slate-800 text-slate-300">숙련 (칼같이 견제)</button>
+        </div>
+      </div>
+
+      <!-- 승리 목표 도시 수 -->
+      <div class="space-y-1.5">
+        <label class="text-xs font-extrabold text-slate-200">게임 종료 목표 도시 수 (Step 2 전환 / 최종 종료)</label>
+        <select id="cfgSelectGoal" class="w-full bg-[#090d16] border border-white/20 rounded-xl p-2.5 text-xs text-amber-200 font-bold">
+          <option value="12">스피드 게임: 12개 도시 연결 시 종료 (Step 2: 6도시)</option>
+          <option value="15">표준 게임: 15개 도시 연결 시 종료 (Step 2: 7도시)</option>
+        </select>
+      </div>
+
+      <button onclick="applySettingsAndNewGame()" class="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 text-slate-950 font-black text-xs shadow-lg">
+        설정 적용하고 새 전력망 시작
+      </button>
+    </div>
+  </div>
+
+  <!-- [모달 4] 최종 게임 종료 및 우승 발표 모달 -->
+  <div id="modalGameFinish" class="hidden fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-3">
+    <div class="bg-[#111827] border-2 border-amber-500/70 rounded-2xl w-full max-w-md p-5 space-y-4 shadow-2xl text-center">
+      <div class="space-y-1">
+        <span class="px-3 py-1 rounded-full bg-amber-950 border border-amber-500/50 text-amber-300 font-extrabold text-xs" id="finishRoundBadge">최종 전력망 결산</span>
+        <h3 class="text-xl font-black text-amber-200" id="finishTitle">국가 전력망 제패!</h3>
+        <p class="text-xs text-slate-300" id="finishDesc">가장 많은 도시에 성공적으로 전기를 공급하여 최종 우승을 차지했습니다.</p>
+      </div>
+      <div class="space-y-2 text-xs" id="finishRankingList"></div>
+      <button onclick="applySettingsAndNewGame()" class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black text-xs shadow-lg">
+        새로운 게임 시작하기
+      </button>
+    </div>
+  </div>
+
+  <!-- 토스트 알림창 -->
+  <div id="toastArea" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-1.5 pointer-events-none w-11/12 max-w-sm"></div>
+
+  <!-- ========================================================= -->
+  <!-- 6. 인라인 SVG 벡터 아이콘 & 파워 그리드 코어 엔진 스크립트 -->
+  <!-- ========================================================= -->
+  <script>
+    // ---------------------------------------------------------
+    // (A) 인라인 SVG 벡터 아이콘 (유니코드 이모지 0개 엄격 준수)
+    // ---------------------------------------------------------
+    function iconSvg(name, size = 16) {
+      const s = size;
+      switch (name) {
+        case "bolt":
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
+        case "coal":
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 3 20 8 18 19 6 19 4 8 12 3"/><path d="M12 3v16M4 8l16 0"/></svg>`;
+        case "oil":
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>`;
+        case "garbage":
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`;
+        case "uranium":
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/><path d="M12 3v6M4.2 16.5l5.2-3M19.8 16.5l-5.2-3"/></svg>`;
+        case "eco":
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c0-3 2.5-5.5 5.5-5.5S23 9 23 12H12z"/><path d="M12 12c-3 0-5.5-2.5-5.5-5.5S9 1 12 1v11z"/><path d="M12 12c0 3-2.5 5.5-5.5 5.5S1 15 1 12h11z"/><path d="M12 12v10"/></svg>`;
+        case "city":
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9v.01M9 13v.01M9 17v.01"/></svg>`;
+        case "money":
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15 9H9.5a2.5 2.5 0 0 0 0 5h5a2.5 2.5 0 0 1 0 5H9"/><path d="M12 6v2m0 8v2"/></svg>`;
+        case "calc":
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="14" y1="14" x2="16" y2="14"/></svg>`;
+        case "bulb":
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5.76.76 1.23 1.52 1.41 2.5"/></svg>`;
+        case "gear":
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
+        case "gavel":
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14 13-7.5 7.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0a2.12 2.12 0 0 1 0-3L11 10"/><path d="m16 16 6-6"/><path d="m8 8 6-6"/><path d="m9 7 8 8"/><path d="m21 11-8-8"/></svg>`;
+        default:
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>`;
+      }
+    }
+
+    // ---------------------------------------------------------
+    // (B) 공식 전력 공급 수입표 (0도시 ~ 18도시 공급 시 배당금)
+    // ---------------------------------------------------------
+    const INCOME_TABLE = [
+      10, 22, 33, 44, 54, 64, 73, 82, 90, 98,
+      105, 112, 118, 124, 129, 134, 138, 142, 145
+    ];
+
+    // 연료 메타데이터
+    const FUEL_INFO = {
+      coal: { name: "석탄", color: "text-amber-500", bg: "bg-amber-950/60", border: "border-amber-600/50", badge: "bg-amber-700" },
+      oil: { name: "석유", color: "text-sky-400", bg: "bg-sky-950/60", border: "border-sky-500/50", badge: "bg-sky-700" },
+      garbage: { name: "바이오매스", color: "text-lime-400", bg: "bg-lime-950/60", border: "border-lime-500/50", badge: "bg-lime-700" },
+      uranium: { name: "우라늄", color: "text-rose-400", bg: "bg-rose-950/60", border: "border-rose-500/50", badge: "bg-rose-700" },
+      hybrid: { name: "석탄·석유 겸용", color: "text-purple-300", bg: "bg-purple-950/60", border: "border-purple-500/50", badge: "bg-purple-700" },
+      eco: { name: "친환경(무연료)", color: "text-emerald-400", bg: "bg-emerald-950/60", border: "border-emerald-500/50", badge: "bg-emerald-700" }
+    };
+
+    // 4인 기준 Step별 라운드 종료 연료 보충량 (공식 밸런스)
+    const REPLENISH_RATES = {
+      1: { coal: 5, oil: 3, garbage: 2, uranium: 1 },
+      2: { coal: 6, oil: 4, garbage: 3, uranium: 2 },
+      3: { coal: 4, oil: 5, garbage: 4, uranium: 2 }
+    };
+
+    // ---------------------------------------------------------
+    // (C) 공식 발전소 카드 데이터베이스 (번호 = 최소 입찰 시작가)
+    // ---------------------------------------------------------
+    const POWER_PLANTS_DB = [
+      // 초기 시장 8장 (#03 ~ #10)
+      { num: 3, fuelType: "oil", fuelNeed: 2, cities: 1, name: "#03 구형 중유 발전소" },
+      { num: 4, fuelType: "coal", fuelNeed: 2, cities: 1, name: "#04 소형 석탄 화력" },
+      { num: 5, fuelType: "hybrid", fuelNeed: 2, cities: 1, name: "#05 열병합 겸용 발전소" },
+      { num: 6, fuelType: "garbage", fuelNeed: 1, cities: 1, name: "#06 자원순환 소각장" },
+      { num: 7, fuelType: "oil", fuelNeed: 3, cities: 2, name: "#07 해안 중유 발전소" },
+      { num: 8, fuelType: "coal", fuelNeed: 3, cities: 2, name: "#08 내륙 석탄 화력" },
+      { num: 9, fuelType: "oil", fuelNeed: 1, cities: 1, name: "#09 고효율 가스터빈" },
+      { num: 10, fuelType: "coal", fuelNeed: 2, cities: 2, name: "#10 개량형 석탄 발전소" },
+
+      // 중반 및 후반 발전소 덱 (#11 ~ #42)
+      { num: 11, fuelType: "uranium", fuelNeed: 1, cities: 2, name: "#11 초기형 경수로 원전" },
+      { num: 12, fuelType: "hybrid", fuelNeed: 2, cities: 2, name: "#12 복합 화력 발전소" },
+      { num: 13, fuelType: "eco", fuelNeed: 0, cities: 1, name: "#13 육상 풍력 단지" },
+      { num: 14, fuelType: "garbage", fuelNeed: 2, cities: 2, name: "#14 바이오매스 열병합" },
+      { num: 15, fuelType: "coal", fuelNeed: 2, cities: 3, name: "#15 초임계압 석탄 화력" },
+      { num: 16, fuelType: "oil", fuelNeed: 2, cities: 3, name: "#16 대용량 중유 터빈" },
+      { num: 17, fuelType: "uranium", fuelNeed: 1, cities: 2, name: "#17 가압중수로 원자력" },
+      { num: 18, fuelType: "eco", fuelNeed: 0, cities: 2, name: "#18 해상 풍력 발전 단지" },
+      { num: 19, fuelType: "garbage", fuelNeed: 2, cities: 3, name: "#19 광역 폐기물 에너지화" },
+      { num: 20, fuelType: "coal", fuelNeed: 3, cities: 5, name: "#20 메가 석탄 화력 본부" },
+      { num: 21, fuelType: "hybrid", fuelNeed: 2, cities: 4, name: "#21 고효율 LNG·석탄 겸용" },
+      { num: 22, fuelType: "eco", fuelNeed: 0, cities: 2, name: "#22 대단위 태양광 타워" },
+      { num: 24, fuelType: "garbage", fuelNeed: 2, cities: 4, name: "#24 친환경 바이오 플랜트" },
+      { num: 25, fuelType: "coal", fuelNeed: 2, cities: 5, name: "#25 초고효율 석탄 발전" },
+      { num: 26, fuelType: "oil", fuelNeed: 2, cities: 5, name: "#26 복합 사이클 정유 발전" },
+      { num: 27, fuelType: "eco", fuelNeed: 0, cities: 3, name: "#27 동해안 대단위 풍력" },
+      { num: 28, fuelType: "uranium", fuelNeed: 1, cities: 4, name: "#28 차세대 한국형 원전" },
+      { num: 30, fuelType: "garbage", fuelNeed: 3, cities: 6, name: "#30 메가 리사이클 플랜트" },
+      { num: 33, fuelType: "eco", fuelNeed: 0, cities: 4, name: "#33 조력·해상풍력 메가그리드" },
+      { num: 37, fuelType: "eco", fuelNeed: 0, cities: 4, name: "#37 초전도 태양광 발전소" },
+      { num: 39, fuelType: "uranium", fuelNeed: 1, cities: 6, name: "#39 소형모듈원전(SMR) 클러스터" },
+      { num: 44, fuelType: "eco", fuelNeed: 0, cities: 5, name: "#44 핵융합 친환경 플랜트" }
+    ];
+
+    // ---------------------------------------------------------
+    // (D) 국가 전력망 지도 데이터베이스 (대한민국 & 독일 18개 거점)
+    // ---------------------------------------------------------
+    const MAPS_DB = {
+      korea: {
+        name: "대한민국 전력망",
+        cities: [
+          { id: "seoul", name: "서울", region: "수도권", x: 185, y: 115 },
+          { id: "incheon", name: "인천", region: "수도권", x: 110, y: 130 },
+          { id: "suwon", name: "수원", region: "수도권", x: 180, y: 175 },
+          { id: "chuncheon", name: "춘천", region: "강원권", x: 265, y: 85 },
+          { id: "gangneung", name: "강릉", region: "강원권", x: 380, y: 105 },
+          { id: "wonju", name: "원주", region: "강원권", x: 285, y: 160 },
+          { id: "cheonan", name: "천안", region: "충청권", x: 175, y: 240 },
+          { id: "cheongju", name: "청주", region: "충청권", x: 245, y: 245 },
+          { id: "daejeon", name: "대전", region: "충청권", x: 230, y: 305 },
+          { id: "andong", name: "안동", region: "영남권", x: 350, y: 235 },
+          { id: "pohang", name: "포항", region: "영남권", x: 430, y: 295 },
+          { id: "daegu", name: "대구", region: "영남권", x: 345, y: 330 },
+          { id: "ulsan", name: "울산", region: "영남권", x: 425, y: 375 },
+          { id: "busan", name: "부산", region: "영남권", x: 390, y: 440 },
+          { id: "changwon", name: "창원", region: "영남권", x: 315, y: 430 },
+          { id: "jeonju", name: "전주", region: "호남권", x: 180, y: 365 },
+          { id: "gwangju", name: "광주", region: "호남권", x: 155, y: 445 },
+          { id: "yeosu", name: "여수", region: "호남권", x: 235, y: 485 }
+        ],
+        edges: [
+          ["seoul", "incheon", 4], ["seoul", "suwon", 5], ["seoul", "chuncheon", 9],
+          ["incheon", "suwon", 6], ["incheon", "cheonan", 11],
+          ["suwon", "wonju", 10], ["suwon", "cheonan", 7],
+          ["chuncheon", "gangneung", 14], ["chuncheon", "wonju", 9],
+          ["gangneung", "wonju", 13], ["gangneung", "andong", 18], ["gangneung", "pohang", 20],
+          ["wonju", "cheongju", 11], ["wonju", "andong", 14],
+          ["cheonan", "cheongju", 6], ["cheonan", "daejeon", 8], ["cheonan", "jeonju", 13],
+          ["cheongju", "daejeon", 6], ["cheongju", "andong", 14],
+          ["daejeon", "daegu", 13], ["daejeon", "jeonju", 9],
+          ["andong", "pohang", 12], ["andong", "daegu", 10],
+          ["pohang", "daegu", 9], ["pohang", "ulsan", 8],
+          ["daegu", "ulsan", 9], ["daegu", "busan", 11], ["daegu", "changwon", 10], ["daegu", "jeonju", 16],
+          ["ulsan", "busan", 6],
+          ["busan", "changwon", 6],
+          ["changwon", "yeosu", 12], ["changwon", "jeonju", 16],
+          ["jeonju", "gwangju", 9], ["jeonju", "yeosu", 13],
+          ["gwangju", "yeosu", 9]
+        ]
+      },
+      germany: {
+        name: "독일 오리지널 전력망",
+        cities: [
+          { id: "kiel", name: "킬", region: "북부", x: 220, y: 65 },
+          { id: "hamburg", name: "함부르크", region: "북부", x: 235, y: 125 },
+          { id: "bremen", name: "브레멘", region: "북부", x: 155, y: 145 },
+          { id: "hannover", name: "하노버", region: "북부", x: 225, y: 200 },
+          { id: "berlin", name: "베를린", region: "동부", x: 375, y: 175 },
+          { id: "magdeburg", name: "마그데부르크", region: "동부", x: 305, y: 215 },
+          { id: "leipzig", name: "라이프치히", region: "동부", x: 335, y: 280 },
+          { id: "dresden", name: "드레스덴", region: "동부", x: 410, y: 295 },
+          { id: "duesseldorf", name: "뒤셀도르프", region: "서부", x: 95, y: 255 },
+          { id: "koeln", name: "쾰른", region: "서부", x: 105, y: 310 },
+          { id: "kassel", name: "카셀", region: "중부", x: 215, y: 275 },
+          { id: "frankfurt", name: "프랑크푸르트", region: "중부", x: 175, y: 350 },
+          { id: "erfurt", name: "에르푸르트", region: "동부", x: 275, y: 305 },
+          { id: "mannheim", name: "만하임", region: "남서부", x: 160, y: 410 },
+          { id: "nuernberg", name: "뉘른베르크", region: "남부", x: 285, y: 390 },
+          { id: "stuttgart", name: "슈투트가르트", region: "남서부", x: 195, y: 455 },
+          { id: "augsburg", name: "아우크스부르크", region: "남부", x: 265, y: 475 },
+          { id: "muenchen", name: "뮌헨", region: "남부", x: 340, y: 490 }
+        ],
+        edges: [
+          ["kiel", "hamburg", 8], ["hamburg", "bremen", 11], ["hamburg", "hannover", 14], ["hamburg", "berlin", 18],
+          ["bremen", "hannover", 10], ["bremen", "duesseldorf", 16],
+          ["hannover", "magdeburg", 12], ["hannover", "kassel", 11], ["hannover", "duesseldorf", 15],
+          ["berlin", "magdeburg", 10], ["berlin", "leipzig", 14], ["berlin", "dresden", 16],
+          ["magdeburg", "leipzig", 9], ["leipzig", "dresden", 9], ["leipzig", "erfurt", 10],
+          ["duesseldorf", "koeln", 4], ["koeln", "frankfurt", 14], ["koeln", "kassel", 14],
+          ["kassel", "frankfurt", 11], ["kassel", "erfurt", 11],
+          ["erfurt", "nuernberg", 14], ["frankfurt", "mannheim", 7], ["frankfurt", "nuernberg", 15],
+          ["mannheim", "stuttgart", 9], ["stuttgart", "augsburg", 10], ["stuttgart", "nuernberg", 14],
+          ["nuernberg", "augsburg", 12], ["nuernberg", "muenchen", 13], ["augsburg", "muenchen", 6]
+        ]
+      }
+    };
+
+    // ---------------------------------------------------------
+    // (E) 연료 시장 가격 계산 헬퍼 (재고가 많을수록 저렴, 적을수록 비쌈)
+    // ---------------------------------------------------------
+    // 석탄, 석유, 바이오매스: 최대 24개 재고 (가격 1~8 E, 각 가격당 3칸)
+    // 우라늄: 최대 12개 재고 (가격 1,2,3,4,5,6,7,8,10,12,14,16 E)
+    function getUnitFuelPrice(fuelKey, currentStock) {
+      if (currentStock <= 0) return null; // 품절
+      if (fuelKey === "uranium") {
+        const uPrices = [16, 14, 12, 10, 8, 7, 6, 5, 4, 3, 2, 1];
+        const idx = Math.min(uPrices.length - 1, Math.max(0, currentStock - 1));
+        return uPrices[idx];
+      } else {
+        // 재고 24~22 -> 1원, 21~19 -> 2원, ..., 3~1 -> 8원
+        return Math.max(1, 9 - Math.ceil(currentStock / 3));
+      }
+    }
+
+    // 특정 수량 구매 시 총 비용 산출
+    function calcFuelPurchaseCost(fuelKey, count, currentStock) {
+      if (count <= 0) return 0;
+      if (currentStock < count) return Infinity;
+      let total = 0;
+      for (let i = 0; i < count; i++) {
+        total += getUnitFuelPrice(fuelKey, currentStock - i);
+      }
+      return total;
+    }
+
+    // ---------------------------------------------------------
+    // (F) 다익스트라(Dijkstra) 최단 송전선 연결 비용 계산 알고리즘
+    // ---------------------------------------------------------
+    function calcShortestConnectionCost(company, targetCityId) {
+      if (!P || !P.map) return 0;
+      // 아직 도시가 0개인 경우 첫 도시는 연결비 0원!
+      if (company.cities.length === 0) return 0;
+      if (company.cities.includes(targetCityId)) return 0;
+
+      const cities = P.map.cities;
+      const edges = P.map.edges;
+      const dist = {};
+      const visited = new Set();
+
+      cities.forEach(c => { dist[c.id] = Infinity; });
+      company.cities.forEach(cid => { dist[cid] = 0; });
+
+      while (visited.size < cities.length) {
+        let u = null;
+        let minVal = Infinity;
+        for (const cid in dist) {
+          if (!visited.has(cid) && dist[cid] < minVal) {
+            minVal = dist[cid];
+            u = cid;
+          }
+        }
+        if (u === null || minVal === Infinity) break;
+        if (u === targetCityId) return dist[u];
+        visited.add(u);
+
+        edges.forEach(([a, b, w]) => {
+          if (a === u && !visited.has(b)) {
+            if (dist[u] + w < dist[b]) dist[b] = dist[u] + w;
+          } else if (b === u && !visited.has(a)) {
+            if (dist[u] + w < dist[a]) dist[a] = dist[u] + w;
+          }
+        });
+      }
+
+      return dist[targetCityId] === Infinity ? 999 : dist[targetCityId];
+    }
+
+    // 특정 도시에 입주할 때 총 비용 (입주비 10/15/20 + 최단 송전선 연결비) 검사
+    function getCityBuildTotalCost(company, cityId) {
+      if (company.cities.includes(cityId)) {
+        return { canBuild: false, reason: "이미 내 전력망에 연결된 도시입니다.", totalCost: 0 };
+      }
+      const occupants = P.cityOccupants[cityId] || [];
+      if (occupants.length >= P.step) {
+        return { canBuild: false, reason: `Step ${P.step} 제한 (도시당 최대 ${P.step}명 입주 완료)`, totalCost: 0 };
+      }
+
+      const slotCost = occupants.length === 0 ? 10 : (occupants.length === 1 ? 15 : 20);
+      const wireCost = calcShortestConnectionCost(company, cityId);
+      const totalCost = slotCost + wireCost;
+
+      if (company.money < totalCost) {
+        return { canBuild: false, reason: `자금 부족 (필요 ${totalCost} E)`, slotCost, wireCost, totalCost };
+      }
+
+      return { canBuild: true, slotCost, wireCost, totalCost, reason: "건설 가능" };
+    }
+
+    // ---------------------------------------------------------
+    // (G) 전역 상태 관리 및 게임 초기화
+    // ---------------------------------------------------------
+    let P = null;
+    let cfgMapKey = "korea";
+    let cfgDifficulty = "regular";
+    let cfgGoalCities = 12;
+    let activeTab = "map";
+    let coachEnabled = true;
+    let budgetOpen = false;
+
+    // 맵 팬 & 줌 상태
+    let gridPan = { x: 0, y: 0 };
+    let gridZoom = 1.0;
+    let isDraggingGrid = false;
+    let gridDragStart = { x: 0, y: 0 };
+
+    // 4번째 발전소 교체 대기 상태
+    let pendingWonPlant = null;
+
+    function shuffle(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function initNewPowerGridGame() {
+      const mapData = MAPS_DB[cfgMapKey] || MAPS_DB.korea;
+
+      // 초기 시장 8장 (#03 ~ #10)
+      const initialMarket = POWER_PLANTS_DB.slice(0, 8).map(p => ({ ...p }));
+      // 나머지 발전소 덱 구성 (#13 친환경을 맨 위에 배치하는 공식 룰 반영)
+      const plant13 = { ...POWER_PLANTS_DB.find(p => p.num === 13) };
+      const restPlants = shuffle(POWER_PLANTS_DB.slice(8).filter(p => p.num !== 13).map(p => ({ ...p })));
+      // Step 3 카드를 덱 맨 아래에 삽입
+      const deck = [plant13, ...restPlants, { num: 99, isStep3Card: true, name: "STEP 3 전환 카드" }];
+
+      const companies = [
+        {
+          id: "player",
+          name: "내 전력공사 (나)",
+          isPlayer: true,
+          color: "#10b981",
+          badgeBg: "bg-emerald-500 text-slate-950",
+          money: 50,
+          plants: [],
+          fuel: { coal: 0, oil: 0, garbage: 0, uranium: 0 },
+          cities: [],
+          boughtPlantThisRound: false,
+          passedAuctionPhase: false
+        },
+        {
+          id: "bot_volt",
+          name: "볼트 코퍼레이션",
+          isPlayer: false,
+          persona: "aggressive",
+          color: "#f43f5e",
+          badgeBg: "bg-rose-500 text-white",
+          money: 50,
+          plants: [],
+          fuel: { coal: 0, oil: 0, garbage: 0, uranium: 0 },
+          cities: [],
+          boughtPlantThisRound: false,
+          passedAuctionPhase: false
+        },
+        {
+          id: "bot_gold",
+          name: "블랙골드 에너지",
+          isPlayer: false,
+          persona: "hoarder",
+          color: "#f59e0b",
+          badgeBg: "bg-amber-500 text-slate-950",
+          money: 50,
+          plants: [],
+          fuel: { coal: 0, oil: 0, garbage: 0, uranium: 0 },
+          cities: [],
+          boughtPlantThisRound: false,
+          passedAuctionPhase: false
+        },
+        {
+          id: "bot_eco",
+          name: "에코 그리드",
+          isPlayer: false,
+          persona: "green",
+          color: "#a855f7",
+          badgeBg: "bg-purple-500 text-white",
+          money: 50,
+          plants: [],
+          fuel: { coal: 0, oil: 0, garbage: 0, uranium: 0 },
+          cities: [],
+          boughtPlantThisRound: false,
+          passedAuctionPhase: false
+        }
+      ];
+
+      const cityOccupants = {};
+      mapData.cities.forEach(c => { cityOccupants[c.id] = []; });
+
+      P = {
+        round: 1,
+        step: 1,
+        phase: "auction", // 'auction'(2단계), 'resources'(3단계), 'build'(4단계), 'bureaucracy'(5단계), 'ended'
+        mapKey: cfgMapKey,
+        map: mapData,
+        goalCities: parseInt(cfgGoalCities) || 12,
+        step2TriggerCities: (parseInt(cfgGoalCities) === 15) ? 7 : 6,
+        diff: cfgDifficulty,
+
+        companies,
+        turnOrder: ["player", "bot_volt", "bot_gold", "bot_eco"],
+        cityOccupants,
+
+        // 발전소 시장 및 덱
+        marketPlants: initialMarket,
+        plantDeck: deck,
+
+        // 실시간 경매 상태
+        auction: null,
+
+        // 연료 거래소 초기 재고 (공식 초기 세팅: 석탄 24, 석유 18, 바이오매스 9, 우라늄 2)
+        fuelStock: {
+          coal: 24,
+          oil: 18,
+          garbage: 9,
+          uranium: 2
+        },
+
+        logs: [],
+        ended: false
+      };
+
+      closeAllModals();
+      determineTurnOrder(true);
+      log("=== 국가 전력망 시뮬레이션 개시 (제 1라운드) ===");
+      log("1라운드에는 모든 기업이 발전소를 최소 1기씩 의무 구매해야 합니다.");
+      switchTab("plants");
+      renderAll();
+      pushToast("제 1라운드 시작! [발전소·경매] 탭에서 첫 발전소를 입찰하세요.");
+    }
+
+    function getCompany(id) {
+      return P.companies.find(c => c.id === id);
+    }
+
+    function getPlayer() {
+      return getCompany("player");
+    }
+
+    function getHighestPlantNum(comp) {
+      if (!comp.plants || comp.plants.length === 0) return 0;
+      return Math.max(...comp.plants.map(p => p.num));
+    }
+
+    // 보유 발전소들의 총 도시 공급 용량
+    function getTotalPlantCapacity(comp) {
+      return comp.plants.reduce((sum, pl) => sum + pl.cities, 0);
+    }
+
+    // 각 연료별 최대 저장 가능 한도 (보유 발전소 요구량의 2배)
+    function getMaxFuelStorage(comp, fuelKey) {
+      let maxCap = 0;
+      comp.plants.forEach(pl => {
+        if (pl.fuelType === fuelKey) {
+          maxCap += pl.fuelNeed * 2;
+        } else if (pl.fuelType === "hybrid" && (fuelKey === "coal" || fuelKey === "oil")) {
+          maxCap += pl.fuelNeed * 2;
+        }
+      });
+      return maxCap;
+    }
+
+    // 현재 보유 연료로 실제 가동 가능한 최대 도시 수 계산
+    function calcPowerableCities(comp) {
+      let availCoal = comp.fuel.coal;
+      let availOil = comp.fuel.oil;
+      let availGarbage = comp.fuel.garbage;
+      let availUranium = comp.fuel.uranium;
+      let poweredCities = 0;
+
+      // 공급량이 큰 발전소부터 우선 가동
+      const sortedPlants = [...comp.plants].sort((a, b) => b.cities - a.cities);
+      sortedPlants.forEach(pl => {
+        if (pl.fuelType === "eco") {
+          poweredCities += pl.cities;
+        } else if (pl.fuelType === "coal" && availCoal >= pl.fuelNeed) {
+          availCoal -= pl.fuelNeed;
+          poweredCities += pl.cities;
+        } else if (pl.fuelType === "oil" && availOil >= pl.fuelNeed) {
+          availOil -= pl.fuelNeed;
+          poweredCities += pl.cities;
+        } else if (pl.fuelType === "garbage" && availGarbage >= pl.fuelNeed) {
+          availGarbage -= pl.fuelNeed;
+          poweredCities += pl.cities;
+        } else if (pl.fuelType === "uranium" && availUranium >= pl.fuelNeed) {
+          availUranium -= pl.fuelNeed;
+          poweredCities += pl.cities;
+        } else if (pl.fuelType === "hybrid" && (availCoal + availOil) >= pl.fuelNeed) {
+          let need = pl.fuelNeed;
+          const useCoal = Math.min(availCoal, need);
+          availCoal -= useCoal;
+          need -= useCoal;
+          availOil -= need;
+          poweredCities += pl.cities;
+        }
+      });
+
+      return Math.min(comp.cities.length, poweredCities);
+    }
+
+    // ---------------------------------------------------------
+    // (H) 1단계: 턴 순서 결정 (도시 수 내림차순 -> 최고 발전소 번호 내림차순)
+    // ---------------------------------------------------------
+    function determineTurnOrder(isFirstRound = false) {
+      if (isFirstRound && P.round === 1 && P.companies.every(c => c.plants.length === 0)) {
+        // 1라운드 최초 시작 시 플레이어가 1번
+        P.turnOrder = ["player", "bot_volt", "bot_gold", "bot_eco"];
+        return;
+      }
+      const sorted = [...P.companies].sort((a, b) => {
+        if (b.cities.length !== a.cities.length) return b.cities.length - a.cities.length;
+        return getHighestPlantNum(b) - getHighestPlantNum(a);
+      });
+      P.turnOrder = sorted.map(c => c.id);
+    }
+
+    // ---------------------------------------------------------
+    // (I) 2단계: 발전소 경매 엔진 (Auction Phase)
+    // ---------------------------------------------------------
+    function getActualMarketPlants() {
+      const count = P.step === 3 ? Math.min(6, P.marketPlants.length) : Math.min(4, P.marketPlants.length);
+      return P.marketPlants.slice(0, count);
+    }
+
+    function getFutureMarketPlants() {
+      if (P.step === 3) return [];
+      return P.marketPlants.slice(4, 8);
+    }
+
+    function drawNextPlantToMarket() {
+      if (P.plantDeck.length === 0) return;
+      const nextCard = P.plantDeck.shift();
+      if (nextCard.isStep3Card) {
+        triggerStep3Transition();
+        return;
+      }
+      P.marketPlants.push(nextCard);
+      P.marketPlants.sort((a, b) => a.num - b.num);
+    }
+
+    function triggerStep3Transition() {
+      if (P.step === 3) return;
+      P.step = 3;
+      // 가장 작은 번호 발전소 1장 제거
+      if (P.marketPlants.length > 0) {
+        const removed = P.marketPlants.shift();
+        log(`[STEP 3 돌입!] 시장 최저 발전소 [${removed.name}] 제거 & 전체 시장 6장 전면 개방!`);
+      }
+      P.plantDeck = shuffle(P.plantDeck.filter(c => !c.isStep3Card));
+      pushToast("STEP 3(최종 결전기) 돌입! 이제 도시당 3명 입주 가능 & 모든 발전소 입찰 가능!");
+    }
+
+    // 플레이어가 현재 시장의 특정 발전소를 클릭해 경매 개시
+    function onSelectPlantForAuction(plantNum) {
+      if (P.phase !== "auction") {
+        pushToast("현재는 발전소 경매 단계가 아닙니다.", true);
+        return;
+      }
+      const player = getPlayer();
+      if (player.boughtPlantThisRound || player.passedAuctionPhase) {
+        pushToast("이번 라운드 경매는 이미 완료했습니다.", true);
+        return;
+      }
+      if (P.auction) {
+        pushToast("이미 진행 중인 경매가 있습니다! 상단 경매 콘솔에서 입찰하세요.", true);
+        return;
+      }
+
+      const actual = getActualMarketPlants();
+      const targetPlant = actual.find(pl => pl.num === plantNum);
+      if (!targetPlant) {
+        pushToast("현재 시장(Actual Market)에 있는 발전소만 경매에 부칠 수 있습니다.", true);
+        return;
+      }
+      if (player.money < targetPlant.num) {
+        pushToast(`보유 자금이 최소 입찰가(${targetPlant.num} E)보다 부족합니다.`, true);
+        return;
+      }
+
+      // 경매 세션 시작 (플레이어가 시작가로 입찰한 상태로 개시)
+      P.auction = {
+        plant: targetPlant,
+        currentBid: targetPlant.num,
+        highestBidder: "player",
+        activeBidders: P.turnOrder.filter(cid => {
+          const c = getCompany(cid);
+          return !c.boughtPlantThisRound && !c.passedAuctionPhase && c.money >= targetPlant.num;
+        }),
+        tickerMsg: `내가 [${targetPlant.name}] 경매를 ${targetPlant.num} E로 개시했습니다!`
+      };
+
+      log(`[경매 개시] 플레이어가 [${targetPlant.name}] 입찰 시작 (${targetPlant.num} E)`);
+      // 봇들의 초기 응찰 반응 실행
+      processBotsAuctionResponse();
+      renderAll();
+    }
+
+    // 봇이 경매에서 이 발전소에 부여하는 최대 가치(Max Willingness to Pay) 계산
+    function evaluatePlantMaxBidForBot(bot, plant) {
+      const curCap = getTotalPlantCapacity(bot);
+      const minPlantCities = bot.plants.length > 0 ? Math.min(...bot.plants.map(p => p.cities)) : 0;
+      // 3기가 꽉 찼는데 기존 최소 발전소보다 공급량이 같거나 적으면 관심 없음
+      if (bot.plants.length >= 3 && plant.cities <= minPlantCities) {
+        return 0;
+      }
+
+      let baseValue = plant.num + (plant.cities * 3);
+      if (bot.persona === "aggressive") baseValue += 4;
+      if (bot.persona === "green" && (plant.fuelType === "eco" || plant.fuelType === "uranium")) baseValue += 6;
+      if (bot.persona === "hoarder" && (plant.fuelType === "coal" || plant.fuelType === "oil")) baseValue += 4;
+
+      // 난이도 보정: 숙련일수록 플레이어에게 필요한 발전소에 바가지를 씌움
+      if (P.diff === "expert") baseValue += 3;
+
+      // 최소한의 연료/도시 확장 예비비(12 E)는 남겨둠 (단 1라운드는 예외)
+      const reserve = P.round === 1 ? 10 : 14;
+      const maxAffordable = Math.max(plant.num, bot.money - reserve);
+
+      return Math.min(baseValue, maxAffordable, bot.money);
+    }
+
+    function processBotsAuctionResponse() {
+      const auc = P.auction;
+      if (!auc) return;
+
+      // 플레이어를 제외한 활성 봇 입찰자 순회
+      const botsInAuction = auc.activeBidders.filter(id => id !== "player");
+      let anyBotBid = false;
+
+      for (const botId of botsInAuction) {
+        const bot = getCompany(botId);
+        const maxWilling = evaluatePlantMaxBidForBot(bot, auc.plant);
+        const nextBid = auc.currentBid + 1;
+
+        if (bot.money >= nextBid && nextBid <= maxWilling) {
+          auc.currentBid = nextBid;
+          auc.highestBidder = botId;
+          auc.tickerMsg = `[${bot.name}]이(가) ${nextBid} E로 호가를 올렸습니다! ("이 발전소는 우리가 접수한다!")`;
+          anyBotBid = true;
+          break; // 한 명씩 플레이어와 핑퐁
+        } else {
+          // 해당 봇 경매 포기
+          auc.activeBidders = auc.activeBidders.filter(id => id !== botId);
+        }
+      }
+
+      // 만약 남은 활성 입찰자가 1명뿐이고 그게 최고 입찰자라면 즉시 낙찰!
+      if (auc.activeBidders.length <= 1 && auc.highestBidder) {
+        finalizeCurrentAuction();
+      }
+    }
+
+    function playerBidAuction(increment) {
+      const auc = P.auction;
+      if (!auc) return;
+      const player = getPlayer();
+      const newBid = auc.currentBid + increment;
+
+      if (player.money < newBid) {
+        pushToast(`자금이 부족합니다! (보유: ${player.money} E, 입찰가: ${newBid} E)`, true);
+        return;
+      }
+
+      auc.currentBid = newBid;
+      auc.highestBidder = "player";
+      auc.tickerMsg = `내가 ${newBid} E를 호가했습니다! 라이벌 기업의 반응을 기다립니다...`;
+
+      processBotsAuctionResponse();
+      renderAll();
+    }
+
+    function playerPassCurrentAuction() {
+      const auc = P.auction;
+      if (!auc) return;
+
+      // 플레이어가 현재 경매에서 빠짐
+      auc.activeBidders = auc.activeBidders.filter(id => id !== "player");
+
+      // 만약 플레이어가 단독 입찰자였는데 취소한 경우
+      if (auc.activeBidders.length === 0) {
+        P.auction = null;
+        pushToast("경매를 취소했습니다. 다른 발전소를 고르거나 경매 단계를 패스하세요.");
+        renderAll();
+        return;
+      }
+
+      // 남은 봇들끼리 최고가 계산 후 낙찰
+      let bestBotId = auc.highestBidder !== "player" ? auc.highestBidder : auc.activeBidders[0];
+      let bestBid = auc.currentBid;
+
+      auc.activeBidders.forEach(bidId => {
+        const bot = getCompany(bidId);
+        const w = evaluatePlantMaxBidForBot(bot, auc.plant);
+        if (w > bestBid && bot.money >= bestBid + 1) {
+          bestBid = Math.min(bot.money, bestBid + 1);
+          bestBotId = bidId;
+        }
+      });
+
+      auc.highestBidder = bestBotId;
+      auc.currentBid = bestBid;
+      finalizeCurrentAuction();
+    }
+
+    function finalizeCurrentAuction() {
+      const auc = P.auction;
+      if (!auc) return;
+      const winner = getCompany(auc.highestBidder);
+      const plant = auc.plant;
+      const price = auc.currentBid;
+
+      winner.money -= price;
+      winner.boughtPlantThisRound = true;
+
+      // 시장에서 해당 발전소 제거 후 덱에서 1장 보충
+      P.marketPlants = P.marketPlants.filter(pl => pl.num !== plant.num);
+      drawNextPlantToMarket();
+
+      P.auction = null;
+
+      log(`[경매 낙찰] ${winner.name} → [${plant.name}] (${price} E 낙찰)`);
+      pushToast(`[낙찰 완료] ${winner.name}: [${plant.name}] (${price} E)`);
+
+      // 보유 발전소가 이미 3기인 경우 교체 처리
+      if (winner.plants.length >= 3) {
+        if (winner.isPlayer) {
+          pendingWonPlant = { ...plant };
+          openReplacePlantModal();
+          return;
+        } else {
+          // 봇은 가장 번호가 낮은 발전소를 자동 교체
+          winner.plants.sort((a, b) => a.num - b.num);
+          const removed = winner.plants.shift();
+          winner.plants.push({ ...plant });
+          trimExcessFuel(winner);
+          log(`[발전소 교체] ${winner.name}: 구형 [${removed.name}] 폐기`);
+        }
+      } else {
+        winner.plants.push({ ...plant });
+      }
+
+      checkAndFinishAuctionPhase();
+      renderAll();
+    }
+
+    function openReplacePlantModal() {
+      const modal = document.getElementById("modalReplacePlant");
+      const list = document.getElementById("replacePlantList");
+      const player = getPlayer();
+      if (!modal || !list) return;
+
+      list.innerHTML = player.plants.map((pl, idx) => `
+        <button onclick="confirmReplacePlant(${idx})" class="w-full p-3 rounded-xl border border-white/15 bg-slate-800 hover:bg-rose-950/60 hover:border-rose-500/50 flex items-center justify-between text-xs transition">
+          <div class="text-left">
+            <strong class="text-amber-300 font-black">${pl.name}</strong>
+            <div class="text-[12px] text-slate-300">${FUEL_INFO[pl.fuelType].name} ${pl.fuelNeed} → ${pl.cities} 도시 공급</div>
+          </div>
+          <span class="px-2.5 py-1 rounded bg-rose-600 text-white font-black text-xs">이 발전소 폐기</span>
+        </button>
+      `).join("");
+
+      modal.classList.remove("hidden");
+    }
+
+    function confirmReplacePlant(removeIdx) {
+      const player = getPlayer();
+      if (pendingWonPlant && removeIdx >= 0 && removeIdx < player.plants.length) {
+        const removed = player.plants.splice(removeIdx, 1)[0];
+        player.plants.push(pendingWonPlant);
+        pendingWonPlant = null;
+        trimExcessFuel(player);
+        log(`[발전소 교체] [${removed.name}] 폐기 완료`);
+      }
+      document.getElementById("modalReplacePlant").classList.add("hidden");
+      checkAndFinishAuctionPhase();
+      renderAll();
+    }
+
+    function trimExcessFuel(comp) {
+      ["coal", "oil", "garbage", "uranium"].forEach(fk => {
+        const maxCap = getMaxFuelStorage(comp, fk);
+        if (comp.fuel[fk] > maxCap) {
+          const overflow = comp.fuel[fk] - maxCap;
+          comp.fuel[fk] = maxCap;
+          P.fuelStock[fk] = Math.min(fk === "uranium" ? 12 : 24, P.fuelStock[fk] + overflow);
+        }
+      });
+    }
+
+    // 플레이어가 이번 라운드 경매 전체를 패스
+    function playerPassEntireAuctionPhase() {
+      if (P.phase !== "auction") return;
+      const player = getPlayer();
+      if (P.round === 1 && player.plants.length === 0) {
+        pushToast("제 1라운드에는 반드시 발전소 1기를 구매해야 합니다!", true);
+        return;
+      }
+      player.passedAuctionPhase = true;
+      P.auction = null;
+      log("[경매 불참] 플레이어가 이번 라운드 발전소 경매를 패스했습니다.");
+      checkAndFinishAuctionPhase();
+      renderAll();
+    }
+
+    // 아직 발전소를 안 산 봇들의 경매 자동 처리 및 3단계(연료 구매) 전환
+    function checkAndFinishAuctionPhase() {
+      const player = getPlayer();
+      // 플레이어가 아직 결정 안 했으면 대기
+      if (!player.boughtPlantThisRound && !player.passedAuctionPhase) {
+        return;
+      }
+
+      // 아직 구매/패스하지 않은 봇들 자동 경매 처리
+      P.turnOrder.forEach(cid => {
+        const comp = getCompany(cid);
+        if (!comp.isPlayer && !comp.boughtPlantThisRound && !comp.passedAuctionPhase) {
+          const actual = getActualMarketPlants();
+          // 봇이 살 만한 발전소 탐색
+          const candidates = actual.filter(pl => comp.money >= pl.num && evaluatePlantMaxBidForBot(comp, pl) >= pl.num);
+          if (candidates.length > 0 || (P.round === 1 && comp.plants.length === 0)) {
+            const pick = candidates.length > 0 ? candidates[candidates.length - 1] : actual[0];
+            if (pick && comp.money >= pick.num) {
+              comp.money -= pick.num;
+              comp.boughtPlantThisRound = true;
+              P.marketPlants = P.marketPlants.filter(pl => pl.num !== pick.num);
+              drawNextPlantToMarket();
+              if (comp.plants.length >= 3) {
+                comp.plants.sort((a, b) => a.num - b.num);
+                comp.plants.shift();
+              }
+              comp.plants.push({ ...pick });
+              trimExcessFuel(comp);
+              log(`[오토마 낙찰] ${comp.name} → [${pick.name}] (${pick.num} E)`);
+            } else {
+              comp.passedAuctionPhase = true;
+            }
+          } else {
+            comp.passedAuctionPhase = true;
+            log(`[오토마 패스] ${comp.name}: 경매 불참 (자금 비축)`);
+          }
+        }
+      });
+
+      // 1라운드에는 첫 발전소 번호 기준으로 턴 오더를 즉시 재정렬! (공식 룰)
+      if (P.round === 1) {
+        determineTurnOrder();
+      }
+
+      // 3단계: 연료 구매 단계로 진입 (꼴찌부터 역순!)
+      startResourcePhase();
+    }
+
+    // ---------------------------------------------------------
+    // (J) 3단계: 연료 구매 엔진 (역순: 꼴찌 -> 플레이어 -> 선두)
+    // ---------------------------------------------------------
+    function startResourcePhase() {
+      P.phase = "resources";
+      const reverseOrder = [...P.turnOrder].reverse();
+      const playerIdx = reverseOrder.indexOf("player");
+
+      // 플레이어보다 순위가 낮은(먼저 연료를 사는) 봇들이 연료 시장을 먼저 털어감!
+      for (let i = 0; i < playerIdx; i++) {
+        runBotFuelPurchase(getCompany(reverseOrder[i]));
+      }
+
+      switchTab("resources");
+      pushToast("3단계 [연료 거래소]: 발전소 가동에 필요한 연료를 구매하세요!");
+      renderAll();
+    }
+
+    function runBotFuelPurchase(bot) {
+      ["coal", "oil", "garbage", "uranium"].forEach(fk => {
+        const maxCap = getMaxFuelStorage(bot, fk);
+        // 1회 가동 필수량
+        let singleNeed = 0;
+        bot.plants.forEach(pl => {
+          if (pl.fuelType === fk) singleNeed += pl.fuelNeed;
+          else if (pl.fuelType === "hybrid" && fk === "coal") singleNeed += pl.fuelNeed;
+        });
+
+        // 호더(블랙골드) 성향 또는 숙련 봇은 자금이 넉넉하면 최대 2배까지 사재기!
+        const targetAmount = (bot.persona === "hoarder" || P.diff === "expert") ? maxCap : singleNeed;
+        let toBuy = Math.max(0, targetAmount - bot.fuel[fk]);
+        let bought = 0;
+        let spent = 0;
+
+        while (toBuy > 0 && P.fuelStock[fk] > 0) {
+          const price = getUnitFuelPrice(fk, P.fuelStock[fk]);
+          // 도시 건설 최소 예비비(15 E)를 남기거나 필수 연료면 구매
+          if (bot.money >= price && (bot.fuel[fk] < singleNeed || bot.money - price >= 18)) {
+            bot.money -= price;
+            bot.fuel[fk] += 1;
+            P.fuelStock[fk] -= 1;
+            bought += 1;
+            spent += price;
+            toBuy -= 1;
+          } else {
+            break;
+          }
+        }
+
+        if (bought > 0) {
+          log(`[연료 매입] ${bot.name}: ${FUEL_INFO[fk].name} ${bought}개 매입 (${spent} E 지출)`);
+        }
+      });
+    }
+
+    // 플레이어가 연료 1개 즉시 매입
+    function playerBuySingleFuel(fuelKey) {
+      if (P.phase !== "resources") {
+        pushToast("현재는 연료 구매 단계가 아닙니다.", true);
+        return;
+      }
+      const player = getPlayer();
+      const maxCap = getMaxFuelStorage(player, fuelKey);
+      if (maxCap <= 0) {
+        pushToast(`내 발전소 중 [${FUEL_INFO[fuelKey].name}]을(를) 사용하는 발전소가 없습니다!`, true);
+        return;
+      }
+      if (player.fuel[fuelKey] >= maxCap) {
+        pushToast(`${FUEL_INFO[fuelKey].name} 저장 한도(${maxCap}개, 요구량의 2배)가 가득 찼습니다.`, true);
+        return;
+      }
+      if (P.fuelStock[fuelKey] <= 0) {
+        pushToast(`거래소에 ${FUEL_INFO[fuelKey].name} 재고가 품절되었습니다!`, true);
+        return;
+      }
+      const price = getUnitFuelPrice(fuelKey, P.fuelStock[fuelKey]);
+      if (player.money < price) {
+        pushToast(`자금이 부족합니다 (가격: ${price} E, 보유: ${player.money} E)`, true);
+        return;
+      }
+
+      player.money -= price;
+      player.fuel[fuelKey] += 1;
+      P.fuelStock[fuelKey] -= 1;
+      log(`[내 연료 매입] ${FUEL_INFO[fuelKey].name} +1개 구매 (${price} E 지불)`);
+      renderAll();
+    }
+
+    // 플레이어 연료 구매 완료 -> 플레이어보다 앞 순위(1등 쪽) 봇들 연료 구매 후 4단계 진입
+    function finishResourcePhaseAndGoBuild() {
+      if (P.phase !== "resources") return;
+      const reverseOrder = [...P.turnOrder].reverse();
+      const playerIdx = reverseOrder.indexOf("player");
+
+      for (let i = playerIdx + 1; i < reverseOrder.length; i++) {
+        runBotFuelPurchase(getCompany(reverseOrder[i]));
+      }
+
+      startBuildPhase();
+    }
+
+    // ---------------------------------------------------------
+    // (K) 4단계: 도시 송전망 건설 엔진 (역순: 꼴찌 -> 선두)
+    // ---------------------------------------------------------
+    function startBuildPhase() {
+      P.phase = "build";
+      const reverseOrder = [...P.turnOrder].reverse();
+      const playerIdx = reverseOrder.indexOf("player");
+
+      // 플레이어보다 먼저 짓는(하위 순위) 봇들의 도시 건설 실행
+      for (let i = 0; i < playerIdx; i++) {
+        runBotCityBuilding(getCompany(reverseOrder[i]));
+      }
+
+      switchTab("map");
+      pushToast("4단계 [도시 송전망 건설]: 지도에서 하늘색으로 빛나는 도시를 터치해 연결하세요!");
+      renderAll();
+    }
+
+    function runBotCityBuilding(bot) {
+      const cap = getTotalPlantCapacity(bot);
+      // 에코 그리드(숨죽이기 성향)는 Step 1에서 일부러 발전 용량 한도까지만 짓고 선두를 피함
+      const maxTargetCities = (bot.persona === "green" && P.step === 1) ? Math.max(1, cap) : cap + 1;
+
+      let builtCount = 0;
+      while (bot.cities.length < maxTargetCities || (bot.cities.length === 0 && P.round === 1)) {
+        // 건설 가능한 가장 저렴한 도시 탐색
+        const buildable = P.map.cities
+          .map(c => ({ city: c, costInfo: getCityBuildTotalCost(bot, c.id) }))
+          .filter(item => item.costInfo.canBuild)
+          .sort((a, b) => a.costInfo.totalCost - b.costInfo.totalCost);
+
+        if (buildable.length === 0) break;
+        const best = buildable[0];
+
+        // 다음 라운드 최소 경매/연료비(8 E) 보존 (단 첫 도시는 무조건 건설)
+        if (bot.cities.length > 0 && bot.money - best.costInfo.totalCost < 8 && bot.cities.length < P.goalCities - 1) {
+          break;
+        }
+
+        bot.money -= best.costInfo.totalCost;
+        bot.cities.push(best.city.id);
+        P.cityOccupants[best.city.id].push(bot.id);
+        builtCount += 1;
+        log(`[오토마 송전망 확장] ${bot.name} → [${best.city.name}] 연결 (${best.costInfo.totalCost} E)`);
+      }
+    }
+
+    // 플레이어가 지도에서 특정 도시를 터치하여 송전망 연결
+    function onClickCityNode(cityId) {
+      const city = P.map.cities.find(c => c.id === cityId);
+      if (!city) return;
+
+      if (P.phase !== "build") {
+        const checkPreview = getCityBuildTotalCost(getPlayer(), cityId);
+        pushToast(`[${city.name}] 예상 연결 총비용: ${checkPreview.totalCost} E (4단계 도시 건설에서 연결 가능)`);
+        return;
+      }
+
+      const player = getPlayer();
+      const check = getCityBuildTotalCost(player, cityId);
+      if (!check.canBuild) {
+        pushToast(`[건설 불가] ${city.name}: ${check.reason}`, true);
+        return;
+      }
+
+      player.money -= check.totalCost;
+      player.cities.push(cityId);
+      P.cityOccupants[cityId].push("player");
+
+      log(`[내 송전망 건설] [${city.name}] 연결 완료! (입주비 ${check.slotCost} E + 송전선 ${check.wireCost} E = 총 ${check.totalCost} E)`);
+      pushToast(`[${city.name}] 전력망 연결 완료! (-${check.totalCost} E)`);
+      renderAll();
+    }
+
+    // 플레이어 도시 건설 완료 -> 상위 순위 봇 도시 건설 -> Step 2 / 게임 종료 체크 -> 5단계 정산
+    function finishBuildPhaseAndGoBureaucracy() {
+      if (P.phase !== "build") return;
+      const reverseOrder = [...P.turnOrder].reverse();
+      const playerIdx = reverseOrder.indexOf("player");
+
+      for (let i = playerIdx + 1; i < reverseOrder.length; i++) {
+        runBotCityBuilding(getCompany(reverseOrder[i]));
+      }
+
+      // Step 2 진입 조건 체크 (누군가 step2TriggerCities 이상 연결 시)
+      const maxCitiesCount = Math.max(...P.companies.map(c => c.cities.length));
+      if (P.step === 1 && maxCitiesCount >= P.step2TriggerCities) {
+        P.step = 2;
+        if (P.marketPlants.length > 0) {
+          const removed = P.marketPlants.shift();
+          drawNextPlantToMarket();
+          log(`[STEP 2 돌입!] 누군가 ${P.step2TriggerCities}개 도시를 연결하여 Step 2가 개시됩니다! ([${removed.name}] 제거)`);
+        }
+        pushToast("STEP 2(경쟁 과열기) 돌입! 이제 도시당 2명까지 입주 가능합니다!");
+      }
+
+      // 최종 게임 종료 조건 체크 (누군가 목표 도시 수 이상 연결 시!)
+      if (maxCitiesCount >= P.goalCities) {
+        triggerFinalGameEnd();
+        return;
+      }
+
+      // 5단계: 전력 공급 및 수입 정산 실행
+      executeBureaucracyPhase();
+    }
+
+    // ---------------------------------------------------------
+    // (L) 5단계: 관료주의 (전력 공급, 수입 배당, 연료 리필, 시장 갱신)
+    // ---------------------------------------------------------
+    function executeBureaucracyPhase() {
+      P.phase = "bureaucracy";
+      const summaryRows = [];
+
+      P.companies.forEach(comp => {
+        const powered = consumeFuelAndPowerCities(comp);
+        const income = INCOME_TABLE[Math.min(INCOME_TABLE.length - 1, powered)];
+        comp.money += income;
+        summaryRows.push({
+          name: comp.name,
+          isPlayer: comp.isPlayer,
+          citiesCount: comp.cities.length,
+          powered,
+          income,
+          totalMoney: comp.money
+        });
+        log(`[전력 배당] ${comp.name}: ${powered}/${comp.cities.length} 도시 공급 → +${income} E 수령 (잔고 ${comp.money} E)`);
+      });
+
+      // 연료 시장 보충 (Replenish Resources)
+      const rate = REPLENISH_RATES[P.step] || REPLENISH_RATES[1];
+      P.fuelStock.coal = Math.min(24, P.fuelStock.coal + rate.coal);
+      P.fuelStock.oil = Math.min(24, P.fuelStock.oil + rate.oil);
+      P.fuelStock.garbage = Math.min(24, P.fuelStock.garbage + rate.garbage);
+      P.fuelStock.uranium = Math.min(12, P.fuelStock.uranium + rate.uranium);
+
+      // 발전소 시장 갱신 (Step 1/2: 가장 큰 번호 제거 후 새 카드 드로우, Step 3: 가장 작은 번호 제거)
+      if (P.marketPlants.length > 0) {
+        if (P.step === 3) {
+          P.marketPlants.shift();
+        } else {
+          const highest = P.marketPlants.pop();
+          P.plantDeck.push(highest);
+        }
+        drawNextPlantToMarket();
+      }
+
+      // 정산 모달 표시
+      document.getElementById("bureaucracyRoundBadge").textContent = `제 ${P.round} 라운드 전력 정산 완료`;
+      document.getElementById("bureaucracyResultList").innerHTML = summaryRows.map(r => `
+        <div class="flex items-center justify-between p-2.5 rounded-xl ${r.isPlayer ? "bg-emerald-950/60 border border-emerald-500/50" : "bg-black/40 border border-white/10"}">
+          <div>
+            <strong class="${r.isPlayer ? "text-emerald-300" : "text-slate-200"}">${r.name}</strong>
+            <div class="text-[12px] text-slate-400">전력 공급: ${r.powered} / ${r.citiesCount} 도시</div>
+          </div>
+          <div class="text-right">
+            <strong class="text-amber-300 font-black text-sm">+${r.income} E</strong>
+            <div class="text-[12px] text-slate-300">보유: ${r.totalMoney} E</div>
+          </div>
+        </div>
+      `).join("");
+
+      document.getElementById("modalBureaucracy").classList.remove("hidden");
+      renderAll();
+    }
+
+    // 실제 연료를 차감하고 전력 공급 도시 수 반환
+    function consumeFuelAndPowerCities(comp) {
+      let neededCities = comp.cities.length;
+      let powered = 0;
+      const sortedPlants = [...comp.plants].sort((a, b) => b.cities - a.cities);
+
+      sortedPlants.forEach(pl => {
+        if (powered >= neededCities && neededCities > 0) return;
+        if (pl.fuelType === "eco") {
+          powered += pl.cities;
+        } else if (pl.fuelType === "coal" && comp.fuel.coal >= pl.fuelNeed) {
+          comp.fuel.coal -= pl.fuelNeed;
+          powered += pl.cities;
+        } else if (pl.fuelType === "oil" && comp.fuel.oil >= pl.fuelNeed) {
+          comp.fuel.oil -= pl.fuelNeed;
+          powered += pl.cities;
+        } else if (pl.fuelType === "garbage" && comp.fuel.garbage >= pl.fuelNeed) {
+          comp.fuel.garbage -= pl.fuelNeed;
+          powered += pl.cities;
+        } else if (pl.fuelType === "uranium" && comp.fuel.uranium >= pl.fuelNeed) {
+          comp.fuel.uranium -= pl.fuelNeed;
+          powered += pl.cities;
+        } else if (pl.fuelType === "hybrid" && (comp.fuel.coal + comp.fuel.oil) >= pl.fuelNeed) {
+          let rem = pl.fuelNeed;
+          const uCoal = Math.min(comp.fuel.coal, rem);
+          comp.fuel.coal -= uCoal;
+          rem -= uCoal;
+          comp.fuel.oil -= rem;
+          powered += pl.cities;
+        }
+      });
+
+      return Math.min(comp.cities.length, powered);
+    }
+
+    function closeBureaucracyAndNextRound() {
+      document.getElementById("modalBureaucracy").classList.add("hidden");
+      P.round += 1;
+      P.phase = "auction";
+      P.companies.forEach(c => {
+        c.boughtPlantThisRound = false;
+        c.passedAuctionPhase = false;
+      });
+      determineTurnOrder();
+      log(`=== 제 ${P.round} 라운드 시작 (1단계: 턴 오더 재산정 완료) ===`);
+      switchTab("plants");
+      renderAll();
+      pushToast(`제 ${P.round} 라운드 시작! 발전소 경매가 열렸습니다.`);
+    }
+
+    function triggerFinalGameEnd() {
+      P.phase = "ended";
+      P.ended = true;
+
+      // 각 기업이 실제로 연료를 태워 전기를 공급할 수 있는 도시 수 계산
+      const results = P.companies.map(comp => {
+        const powered = consumeFuelAndPowerCities(comp);
+        const income = INCOME_TABLE[Math.min(INCOME_TABLE.length - 1, powered)];
+        comp.money += income;
+        return {
+          id: comp.id,
+          name: comp.name,
+          isPlayer: comp.isPlayer,
+          powered,
+          cities: comp.cities.length,
+          money: comp.money
+        };
+      }).sort((a, b) => {
+        if (b.powered !== a.powered) return b.powered - a.powered;
+        if (b.money !== a.money) return b.money - a.money;
+        return b.cities - a.cities;
+      });
+
+      const isPlayerWin = results[0].isPlayer;
+      document.getElementById("finishRoundBadge").textContent = `제 ${P.round} 라운드 최종 결산`;
+      document.getElementById("finishTitle").textContent = isPlayerWin ? "국가 전력망 완전 제패! (우승)" : `${results[0].name} 최종 우승!`;
+      document.getElementById("finishDesc").textContent = isPlayerWin
+        ? "축하합니다! 치열한 경매와 연료 전쟁을 뚫고 가장 많은 도시에 전력을 공급했습니다."
+        : "아쉽게도 라이벌 전력 기업이 더 많은 도시에 전기를 공급했습니다.";
+
+      document.getElementById("finishRankingList").innerHTML = results.map((r, idx) => `
+        <div class="flex items-center justify-between p-3 rounded-xl ${r.isPlayer ? "bg-amber-950/60 border border-amber-400" : "bg-black/40 border border-white/10"}">
+          <div class="flex items-center gap-2 text-left">
+            <span class="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center font-black ${idx === 0 ? "text-amber-300" : "text-slate-400"}">${idx + 1}위</span>
+            <div>
+              <strong class="${r.isPlayer ? "text-amber-200" : "text-slate-200"}">${r.name}</strong>
+              <div class="text-[12px] text-slate-400">연결 도시: ${r.cities}개 | 최종 자금: ${r.money} E</div>
+            </div>
+          </div>
+          <strong class="text-sm font-black text-emerald-300">${r.powered} 도시 송전</strong>
+        </div>
+      `).join("");
+
+      document.getElementById("modalGameFinish").classList.remove("hidden");
+      renderAll();
+    }
+
+    // ---------------------------------------------------------
+    // (M) 고품질 렌더링 엔진 & AI 코치 / 스마트 예산 계산기
+    // ---------------------------------------------------------
+    function renderAll() {
+      if (!P) return;
+      renderHUD();
+      updateCoachAndBudget();
+      renderGridMap();
+      renderPlantsView();
+      renderResourcesView();
+      renderStatusView();
+      renderBottomActionBar();
+    }
+
+    function renderHUD() {
+      const player = getPlayer();
+      const cap = getTotalPlantCapacity(player);
+      const rankIdx = P.turnOrder.indexOf("player") + 1;
+
+      document.getElementById("hudRoundBadge").textContent = `R ${P.round}`;
+      document.getElementById("hudStepBadge").textContent = `STEP ${P.step}`;
+      document.getElementById("hudMoney").textContent = `${player.money} E`;
+      document.getElementById("hudCities").textContent = player.cities.length;
+      document.getElementById("hudCapacity").textContent = cap;
+      document.getElementById("hudGoalText").textContent = `(목표${P.goalCities})`;
+      document.getElementById("hudTurnOrder").textContent = `${rankIdx}위`;
+
+      const phaseMap = {
+        auction: "2. 발전소 경매 (정순)",
+        resources: "3. 연료 매입 (역순)",
+        build: "4. 도시 건설 (역순)",
+        bureaucracy: "5. 전력 정산",
+        ended: "게임 종료"
+      };
+      document.getElementById("hudPhaseName").textContent = phaseMap[P.phase] || P.phase;
+
+      // 턴 오더 바 렌더링 (경매는 정순 1->4, 연료/도시는 역순 4->1)
+      const isReverse = (P.phase === "resources" || P.phase === "build");
+      document.getElementById("turnDirectionLabel").textContent = isReverse ? "진행 (역순 4→1):" : "진행 (정순 1→4):";
+      const displayOrder = isReverse ? [...P.turnOrder].reverse() : P.turnOrder;
+
+      document.getElementById("turnOrderBarList").innerHTML = displayOrder.map((cid, idx) => {
+        const c = getCompany(cid);
+        const origRank = P.turnOrder.indexOf(cid) + 1;
+        return `
+          <span class="px-2 py-0.5 rounded-md font-extrabold text-[12px] shrink-0 ${
+            c.isPlayer ? "bg-emerald-500 text-slate-950 shadow" : "bg-slate-800 text-slate-300 border border-white/10"
+          }">
+            ${origRank}위 ${c.isPlayer ? "나" : c.name.split(" ")[0]}(${c.cities.length})
+          </span>
+          ${idx < displayOrder.length - 1 ? `<span class="text-slate-500 text-[12px]">→</span>` : ""}
+        `;
+      }).join("");
+    }
+
+    // 초보자용 AI 코치 & 스마트 예산 플래너 계산
+    function updateCoachAndBudget() {
+      const player = getPlayer();
+      const cap = getTotalPlantCapacity(player);
+      const powerable = calcPowerableCities(player);
+      const expectedInc = INCOME_TABLE[Math.min(INCOME_TABLE.length - 1, powerable)];
+
+      document.getElementById("coachExpectedIncome").textContent = `현재 가동 수입: +${expectedInc} E (${powerable}도시)`;
+
+      // 1) 최소 필요 연료비 산출
+      let neededFuelCost = 0;
+      player.plants.forEach(pl => {
+        if (pl.fuelType === "eco") return;
+        const fk = pl.fuelType === "hybrid" ? (P.fuelStock.coal >= P.fuelStock.oil ? "coal" : "oil") : pl.fuelType;
+        const shortage = Math.max(0, pl.fuelNeed - player.fuel[fk]);
+        if (shortage > 0 && P.fuelStock[fk] >= shortage) {
+          neededFuelCost += calcFuelPurchaseCost(fk, shortage, P.fuelStock[fk]);
+        }
+      });
+
+      // 2) 가장 저렴한 미연결 도시 1곳 건설비 산출
+      const buildableCities = P.map.cities
+        .map(c => getCityBuildTotalCost(player, c.id))
+        .filter(info => info.canBuild)
+        .sort((a, b) => a.totalCost - b.totalCost);
+      const cheapestCityCost = buildableCities.length > 0 ? buildableCities[0].totalCost : 0;
+
+      const safeMargin = Math.max(0, player.money - neededFuelCost - cheapestCityCost);
+
+      // 예산 계산기 DOM 업데이트
+      document.getElementById("calcCurMoney").textContent = `${player.money} E`;
+      document.getElementById("calcFuelNeed").textContent = `${neededFuelCost} E`;
+      document.getElementById("calcNextCityCost").textContent = cheapestCityCost > 0 ? `${cheapestCityCost} E` : "-";
+      document.getElementById("calcSafeMargin").textContent = `${safeMargin} E`;
+      document.getElementById("calcSummaryTip").textContent =
+        `보유 ${player.money} E 중 필수 연료(${neededFuelCost} E)와 최단 도시 1곳 확장(${cheapestCityCost} E)을 제외하면 경매/여유 자금은 약 ${safeMargin} E입니다.`;
+
+      // AI 전략 코치 단계별 맞춤형 조언
+      const adviceEl = document.getElementById("coachAdviceText");
+      if (!adviceEl) return;
+
+      if (P.phase === "auction") {
+        if (P.auction) {
+          adviceEl.textContent = `[경매 중] 현재 입찰가 ${P.auction.currentBid} E입니다. 필수 연료·도시 확장비를 고려할 때 최대 ${Math.max(P.auction.plant.num, safeMargin)} E 선까지만 입찰하는 것이 안전합니다.`;
+        } else if (P.round === 1) {
+          adviceEl.textContent = `1라운드 필수 경매입니다! [#03~#06] 중 저렴한 발전소를 낙찰받아 남은 자금(약 40 E)으로 도시 2곳을 연결하세요.`;
+        } else if (cap <= player.cities.length) {
+          adviceEl.textContent = `현재 발전소 공급 용량(${cap}도시)이 보유 도시(${player.cities.length}개)에 도달했습니다! 더 큰 용량의 발전소를 입찰해 전력 공급량을 늘리세요.`;
+        } else {
+          adviceEl.textContent = `현재 발전소 용량(${cap}도시)에 여유가 있습니다. 매력적인 고효율·친환경 발전소가 없다면 [경매 불참(패스)]으로 자금을 아끼는 것도 훌륭한 전략입니다.`;
+        }
+      } else if (P.phase === "resources") {
+        const rank = P.turnOrder.indexOf("player") + 1;
+        if (neededFuelCost > 0) {
+          adviceEl.textContent = `발전소 100% 가동을 위해 최소 ${neededFuelCost} E 상당의 연료 매입이 필요합니다. ${rank >= 3 ? "현재 순위가 낮아 연료가 저렴하니 최대 2배까지 비축해 두세요!" : "필요한 만큼만 매입하고 도시 건설 자금을 남기세요."}`;
+        } else {
+          adviceEl.textContent = `이번 라운드 가동할 연료가 모두 확보되었습니다! 여유 자금(${safeMargin} E)이 있고 연료가 1~3 E로 저렴하다면 다음 라운드용 연료를 미리 비축하세요.`;
+        }
+      } else if (P.phase === "build") {
+        const topCities = Math.max(...P.companies.filter(c => !c.isPlayer).map(c => c.cities.length));
+        if (player.cities.length + 1 >= P.goalCities && cheapestCityCost <= player.money) {
+          adviceEl.textContent = `[결전 타이밍!] 지금 도시를 연결하면 목표(${P.goalCities}도시)에 도달하여 즉시 게임이 종료됩니다! 내 발전소 가동 가능 수(${powerable}도시)를 확인하고 마무리하세요!`;
+        } else if (P.step === 1 && player.cities.length >= topCities && player.cities.length >= cap) {
+          adviceEl.textContent = `[숨죽이기 팁] 현재 발전 용량(${cap}도시)만큼 이미 도시를 보유 중입니다. 무리해서 1등으로 치고 나가면 다음 라운드 연료를 가장 비싸게 사게 됩니다!`;
+        } else {
+          adviceEl.textContent = `지도에서 하늘색 테두리로 빛나는 도시를 터치해 연결하세요. 현재 가장 저렴한 확장 도시는 총 ${cheapestCityCost} E입니다.`;
+        }
+      }
+    }
+
+    function renderGridMap() {
+      document.getElementById("mapRegionTitle").textContent = P.map.name;
+      const stepCosts = P.step === 1 ? "1명 (10 E)" : (P.step === 2 ? "2명 (10/15 E)" : "3명 (10/15/20 E)");
+      document.getElementById("mapStepLimitInfo").textContent = `Step ${P.step}: 도시당 ${stepCosts}`;
+
+      const edgesLayer = document.getElementById("gridEdgesLayer");
+      const citiesLayer = document.getElementById("gridCitiesLayer");
+      if (!edgesLayer || !citiesLayer) return;
+
+      const player = getPlayer();
+      const cityMap = {};
+      P.map.cities.forEach(c => { cityMap[c.id] = c; });
+
+      // 1. 송전선 간선(Edges) 렌더링
+      edgesLayer.innerHTML = P.map.edges.map(([idA, idB, weight]) => {
+        const cA = cityMap[idA];
+        const cB = cityMap[idB];
+        if (!cA || !cB) return "";
+        const isBothPlayer = player.cities.includes(idA) && player.cities.includes(idB);
+        const midX = (cA.x + cB.x) / 2;
+        const midY = (cA.y + cB.y) / 2;
+
+        return `
+          <g>
+            <line x1="${cA.x}" y1="${cA.y}" x2="${cB.x}" y2="${cB.y}"
+                  stroke="${isBothPlayer ? "#10b981" : "#334155"}"
+                  stroke-width="${isBothPlayer ? 3.5 : 2}"
+                  stroke-dasharray="${isBothPlayer ? "none" : "4,3"}" />
+            <rect x="${midX - 10}" y="${midY - 8}" width="20" height="16" rx="4" fill="#0f172a" stroke="${isBothPlayer ? "#10b981" : "#475569"}" stroke-width="1" />
+            <text x="${midX}" y="${midY + 4}" text-anchor="middle" font-size="12" font-weight="800" fill="${isBothPlayer ? "#6ee7b7" : "#cbd5e1"}">${weight}</text>
+          </g>
+        `;
+      }).join("");
+
+      // 2. 도시 노드(Cities) 렌더링
+      citiesLayer.innerHTML = P.map.cities.map(city => {
+        const occupants = P.cityOccupants[city.id] || [];
+        const isPlayerOwned = occupants.includes("player");
+        const check = getCityBuildTotalCost(player, city.id);
+        const isBuildableNow = (P.phase === "build" && check.canBuild);
+
+        // 입주한 기업들의 컬러 마커 (최대 3개 슬롯)
+        const badgesSvg = occupants.map((cid, idx) => {
+          const comp = getCompany(cid);
+          const bx = city.x - 12 + (idx * 12);
+          const by = city.y - 24;
+          return `<circle cx="${bx}" cy="${by}" r="5" fill="${comp ? comp.color : "#fff"}" stroke="#000" stroke-width="1.2" />`;
+        }).join("");
+
+        return `
+          <g onclick="onClickCityNode('${city.id}')" class="cursor-pointer ${isBuildableNow ? "city-buildable" : ""}">
+            <circle cx="${city.x}" cy="${city.y}" r="18"
+                    fill="${isPlayerOwned ? "url(#cityNodePlayer)" : "url(#cityNodeEmpty)"}"
+                    stroke="${isPlayerOwned ? "#34d399" : (isBuildableNow ? "#38bdf8" : "#64748b")}"
+                    stroke-width="${isPlayerOwned ? 3 : 2}" />
+            ${badgesSvg}
+            <text x="${city.x}" y="${city.y + 4}" text-anchor="middle" font-size="12" font-weight="900" fill="#ffffff">${city.name}</text>
+            ${!isPlayerOwned && check.canBuild ? `
+              <rect x="${city.x - 18}" y="${city.y + 20}" width="36" height="15" rx="4" fill="#082f49" stroke="#38bdf8" stroke-width="1" />
+              <text x="${city.x}" y="${city.y + 31}" text-anchor="middle" font-size="12" font-weight="800" fill="#7dd3fc">${check.totalCost}E</text>
+            ` : ""}
+          </g>
+        `;
+      }).join("");
+
+      // 3. 하단 내 보유 발전소 미니 바 렌더링
+      const miniBar = document.getElementById("myPlantsMiniBar");
+      const powerable = calcPowerableCities(player);
+      document.getElementById("miniPlantSummaryText").textContent = `가동 가능: ${powerable} / ${getTotalPlantCapacity(player)} 도시`;
+
+      const slots = [0, 1, 2];
+      miniBar.innerHTML = slots.map(idx => {
+        const pl = player.plants[idx];
+        if (!pl) {
+          return `
+            <div class="p-2 rounded-xl border border-dashed border-white/10 bg-black/30 text-center text-[12px] text-slate-500 flex items-center justify-center min-h-[52px]">
+              빈 슬롯 ${idx + 1}
+            </div>
+          `;
+        }
+        const fInfo = FUEL_INFO[pl.fuelType];
+        return `
+          <div class="p-2 rounded-xl border ${fInfo.border} ${fInfo.bg} flex flex-col justify-between text-[12px]">
+            <div class="flex items-center justify-between font-black">
+              <span class="text-amber-300">#${pl.num}</span>
+              <span class="text-emerald-300">${pl.cities}도시</span>
+            </div>
+            <div class="truncate text-slate-200 font-bold mt-0.5">${fInfo.name} ${pl.fuelNeed > 0 ? pl.fuelNeed : ""}</div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderPlantsView() {
+      const player = getPlayer();
+      const aucBox = document.getElementById("auctionActiveBox");
+      const btnSkip = document.getElementById("btnSkipAuctionPhase");
+
+      if (btnSkip) {
+        const canSkip = (P.phase === "auction" && !player.boughtPlantThisRound && !player.passedAuctionPhase && !P.auction && !(P.round === 1 && player.plants.length === 0));
+        btnSkip.disabled = !canSkip;
+        btnSkip.className = canSkip
+          ? "px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-rose-950/70 border border-rose-500/40 text-rose-200 font-extrabold text-xs transition cursor-pointer"
+          : "px-3 py-1.5 rounded-xl bg-slate-900 border border-white/5 text-slate-600 font-extrabold text-xs opacity-50 cursor-not-allowed";
+      }
+
+      // 실시간 경매 콘솔 표시
+      if (P.auction) {
+        aucBox.classList.remove("hidden");
+        const auc = P.auction;
+        const fInfo = FUEL_INFO[auc.plant.fuelType];
+        const highestComp = getCompany(auc.highestBidder);
+
+        document.getElementById("auctionPlantTitle").textContent = auc.plant.name;
+        document.getElementById("auctionCurrentBidBadge").textContent = `현재 최고가: ${auc.currentBid} E`;
+        document.getElementById("auctionHighestBidder").textContent = highestComp ? highestComp.name : "없음";
+        document.getElementById("auctionPlantSpecText").textContent = `연료: ${fInfo.name} ${auc.plant.fuelNeed}개 소모 → 전력 공급: ${auc.plant.cities}개 도시`;
+        document.getElementById("auctionMyMoneyText").textContent = `${player.money} E`;
+        document.getElementById("auctionLiveTicker").textContent = auc.tickerMsg;
+
+        document.getElementById("bidVal1").textContent = auc.currentBid + 1;
+        document.getElementById("bidVal2").textContent = auc.currentBid + 2;
+      } else {
+        aucBox.classList.add("hidden");
+      }
+
+      // 현재 시장 (Actual Market)
+      const actual = getActualMarketPlants();
+      document.getElementById("gridActualMarket").innerHTML = actual.map(pl => renderPlantCardHtml(pl, true)).join("");
+
+      // 미래 시장 (Future Market)
+      const future = getFutureMarketPlants();
+      document.getElementById("plantDeckRemainText").textContent = `덱 잔여: ${P.plantDeck.length}장`;
+      document.getElementById("gridFutureMarket").innerHTML = future.length > 0
+        ? future.map(pl => renderPlantCardHtml(pl, false)).join("")
+        : `<div class="col-span-2 p-3 rounded-xl bg-black/30 border border-white/5 text-center text-xs text-slate-400">Step 3에서는 모든 시장 발전소에 즉시 입찰할 수 있습니다.</div>`;
+
+      // 내 보유 발전소 상세
+      if (player.plants.length === 0) {
+        document.getElementById("myPlantsDetailList").innerHTML = `
+          <div class="p-4 rounded-xl border border-white/10 bg-black/30 text-center text-xs text-slate-400">
+            아직 보유한 발전소가 없습니다. 위 [현재 시장]에서 발전소를 터치해 경매를 시작하세요!
+          </div>
+        `;
+      } else {
+        document.getElementById("myPlantsDetailList").innerHTML = player.plants.map(pl => {
+          const fInfo = FUEL_INFO[pl.fuelType];
+          return `
+            <div class="p-3 rounded-xl border ${fInfo.border} ${fInfo.bg} flex items-center justify-between text-xs">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="px-2 py-0.5 rounded bg-black/60 text-amber-300 font-black">#${pl.num}</span>
+                  <strong class="text-white font-extrabold text-sm">${pl.name}</strong>
+                </div>
+                <div class="text-[12px] text-slate-300 mt-1">연료 조건: <strong class="${fInfo.color}">${fInfo.name} ${pl.fuelNeed}개</strong> (최대 ${pl.fuelNeed * 2}개 저장)</div>
+              </div>
+              <div class="text-right">
+                <span class="text-[12px] text-slate-300">전력 생산</span>
+                <div class="text-base font-black text-emerald-300">${pl.cities} 도시</div>
+              </div>
+            </div>
+          `;
+        }).join("");
+      }
+    }
+
+    function renderPlantCardHtml(pl, isActual) {
+      const player = getPlayer();
+      const fInfo = FUEL_INFO[pl.fuelType];
+      const canStartAuction = isActual && P.phase === "auction" && !player.boughtPlantThisRound && !player.passedAuctionPhase && !P.auction && player.money >= pl.num;
+
+      return `
+        <div onclick="${canStartAuction ? `onSelectPlantForAuction(${pl.num})` : ""}"
+             class="p-3 rounded-xl border ${fInfo.border} ${fInfo.bg} flex flex-col justify-between gap-2 text-xs transition ${
+               canStartAuction ? "cursor-pointer hover:scale-[1.02] hover:border-amber-400 shadow-lg" : "opacity-85"
+             }">
+          <div class="flex items-center justify-between border-b border-white/10 pb-1.5">
+            <span class="px-2 py-0.5 rounded bg-black/60 text-amber-300 font-black text-sm">#${pl.num}</span>
+            <span class="px-2 py-0.5 rounded bg-emerald-950 border border-emerald-500/50 text-emerald-300 font-black text-[12px]">${pl.cities} 도시 공급</span>
+          </div>
+          <div>
+            <strong class="text-slate-100 font-extrabold block truncate">${pl.name}</strong>
+            <div class="flex items-center gap-1 mt-1 text-[12px] ${fInfo.color} font-bold">
+              <span>${fInfo.name}</span>
+              <span>${pl.fuelNeed > 0 ? `${pl.fuelNeed}개 소모` : "연료 불필요"}</span>
+            </div>
+          </div>
+          ${isActual ? `
+            <button type="button" ${canStartAuction ? "" : "disabled"}
+                    class="w-full py-1.5 rounded-lg font-black text-[12px] transition ${
+                      canStartAuction
+                        ? "bg-amber-500 hover:bg-amber-400 text-slate-950 shadow"
+                        : "bg-slate-800/80 text-slate-500 cursor-not-allowed"
+                    }">
+              ${canStartAuction ? `경매 개시 (${pl.num} E~)` : (player.boughtPlantThisRound ? "낙찰 완료" : "입찰 대기")}
+            </button>
+          ` : `<div class="text-[12px] text-slate-400 text-center pt-1 border-t border-white/5">차기 시장 대기</div>`}
+        </div>
+      `;
+    }
+
+    function renderResourcesView() {
+      const player = getPlayer();
+      document.getElementById("resMarketMyMoney").textContent = `${player.money} E`;
+
+      const container = document.getElementById("fuelMarketListContainer");
+      const fuels = ["coal", "oil", "garbage", "uranium"];
+
+      container.innerHTML = fuels.map(fk => {
+        const fInfo = FUEL_INFO[fk];
+        const stock = P.fuelStock[fk];
+        const unitPrice = getUnitFuelPrice(fk, stock);
+        const maxCap = getMaxFuelStorage(player, fk);
+        const curHeld = player.fuel[fk];
+        const canBuy = (P.phase === "resources" && stock > 0 && curHeld < maxCap && player.money >= (unitPrice || 999));
+
+        // 1~8 E 가격 슬롯 미니 시각화 바
+        const maxStock = fk === "uranium" ? 12 : 24;
+        const fillPct = Math.round((stock / maxStock) * 100);
+
+        return `
+          <div class="p-3 rounded-xl border ${fInfo.border} bg-[#111827] space-y-2 text-xs shadow-md">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="${fInfo.color}">${iconSvg(fk, 18)}</span>
+                <div>
+                  <strong class="text-sm font-black ${fInfo.color}">${fInfo.name}</strong>
+                  <span class="text-[12px] text-slate-400 ml-1.5">시장 재고: <strong class="text-white">${stock}</strong> / ${maxStock}</span>
+                </div>
+              </div>
+              <div class="text-right">
+                <span class="text-[12px] text-slate-400">현재 단가:</span>
+                <strong class="text-sm font-black text-amber-300 ml-1">${unitPrice ? `${unitPrice} E` : "품절"}</strong>
+              </div>
+            </div>
+
+            <!-- 재고 게이지 바 (많을수록 저렴) -->
+            <div class="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden border border-white/10">
+              <div class="h-full ${fInfo.badge} transition-all duration-300" style="width: ${fillPct}%"></div>
+            </div>
+
+            <div class="flex items-center justify-between pt-1 border-t border-white/10">
+              <div class="text-[12px] text-slate-300">
+                내 비축량: <strong class="text-cyan-300 font-black">${curHeld}</strong> / 최대 ${maxCap}개
+              </div>
+              <button onclick="playerBuySingleFuel('${fk}')" ${canBuy ? "" : "disabled"}
+                      class="px-3.5 py-1.5 rounded-xl font-black text-xs transition ${
+                        canBuy
+                          ? "bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow cursor-pointer active:scale-95"
+                          : "bg-slate-800 text-slate-500 opacity-60 cursor-not-allowed"
+                      }">
+                ${maxCap === 0 ? "발전소 없음" : (curHeld >= maxCap ? "저장소 만차" : (unitPrice ? `+1개 매입 (${unitPrice} E)` : "재고 품절"))}
+              </button>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      // 보충률 표 렌더링
+      const rate = REPLENISH_RATES[P.step] || REPLENISH_RATES[1];
+      document.getElementById("replenishStepBadge").textContent = `Step ${P.step} 기준`;
+      document.getElementById("replenishRateGrid").innerHTML = fuels.map(fk => `
+        <div class="p-1.5 rounded-lg bg-black/40 border border-white/5">
+          <div class="text-slate-400">${FUEL_INFO[fk].name}</div>
+          <strong class="${FUEL_INFO[fk].color} font-black">+${rate[fk]}개</strong>
+        </div>
+      `).join("");
+    }
+
+    function renderStatusView() {
+      // 4대 전력 기업 비교
+      document.getElementById("companyComparisonList").innerHTML = P.turnOrder.map((cid, idx) => {
+        const c = getCompany(cid);
+        const cap = getTotalPlantCapacity(c);
+        const pwr = calcPowerableCities(c);
+        return `
+          <div class="p-3 rounded-xl border ${c.isPlayer ? "border-emerald-500/60 bg-emerald-950/30" : "border-white/10 bg-[#111827]"} space-y-1.5">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded font-black text-[12px] ${c.badgeBg}">턴 ${idx + 1}위</span>
+                <strong class="text-sm font-black ${c.isPlayer ? "text-emerald-300" : "text-slate-100"}">${c.name}</strong>
+              </div>
+              <strong class="text-amber-300 font-black text-sm">${c.money} E</strong>
+            </div>
+            <div class="flex items-center justify-between text-[12px] text-slate-300">
+              <span>연결 도시: <strong class="text-white">${c.cities.length}개</strong> (가동 가능: ${pwr}/${cap})</span>
+              <span>보유 발전소: ${c.plants.map(p => `#${p.num}`).join(", ") || "없음"}</span>
+            </div>
+            <div class="flex items-center gap-2 text-[12px] text-slate-400 border-t border-white/5 pt-1">
+              <span>비축 연료:</span>
+              <span class="text-amber-400">석탄 ${c.fuel.coal}</span>
+              <span class="text-sky-400">석유 ${c.fuel.oil}</span>
+              <span class="text-lime-400">바이오 ${c.fuel.garbage}</span>
+              <span class="text-rose-400">우라늄 ${c.fuel.uranium}</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      // 로그 박스
+      const logsBox = document.getElementById("gameLogsBox");
+      if (logsBox) {
+        logsBox.innerHTML = P.logs.slice(-25).reverse().map(l => `<div>• ${l}</div>`).join("");
+      }
+
+      // 공식 수익표
+      const incGrid = document.getElementById("incomeTableGrid");
+      if (incGrid && !incGrid.innerHTML) {
+        incGrid.innerHTML = INCOME_TABLE.slice(0, 15).map((inc, cities) => `
+          <div class="p-1 rounded bg-black/40 border border-white/5">
+            <div class="text-slate-400">${cities}도시</div>
+            <strong class="text-amber-300 font-bold">+${inc}E</strong>
+          </div>
+        `).join("");
+      }
+    }
+
+    function renderBottomActionBar() {
+      const titleEl = document.getElementById("bottomPhaseGuideTitle");
+      const subEl = document.getElementById("bottomPhaseGuideSub");
+      const btn = document.getElementById("btnMainNextAction");
+      const player = getPlayer();
+
+      if (P.phase === "auction") {
+        titleEl.textContent = "2단계: 발전소 경매 진행 중";
+        if (P.auction) {
+          subEl.textContent = `[${P.auction.plant.name}] 현재 입찰가 ${P.auction.currentBid} E`;
+          btn.textContent = "경매 콘솔 보기";
+        } else {
+          subEl.textContent = "발전소를 골라 입찰하거나 경매 불참(패스)하세요.";
+          btn.textContent = activeTab === "plants" ? "경매 불참 (패스) →" : "경매장 열기 →";
+        }
+      } else if (P.phase === "resources") {
+        titleEl.textContent = "3단계: 실시간 연료 매입 (역순 진행)";
+        subEl.textContent = "발전소 가동 연료를 매입한 후 도시 건설로 넘어가세요.";
+        btn.textContent = activeTab === "resources" ? "연료 매입 완료 →" : "연료 거래소 열기 →";
+      } else if (P.phase === "build") {
+        titleEl.textContent = "4단계: 도시 송전망 건설 (역순 진행)";
+        subEl.textContent = `내 도시 ${player.cities.length}개 연결됨 (지도에서 도시 터치)`;
+        btn.textContent = activeTab === "map" ? "건설 완료 & 전력 정산 →" : "전력망 지도 열기 →";
+      } else {
+        titleEl.textContent = "5단계: 전력 공급 및 수익 배당";
+        subEl.textContent = "라운드 정산을 확인하세요.";
+        btn.textContent = "다음 라운드 →";
+      }
+    }
+
+    function onClickMainNextButton() {
+      if (P.phase === "auction") {
+        if (activeTab !== "plants") {
+          switchTab("plants");
+        } else if (!P.auction) {
+          playerPassEntireAuctionPhase();
+        }
+      } else if (P.phase === "resources") {
+        if (activeTab !== "resources") {
+          switchTab("resources");
+        } else {
+          finishResourcePhaseAndGoBuild();
+        }
+      } else if (P.phase === "build") {
+        if (activeTab !== "map") {
+          switchTab("map");
+        } else {
+          finishBuildPhaseAndGoBureaucracy();
+        }
+      } else if (P.phase === "bureaucracy") {
+        closeBureaucracyAndNextRound();
+      }
+    }
+
+    // ---------------------------------------------------------
+    // (N) UI 유틸리티, 맵 줌/팬, 설정 제어
+    // ---------------------------------------------------------
+    function switchTab(tabKey) {
+      activeTab = tabKey;
+      ["map", "plants", "resources", "status"].forEach(k => {
+        const viewEl = document.getElementById(`view_${k}`);
+        const btnEl = document.getElementById(`tabBtn_${k}`);
+        const isActive = (k === tabKey);
+        if (viewEl) viewEl.classList.toggle("hidden", !isActive);
+        if (btnEl) {
+          btnEl.className = isActive
+            ? "py-1.5 rounded-lg flex flex-col items-center gap-0.5 bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-extrabold transition"
+            : "py-1.5 rounded-lg flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-200 font-bold transition";
+        }
+      });
+      renderAll();
+    }
+
+    function toggleCoach() {
+      coachEnabled = !coachEnabled;
+      const banner = document.getElementById("coachBanner");
+      const btn = document.getElementById("btnCoachToggle");
+      if (banner) banner.classList.toggle("hidden", !coachEnabled);
+      if (btn) {
+        btn.textContent = coachEnabled ? "코치 ON" : "코치 OFF";
+        btn.className = coachEnabled
+          ? "px-2 py-1 rounded-lg bg-amber-900/70 border border-amber-500/50 text-amber-200 font-bold text-[12px] transition"
+          : "px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 font-bold text-[12px] transition";
+      }
+    }
+
+    function toggleBudgetCalc() {
+      budgetOpen = !budgetOpen;
+      const panel = document.getElementById("budgetCalcPanel");
+      if (panel) panel.classList.toggle("hidden", !budgetOpen);
+    }
+
+    function updateGridMapTransform() {
+      const g = document.getElementById("gridMapTransform");
+      if (g) {
+        g.setAttribute("transform", `translate(${gridPan.x}, ${gridPan.y}) scale(${gridZoom})`);
+      }
+    }
+
+    function zoomGridMap(factor) {
+      gridZoom = Math.max(0.6, Math.min(2.2, gridZoom * factor));
+      updateGridMapTransform();
+    }
+
+    function resetGridMapPan() {
+      gridZoom = 1.0;
+      gridPan = { x: 0, y: 0 };
+      updateGridMapTransform();
+    }
+
+    function log(msg) {
+      if (P && P.logs) P.logs.push(msg);
+    }
+
+    function pushToast(msg, isError = false) {
+      const area = document.getElementById("toastArea");
+      if (!area) return;
+      const el = document.createElement("div");
+      el.className = `px-3.5 py-2 rounded-xl border text-xs font-extrabold shadow-2xl transition-all duration-200 ${
+        isError ? "bg-rose-950/95 border-rose-500 text-rose-200" : "bg-[#111827]/95 border-cyan-500/60 text-cyan-200"
+      }`;
+      el.textContent = msg;
+      area.appendChild(el);
+      setTimeout(() => {
+        el.style.opacity = "0";
+        setTimeout(() => el.remove(), 250);
+      }, 2600);
+    }
+
+    function openSettingsModal() {
+      document.getElementById("cfgSelectMap").value = cfgMapKey;
+      document.getElementById("cfgSelectGoal").value = String(cfgGoalCities);
+      document.getElementById("modalSettings").classList.remove("hidden");
+    }
+
+    function closeSettingsModal() {
+      document.getElementById("modalSettings").classList.add("hidden");
+    }
+
+    function setCfgDiff(d) {
+      cfgDifficulty = d;
+      ["novice", "regular", "expert"].forEach(k => {
+        const btn = document.getElementById(`diffBtn_${k}`);
+        if (btn) {
+          btn.className = (k === d)
+            ? "py-2 rounded-xl border border-cyan-500 bg-cyan-500/20 text-cyan-300 font-bold"
+            : "py-2 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 font-bold";
+        }
+      });
+    }
+
+    function applySettingsAndNewGame() {
+      cfgMapKey = document.getElementById("cfgSelectMap").value || "korea";
+      cfgGoalCities = parseInt(document.getElementById("cfgSelectGoal").value) || 12;
+      closeAllModals();
+      resetGridMapPan();
+      initNewPowerGridGame();
+    }
+
+    function closeAllModals() {
+      ["modalReplacePlant", "modalBureaucracy", "modalSettings", "modalGameFinish"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add("hidden");
+      });
+    }
+
+    // 맵 드래그 이벤트 바인딩 및 초기 실행
+    window.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("hudIconBolt").innerHTML = iconSvg("bolt", 18);
+      document.getElementById("iconCalcMini").innerHTML = iconSvg("calc", 13);
+      document.getElementById("iconGearMini").innerHTML = iconSvg("gear", 15);
+      document.getElementById("hudIconMoney").innerHTML = iconSvg("money", 14);
+      document.getElementById("hudIconCity").innerHTML = iconSvg("city", 14);
+      document.getElementById("iconCoachBulb").innerHTML = iconSvg("bulb", 16);
+
+      document.getElementById("navIconMap").innerHTML = iconSvg("city", 17);
+      document.getElementById("navIconPlants").innerHTML = iconSvg("gavel", 17);
+      document.getElementById("navIconFuel").innerHTML = iconSvg("oil", 17);
+      document.getElementById("navIconStatus").innerHTML = iconSvg("bolt", 17);
+
+      const svgMap = document.getElementById("gridMapSvg");
+      if (svgMap) {
+        svgMap.addEventListener("mousedown", e => {
+          isDraggingGrid = true;
+          gridDragStart = { x: e.clientX - gridPan.x, y: e.clientY - gridPan.y };
+        });
+        window.addEventListener("mousemove", e => {
+          if (!isDraggingGrid) return;
+          gridPan = { x: e.clientX - gridDragStart.x, y: e.clientY - gridDragStart.y };
+          updateGridMapTransform();
+        });
+        window.addEventListener("mouseup", () => { isDraggingGrid = false; });
+
+        svgMap.addEventListener("touchstart", e => {
+          if (e.touches.length === 1) {
+            isDraggingGrid = true;
+            gridDragStart = { x: e.touches[0].clientX - gridPan.x, y: e.touches[0].clientY - gridPan.y };
+          }
+        }, { passive: true });
+        svgMap.addEventListener("touchmove", e => {
+          if (isDraggingGrid && e.touches.length === 1) {
+            gridPan = { x: e.touches[0].clientX - gridDragStart.x, y: e.touches[0].clientY - gridDragStart.y };
+            updateGridMapTransform();
+          }
+        }, { passive: true });
+        svgMap.addEventListener("touchend", () => { isDraggingGrid = false; });
+      }
+
+      initNewPowerGridGame();
+    });
+  </script>
+</body>
+</html>
