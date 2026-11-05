@@ -1,0 +1,2976 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>버건디의 성 (The Castles of Burgundy) 스페셜 모바일 에디션</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    body {
+      background-color: #0b0908;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Pretendard", "Noto Sans KR", Arial, sans-serif;
+      touch-action: manipulation;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    @keyframes hexValidPulse {
+      0%, 100% { stroke: #fde047; stroke-width: 2.6px; filter: drop-shadow(0 0 5px rgba(250, 204, 21, 0.75)); }
+      50% { stroke: #ffffff; stroke-width: 4px; filter: drop-shadow(0 0 11px rgba(250, 204, 21, 1)); }
+    }
+    .hex-valid-target {
+      animation: hexValidPulse 1.35s infinite ease-in-out;
+      cursor: pointer;
+    }
+    @keyframes hexSelectedPulse {
+      0%, 100% { stroke: #38bdf8; stroke-width: 3.5px; filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.9)); }
+      50% { stroke: #bae6fd; stroke-width: 5px; filter: drop-shadow(0 0 14px rgba(56, 189, 248, 1)); }
+    }
+    .hex-selected-target {
+      animation: hexSelectedPulse 1.05s infinite ease-in-out;
+      cursor: pointer;
+    }
+    @keyframes bonusGlow {
+      0%, 100% { border-color: rgba(251, 191, 36, 0.85); box-shadow: 0 0 14px rgba(245, 158, 11, 0.35); }
+      50% { border-color: rgba(254, 240, 138, 1); box-shadow: 0 0 22px rgba(245, 158, 11, 0.65); }
+    }
+    .bonus-banner-glow {
+      animation: bonusGlow 1.3s infinite ease-in-out;
+    }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.3); }
+    ::-webkit-scrollbar-thumb { background: rgba(217, 119, 6, 0.5); border-radius: 4px; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="flex flex-col h-screen max-w-xl mx-auto bg-[#0d0a08] text-slate-100 overflow-hidden relative shadow-2xl border-x border-amber-500/15">
+
+  <!-- ========================================================= -->
+  <!-- 1. 상단 왕실 HUD & 실시간 주사위·일꾼·은화 액션 트레이      -->
+  <!-- ========================================================= -->
+  <header class="bg-gradient-to-b from-[#1c140d] to-[#130e0a] border-b border-amber-500/35 px-3 py-2 z-20 shrink-0 shadow-lg">
+    <!-- 1번째 줄: 타이틀, 페이즈/라운드, 점수 대결, 가이드/코치/설정 -->
+    <div class="flex items-center justify-between gap-1.5">
+      <div class="flex items-center gap-1.5 min-w-0">
+        <div id="hudIconCrown" class="text-amber-400 shrink-0"></div>
+        <div class="flex items-center gap-1.5 min-w-0">
+          <h1 class="text-xs font-black text-amber-200 truncate tracking-tight">버건디의 성</h1>
+          <span class="px-1.5 py-0.5 rounded bg-amber-950 border border-amber-500/50 text-amber-300 font-extrabold text-[12px]" id="hudPhaseRoundBadge">시대 A · 1/5</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1 shrink-0">
+        <button onclick="openGuideModal(0)" class="px-2 py-1 rounded-lg bg-emerald-950/85 border border-emerald-500/50 text-emerald-300 hover:bg-emerald-900 font-extrabold text-[12px] flex items-center gap-1 transition">
+          <span id="iconBookMini"></span>
+          <span>가이드</span>
+        </button>
+        <button onclick="toggleCoach()" id="btnCoachToggle" class="px-2 py-1 rounded-lg bg-amber-900/75 border border-amber-500/50 text-amber-200 hover:bg-amber-800 font-bold text-[12px] transition">
+          코치 ON
+        </button>
+        <button onclick="openSettingsModal()" class="p-1.5 rounded-lg bg-stone-800 border border-stone-600/60 text-stone-300 hover:bg-stone-700 transition" title="설정">
+          <div id="iconGearMini"></div>
+        </button>
+      </div>
+    </div>
+
+    <!-- 2번째 줄: 실시간 승점 레이스 & 내 보유 자원(일꾼, 은화, 선공권, 흰주사위) -->
+    <div class="flex items-center justify-between gap-1.5 mt-1.5 pt-1.5 border-t border-amber-500/15 text-[12px] overflow-x-auto no-scrollbar">
+      <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-emerald-950/70 border border-emerald-500/40 shrink-0">
+        <span class="text-emerald-300 font-extrabold">나</span>
+        <strong class="text-white font-black text-xs" id="hudMyScore">0점</strong>
+        <span class="text-stone-500">vs</span>
+        <span class="text-rose-300 font-bold">샤토마</span>
+        <strong class="text-rose-200 font-black text-xs" id="hudBotScore">0점</strong>
+      </div>
+
+      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-sky-950/70 border border-sky-500/40 shrink-0" title="주사위 눈금을 ±1 보정해 주는 일꾼 토큰">
+        <span id="hudIconWorker" class="text-sky-300"></span>
+        <span class="text-slate-300">일꾼</span>
+        <strong class="text-sky-300 font-black" id="hudWorkers">1</strong>
+      </div>
+
+      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-800/90 border border-slate-400/40 shrink-0" title="라운드당 1회 2은화로 중앙 암시장 타일 구매 가능">
+        <span id="hudIconSilver" class="text-slate-200"></span>
+        <span class="text-slate-300">은화</span>
+        <strong class="text-amber-200 font-black" id="hudSilver">1</strong>
+      </div>
+
+      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-purple-950/70 border border-purple-500/40 shrink-0">
+        <strong class="text-purple-200 font-extrabold" id="hudTurnOrderBadge">선공</strong>
+      </div>
+    </div>
+
+    <!-- 3번째 줄: 내 주사위 2개 인터랙티브 콘솔 + 빠른 일꾼 고용 / 되돌리기 -->
+    <div class="flex items-center justify-between gap-1.5 mt-1.5 pt-1.5 border-t border-white/10">
+      <div class="flex items-center gap-1.5 min-w-0">
+        <span class="text-[12px] text-amber-200/90 font-extrabold shrink-0">내 주사위:</span>
+        <div class="flex items-center gap-1.5" id="hudDiceTray"></div>
+      </div>
+
+      <div class="flex items-center gap-1 shrink-0">
+        <button onclick="actionHireWorkersWithSelectedDie()" id="btnHireWorkers" class="px-2 py-1 rounded-lg bg-sky-900/80 hover:bg-sky-800 border border-sky-400/50 text-sky-100 font-extrabold text-[12px] transition" title="선택한 주사위 1개를 소모해 일꾼 고용">
+          일꾼+2 고용
+        </button>
+        <button onclick="undoLastAction()" id="btnUndoAction" class="px-2 py-1 rounded-lg bg-stone-800 hover:bg-rose-950 border border-stone-600 text-stone-300 font-bold text-[12px] transition">
+          되돌리기
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================= -->
+  <!-- 2. 연쇄 콤보 보너스 액션 배너 & AI 전략 코치 브리핑         -->
+  <!-- ========================================================= -->
+  <!-- 성·시청·선박·목공소 등 타일 배치 보너스 발동 시 최우선 표시되는 인터랙티브 콘솔 -->
+  <div id="bonusActionConsole" class="hidden bg-gradient-to-r from-amber-950 via-[#2a1c08] to-amber-950 border-b-2 border-amber-400 px-3 py-2.5 text-xs space-y-2 shrink-0 z-20 bonus-banner-glow">
+    <div class="flex items-center justify-between gap-2">
+      <div class="flex items-center gap-1.5">
+        <span class="px-2 py-0.5 rounded bg-amber-400 text-slate-950 font-black text-[12px]">연쇄 콤보 발동!</span>
+        <strong class="text-amber-200 font-black text-xs" id="bonusConsoleTitle">성 배치 보너스: 무료 추가 행동</strong>
+      </div>
+      <button onclick="skipCurrentBonusAction()" class="px-2 py-0.5 rounded bg-black/50 border border-white/15 text-slate-300 hover:text-white font-bold text-[12px]">건너뛰기</button>
+    </div>
+    <p class="text-[12px] text-amber-100/95 leading-snug" id="bonusConsoleDesc">원하는 보너스 옵션을 아래에서 선택해 즉시 발동하세요!</p>
+    <div class="flex flex-wrap gap-1.5" id="bonusConsoleChoices"></div>
+  </div>
+
+  <!-- AI 전략 코치 배너 (ON/OFF 가능) -->
+  <div id="coachBanner" class="bg-gradient-to-r from-[#1f170d] via-[#17120c] to-stone-900 border-b border-amber-500/30 px-3 py-1.5 flex items-start gap-2 text-xs shrink-0 z-10">
+    <div id="iconCoachBulb" class="text-amber-400 mt-0.5 shrink-0"></div>
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center justify-between gap-1">
+        <strong class="text-amber-300 font-extrabold text-[12px]">왕실 수석 코치 조언</strong>
+        <span class="text-[12px] text-emerald-300 font-bold" id="coachPhaseBonusHint">이번 시대 구역 완성 보너스: +10점</span>
+      </div>
+      <p id="coachAdviceText" class="text-slate-200 text-[12px] leading-snug mt-0.5">
+        주사위를 선택하고 [중앙 시장]에서 타일을 가져오거나, [내 영지]에 보관소 타일을 배치해 연쇄 콤보를 터뜨리세요!
+      </p>
+    </div>
+  </div>
+
+  <!-- 샤토마 오토마 동향 중계 바 -->
+  <div class="bg-[#110d0a] border-b border-white/10 px-3 py-1 flex items-center justify-between gap-2 text-[12px] shrink-0">
+    <div class="flex items-center gap-1.5 min-w-0 flex-1">
+      <span class="px-1.5 py-0.5 rounded bg-rose-950 border border-rose-500/40 text-rose-300 font-extrabold shrink-0">샤토마 동향</span>
+      <span class="text-slate-300 truncate" id="rivalTickerText">샤토마 공작이 루아르 계곡의 패권을 노리고 있습니다.</span>
+    </div>
+    <button onclick="switchTab('rival')" class="text-amber-400 hover:text-amber-300 font-bold shrink-0">상세비교</button>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- 3. 메인 컨텐츠 영역 (4개 탭 뷰)                            -->
+  <!-- ========================================================= -->
+  <main class="flex-1 relative overflow-hidden flex flex-col">
+
+    <!-- [탭 1] 내 공국 영지 뷰 (37칸 정육각 그리드 + 개인 보관소 3칸 + 상품 창고) -->
+    <section id="view_estate" class="flex-1 relative flex flex-col overflow-hidden bg-[#0a0806]">
+      <!-- 상단 고정: 내 개인 타일 보관소 (최대 3칸 슬롯) -->
+      <div class="bg-[#16110c]/95 border-b border-amber-500/25 px-2.5 py-2 shrink-0 space-y-1 z-10">
+        <div class="flex items-center justify-between text-[12px]">
+          <span class="font-extrabold text-amber-200">내 타일 보관소 (터치하면 영지에 배치 가능한 칸이 빛납니다!)</span>
+          <button onclick="switchTab('market')" class="text-cyan-300 hover:text-cyan-200 font-extrabold">시장에서 타일 영입 →</button>
+        </div>
+        <div class="grid grid-cols-3 gap-1.5" id="myStorageSlotsGrid"></div>
+      </div>
+
+      <!-- 중앙: 인터랙티브 37칸 정육각형 영지 SVG 맵 -->
+      <div class="flex-1 relative overflow-hidden flex flex-col">
+        <!-- 맵 우측 상단 줌/리셋 및 범례 버튼 -->
+        <div class="absolute top-2 left-2.5 right-2.5 z-10 flex items-center justify-between pointer-events-none">
+          <div class="px-2 py-0.5 rounded-lg bg-black/80 border border-amber-500/30 text-[12px] text-amber-200 font-bold pointer-events-auto" id="estateBoardNameBadge">
+            공국 #1 · 루아르 표준령
+          </div>
+          <div class="flex items-center gap-1 pointer-events-auto">
+            <button onclick="zoomEstate(1.18)" class="w-7 h-7 rounded-lg bg-black/85 border border-white/20 text-slate-200 font-black text-xs">+</button>
+            <button onclick="zoomEstate(0.85)" class="w-7 h-7 rounded-lg bg-black/85 border border-white/20 text-slate-200 font-black text-xs">-</button>
+            <button onclick="resetEstatePan()" class="px-2 h-7 rounded-lg bg-black/85 border border-amber-500/40 text-amber-300 font-bold text-[12px]">중앙</button>
+          </div>
+        </div>
+
+        <div id="estateSvgContainer" class="flex-1 w-full h-full cursor-grab active:cursor-grabbing touch-none select-none">
+          <svg id="estateSvg" class="w-full h-full" viewBox="0 0 500 460" xmlns="http://www.w3.org/2000/svg">
+            <g id="estateTransformGroup">
+              <g id="estateHexLayer"></g>
+            </g>
+          </svg>
+        </div>
+
+        <!-- 영지 칸 터치 시 뜨는 친절한 '타일 배치 확인 & 주사위/일꾼 자동 계산' 프리뷰 카드 -->
+        <div id="hexPreviewCard" class="hidden mx-2.5 mb-1.5 p-2.5 rounded-2xl bg-[#18130e]/95 border-2 border-amber-400 shadow-2xl z-10 space-y-1.5 text-xs backdrop-blur-md">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <span id="hexPreviewTypeBadge" class="px-2 py-0.5 rounded bg-amber-950 border border-amber-500/40 text-amber-300 font-extrabold text-[12px] shrink-0">건물 구역</span>
+              <strong id="hexPreviewTitle" class="text-xs font-black text-white truncate">주사위 [4]번 영지 칸</strong>
+            </div>
+            <button onclick="clearHexSelection()" class="px-2 py-0.5 rounded bg-stone-800 text-stone-300 hover:text-white font-bold text-[12px]">닫기</button>
+          </div>
+          <p class="text-[12px] text-slate-200 leading-snug" id="hexPreviewDesc">보관소에서 배치할 타일을 선택하세요.</p>
+          <div class="flex items-center justify-between gap-2 pt-0.5">
+            <span class="text-[12px] text-cyan-300 font-extrabold" id="hexPreviewCostText">필요 조건 확인 중</span>
+            <button onclick="confirmPlaceTileOnHex()" id="btnConfirmPlaceHex" class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black text-xs shadow-lg">
+              이 칸에 배치 확정
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 하단 고정: 내 보유 상품(Goods 1~6) 창고 & 원터치 판매 바 -->
+      <div class="bg-[#16110c]/95 border-t border-amber-500/25 px-2.5 py-1.5 shrink-0 space-y-1">
+        <div class="flex items-center justify-between text-[12px]">
+          <span class="font-extrabold text-slate-200">보유 상품 창고 (주사위 눈금 일치 시 터치해 일괄 판매!)</span>
+          <span class="text-amber-300 font-bold" id="soldGoodsCountText">누적 판매: 0장</span>
+        </div>
+        <div class="grid grid-cols-6 gap-1" id="myGoodsRackGrid"></div>
+      </div>
+    </section>
+
+    <!-- [탭 2] 중앙 시장 데포 (1~6) & 은화 암시장 뷰 (Central Market) -->
+    <section id="view_market" class="hidden flex-1 overflow-y-auto p-3 space-y-3 bg-[#0e0b08]">
+      <div class="flex items-center justify-between border-b border-white/10 pb-2 gap-2">
+        <div>
+          <h2 class="text-sm font-black text-amber-300">중앙 공국 시장 (데포 1 ~ 6)</h2>
+          <p class="text-[12px] text-slate-400">내 주사위 눈금(또는 일꾼 보정)과 일치하는 데포의 타일을 가져와 보관소에 넣습니다.</p>
+        </div>
+        <span class="px-2 py-1 rounded-lg bg-stone-800 border border-white/10 text-[12px] text-amber-200 font-bold shrink-0" id="whiteDieDepotBadge">이번 라운드 상품: #1</span>
+      </div>
+
+      <!-- 중앙 암시장 (Black Market - 라운드당 1회 은화 2개로 주사위 없이 구매!) -->
+      <div class="p-3 rounded-2xl bg-gradient-to-r from-slate-900 via-[#1a1523] to-slate-900 border border-purple-500/50 space-y-2 shadow-xl">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="flex items-center gap-1.5">
+              <span class="px-2 py-0.5 rounded bg-purple-600 text-white font-black text-[12px]">중앙 암시장</span>
+              <strong class="text-xs font-black text-purple-200">은화 2개로 주사위 소모 없이 영입!</strong>
+            </div>
+            <p class="text-[12px] text-slate-300 mt-0.5" id="blackMarketStatusText">라운드당 1회 이용 가능 (보유 은화: 1개)</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2" id="blackMarketTilesGrid"></div>
+      </div>
+
+      <!-- 1~6번 시장 데포 리스트 -->
+      <div class="space-y-2.5" id="numberedDepotsList"></div>
+    </section>
+
+    <!-- [탭 3] 타일 한글 도감 & 보너스·점수표 뷰 (Codex & Bonuses) -->
+    <section id="view_codex" class="hidden flex-1 overflow-y-auto p-3 space-y-3.5 bg-[#0e0b08] text-xs">
+      <!-- 6색상 전체 석권 보너스 타일 현황 -->
+      <div class="p-3 rounded-2xl bg-[#16110c] border border-amber-500/30 space-y-2">
+        <div class="flex items-center justify-between">
+          <strong class="text-amber-300 font-black text-sm">6대 지형 전체 완성 선착순 보너스 타일</strong>
+          <span class="text-[12px] text-slate-400">1등 +6점 / 2등 +3점</span>
+        </div>
+        <p class="text-[12px] text-slate-300">영지 내 해당 색상의 모든 칸을 가장 먼저 채우는 영주가 차지합니다.</p>
+        <div class="grid grid-cols-3 gap-1.5" id="colorBonusStatusGrid"></div>
+      </div>
+
+      <!-- 구역 완성 크기 점수표 & 시대별 추가 점수 -->
+      <div class="p-3 rounded-2xl bg-[#16110c] border border-white/10 space-y-2">
+        <strong class="text-emerald-300 font-black text-sm block">구역 완성 즉시 득점 공식 = [구역 크기 점수] + [시대 보너스]</strong>
+        <div class="grid grid-cols-4 gap-1 text-center text-[12px]" id="regionSizeScoreGrid"></div>
+        <div class="grid grid-cols-5 gap-1 text-center text-[12px] pt-1" id="phaseBonusScoreGrid"></div>
+      </div>
+
+      <!-- 베이지색 건물 8종 완벽 한글 도감 -->
+      <div class="p-3 rounded-2xl bg-[#16110c] border border-amber-400/25 space-y-2">
+        <strong class="text-amber-200 font-black text-sm block">베이지색 도시 건물 8종 효과 도감</strong>
+        <p class="text-[12px] text-slate-400">원칙적으로 같은 연결된 도시 구역 안에는 같은 종류의 건물을 중복해서 지을 수 없습니다. (단, 지식 #01 보유 시 중복 허용)</p>
+        <div class="grid grid-cols-1 gap-1.5" id="buildingCodexList"></div>
+      </div>
+
+      <!-- 노란색 지식(수도원) 18종 완벽 한글 도감 -->
+      <div class="p-3 rounded-2xl bg-[#16110c] border border-yellow-400/25 space-y-2">
+        <strong class="text-yellow-300 font-black text-sm block">노란색 수도원 지식 타일 18종 도감</strong>
+        <div class="grid grid-cols-1 gap-1.5" id="knowledgeCodexList"></div>
+      </div>
+    </section>
+
+    <!-- [탭 4] 샤토마 공작 비교 & 실시간 기록 뷰 (Rival & Logs) -->
+    <section id="view_rival" class="hidden flex-1 overflow-y-auto p-3 space-y-3.5 bg-[#0e0b08] text-xs">
+      <!-- 선박 브릿지 (턴 순서 트랙) 현황 -->
+      <div class="p-3 rounded-2xl bg-[#16110c] border border-sky-500/30 space-y-2">
+        <div class="flex items-center justify-between">
+          <strong class="text-sky-300 font-black text-sm">선박 교역로 & 턴 순서(선공권) 트랙</strong>
+          <span class="text-[12px] text-sky-200 font-bold" id="shipTrackSummaryText">선박 배치 시 1칸 전진</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-[12px]" id="shipTrackCompareBox"></div>
+      </div>
+
+      <!-- 내 공국 vs 샤토마 공작 상세 영지 진행도 비교 -->
+      <div class="p-3 rounded-2xl bg-[#16110c] border border-rose-500/30 space-y-2.5">
+        <div class="flex items-center justify-between">
+          <strong class="text-rose-300 font-black text-sm">내 공국 vs 샤토마 공작(AI) 전력 비교</strong>
+          <span class="px-2 py-0.5 rounded bg-rose-950 text-rose-200 font-bold text-[12px]" id="rivalDiffBadge">보통 공작</span>
+        </div>
+        <div class="space-y-2" id="rivalComparisonCards"></div>
+      </div>
+
+      <!-- 내 보유 지식 타일 효과 목록 -->
+      <div class="p-3 rounded-2xl bg-[#16110c] border border-yellow-500/30 space-y-1.5">
+        <strong class="text-yellow-300 font-black text-sm block">내 영지에 활성화된 지식(수도원) 효과</strong>
+        <div id="myActiveKnowledgesList" class="space-y-1 text-[12px] text-slate-300"></div>
+      </div>
+
+      <!-- 게임 로그 -->
+      <div class="p-3 rounded-2xl bg-black/50 border border-white/10 space-y-1.5">
+        <strong class="text-amber-300 font-extrabold block">루아르 연대기 실시간 기록 (Log)</strong>
+        <div id="gameLogsBox" class="max-h-48 overflow-y-auto space-y-1 text-[12px] text-slate-300 font-mono"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================================= -->
+  <!-- 4. 하단 메인 가이드 바 & 4탭 네비게이션                     -->
+  <!-- ========================================================= -->
+  <section class="bg-[#18120c] border-t border-amber-500/35 px-3 py-2 z-20 shrink-0 flex items-center justify-between gap-2 shadow-2xl">
+    <div class="min-w-0 flex-1">
+      <div class="text-[12px] text-amber-300 font-extrabold truncate" id="bottomGuideTitle">남은 주사위 2개로 행동을 수행하세요</div>
+      <div class="text-[12px] text-slate-400 truncate" id="bottomGuideSub">시장 타일 영입 · 영지 타일 배치 · 상품 판매 · 일꾼 고용</div>
+    </div>
+    <button onclick="onClickMainBottomAction()" id="btnMainBottomAction" class="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 text-slate-950 font-black text-xs shadow-lg shrink-0 transition active:scale-95">
+      중앙 시장 보기 →
+    </button>
+  </section>
+
+  <nav class="bg-[#0b0806] border-t border-white/10 px-2 py-1.5 z-20 shrink-0 grid grid-cols-4 gap-1 text-xs">
+    <button onclick="switchTab('estate')" id="tabBtn_estate" class="py-1.5 rounded-lg flex flex-col items-center gap-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/40 font-extrabold transition">
+      <div id="navIconEstate"></div>
+      <span class="text-[12px]">내 영지</span>
+    </button>
+    <button onclick="switchTab('market')" id="tabBtn_market" class="py-1.5 rounded-lg flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-200 font-bold transition">
+      <div id="navIconMarket"></div>
+      <span class="text-[12px]">중앙 시장</span>
+    </button>
+    <button onclick="switchTab('codex')" id="tabBtn_codex" class="py-1.5 rounded-lg flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-200 font-bold transition">
+      <div id="navIconCodex"></div>
+      <span class="text-[12px]">도감·보너스</span>
+    </button>
+    <button onclick="switchTab('rival')" id="tabBtn_rival" class="py-1.5 rounded-lg flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-200 font-bold transition">
+      <div id="navIconRival"></div>
+      <span class="text-[12px]">샤토마·기록</span>
+    </button>
+  </nav>
+
+  <!-- ========================================================= -->
+  <!-- 5. 모달 팝업들 (초보자 가이드, 보관소 교체, 시대 정산, 설정, 종료) -->
+  <!-- ========================================================= -->
+
+  <!-- [모달 1] 5단계 초보자 친화적 비주얼 가이드 모달 -->
+  <div id="modalBeginnerGuide" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="bg-[#16110c] border-2 border-amber-500/60 rounded-2xl w-full max-w-md p-4 space-y-3.5 shadow-2xl max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between border-b border-white/10 pb-2 shrink-0">
+        <div class="flex items-center gap-2">
+          <span class="px-2 py-0.5 rounded bg-amber-400 text-slate-950 font-black text-[12px]">입문 완벽 가이드</span>
+          <h3 class="text-sm font-black text-amber-200" id="guideModalTitle">버건디의 성 핵심 규칙</h3>
+        </div>
+        <button onclick="closeGuideModal()" class="px-2 py-0.5 rounded bg-stone-800 text-stone-300 hover:text-white font-bold text-xs">닫기 X</button>
+      </div>
+
+      <div class="grid grid-cols-5 gap-1 text-[12px] shrink-0">
+        <button onclick="switchGuideSlide(0)" id="guideTab_0" class="py-1.5 rounded-lg font-extrabold bg-amber-500 text-slate-950">1.주사위</button>
+        <button onclick="switchGuideSlide(1)" id="guideTab_1" class="py-1.5 rounded-lg font-bold bg-stone-800 text-stone-300">2.영지배치</button>
+        <button onclick="switchGuideSlide(2)" id="guideTab_2" class="py-1.5 rounded-lg font-bold bg-stone-800 text-stone-300">3.연쇄콤보</button>
+        <button onclick="switchGuideSlide(3)" id="guideTab_3" class="py-1.5 rounded-lg font-bold bg-stone-800 text-stone-300">4.구역득점</button>
+        <button onclick="switchGuideSlide(4)" id="guideTab_4" class="py-1.5 rounded-lg font-bold bg-stone-800 text-stone-300">5.암시장</button>
+      </div>
+
+      <div id="guideSlideBody" class="flex-1 overflow-y-auto space-y-2.5 text-xs text-slate-200 leading-relaxed pr-1"></div>
+
+      <div class="flex items-center justify-between gap-2 pt-2 border-t border-white/10 shrink-0">
+        <button onclick="prevGuideSlide()" id="btnGuidePrev" class="px-3.5 py-2 rounded-xl bg-stone-800 text-stone-300 font-bold text-xs">← 이전</button>
+        <span class="text-[12px] text-stone-400 font-bold" id="guidePageIndicator">1 / 5</span>
+        <button onclick="nextGuideSlide()" id="btnGuideNext" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs">다음 설명 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- [모달 2] 개인 보관소(3칸) 만차 시 덮어쓸 슬롯 선택 모달 -->
+  <div id="modalStorageFull" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="bg-[#18120c] border border-amber-500/60 rounded-2xl w-full max-w-sm p-4 space-y-3 shadow-2xl">
+      <h3 class="text-sm font-black text-amber-300">개인 보관소(3칸) 가득 참!</h3>
+      <p class="text-xs text-slate-300">새 타일을 보관하기 위해 기존 보관소 타일 3개 중 폐기하고 교체할 칸을 선택하세요.</p>
+      <div class="space-y-2" id="storageReplaceList"></div>
+      <button onclick="cancelPendingStorageTile()" class="w-full py-2 rounded-xl bg-stone-800 text-stone-300 font-bold text-xs">취소</button>
+    </div>
+  </div>
+
+  <!-- [모달 3] 시대(Phase A~E) 종료 정산 모달 (광산 은화 수입 & 새 시장 리필 안내) -->
+  <div id="modalPhaseSummary" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="bg-[#16110c] border-2 border-amber-500/60 rounded-2xl w-full max-w-md p-4 space-y-3.5 shadow-2xl">
+      <div class="text-center space-y-1">
+        <span class="px-2.5 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-500/40 font-extrabold text-[12px]" id="phaseSummaryBadge">시대 A 종료 결산</span>
+        <h3 class="text-base font-black text-amber-200">은광 연금 수령 & 새로운 시대 개막</h3>
+      </div>
+      <div class="space-y-2 text-xs" id="phaseSummaryBody"></div>
+      <button onclick="closePhaseSummaryModal()" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black text-xs shadow-lg">
+        다음 시대 시작하기 →
+      </button>
+    </div>
+  </div>
+
+  <!-- [모달 4] 게임 설정 모달 (공국 보드 선택, 샤토마 난이도, 게임 길이) -->
+  <div id="modalSettings" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="bg-[#16110c] border border-amber-500/50 rounded-2xl w-full max-w-md p-4 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-white/10 pb-2">
+        <h3 class="font-black text-base text-amber-300">버건디의 성 시뮬레이터 설정</h3>
+        <button onclick="closeSettingsModal()" class="text-stone-400 hover:text-white font-bold text-xs">닫기 X</button>
+      </div>
+
+      <div class="space-y-1.5">
+        <label class="text-xs font-extrabold text-slate-200">내 공국 영지 맵 선택</label>
+        <select id="cfgSelectDuchy" class="w-full bg-[#0b0806] border border-white/20 rounded-xl p-2.5 text-xs text-amber-200 font-bold">
+          <option value="duchy1">공국 #1: 루아르 표준령 (초보자 추천 · 균형 잡힌 구역)</option>
+          <option value="duchy2">공국 #2: 부르고뉴 대공령 (대형 도시·목초지 콤보 특화)</option>
+        </select>
+      </div>
+
+      <div class="space-y-1.5">
+        <label class="text-xs font-extrabold text-slate-200">샤토마 공작 (Chateauma AI) 난이도</label>
+        <div class="grid grid-cols-3 gap-2 text-xs font-bold">
+          <button type="button" onclick="setCfgDiff('novice')" id="diffBtn_novice" class="py-2 rounded-xl border border-stone-700 bg-stone-800 text-stone-300">입문 영주</button>
+          <button type="button" onclick="setCfgDiff('regular')" id="diffBtn_regular" class="py-2 rounded-xl border border-amber-500 bg-amber-500/20 text-amber-300">숙련 공작</button>
+          <button type="button" onclick="setCfgDiff('expert')" id="diffBtn_expert" class="py-2 rounded-xl border border-stone-700 bg-stone-800 text-stone-300">마스터 샤토마</button>
+        </div>
+      </div>
+
+      <div class="space-y-1.5">
+        <label class="text-xs font-extrabold text-slate-200">시대 진행 길이 (라운드 수)</label>
+        <select id="cfgSelectLength" class="w-full bg-[#0b0806] border border-white/20 rounded-xl p-2.5 text-xs text-cyan-200 font-bold">
+          <option value="5">정식 풀 게임: 5개 시대 A~E (총 25라운드)</option>
+          <option value="3">스피드 게임: 3개 시대 A~C (총 15라운드 · 빠른 결판)</option>
+        </select>
+      </div>
+
+      <button onclick="applySettingsAndNewGame()" class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 text-slate-950 font-black text-xs shadow-lg">
+        설정 적용하고 새 공국 개창하기
+      </button>
+    </div>
+  </div>
+
+  <!-- [모달 5] 최종 게임 종료 및 영광의 결산 모달 -->
+  <div id="modalGameFinish" class="hidden fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-3">
+    <div class="bg-[#16110c] border-2 border-amber-400 rounded-2xl w-full max-w-md p-5 space-y-4 shadow-2xl text-center">
+      <div class="space-y-1">
+        <span class="px-3 py-1 rounded-full bg-amber-950 border border-amber-500/50 text-amber-300 font-extrabold text-xs" id="finishBadge">루아르 계곡 최종 결산</span>
+        <h3 class="text-xl font-black text-amber-200" id="finishTitle">부르고뉴 최고의 대공 등극!</h3>
+        <p class="text-xs text-slate-300" id="finishDesc">남은 은화·일꾼·미판매 상품 점수와 노란색 지식 타일 종료 보너스를 모두 합산한 결과입니다.</p>
+      </div>
+      <div class="space-y-2 text-xs text-left" id="finishBreakdownList"></div>
+      <button onclick="applySettingsAndNewGame()" class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black text-xs shadow-lg">
+        새로운 공국으로 다시 플레이
+      </button>
+    </div>
+  </div>
+
+  <!-- 토스트 알림 영역 -->
+  <div id="toastArea" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-1.5 pointer-events-none w-11/12 max-w-sm"></div>
+
+  <!-- ========================================================= -->
+  <!-- 6. 커스텀 SVG 벡터 그래픽 & 버건디의 성 코어 게임 엔진      -->
+  <!-- ========================================================= -->
+  <script>
+    // ---------------------------------------------------------
+    // (A) 인라인 SVG 아이콘 & 정육면체 주사위 눈금(1~6) 벡터 렌더러
+    //     (유니코드 이모지 0개 원칙 엄격 준수)
+    // ---------------------------------------------------------
+    function iconSvg(name, size = 16) {
+      const s = size;
+      switch (name) {
+        case "crown":
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"/></svg>`;
+        case "castle":
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V8h3v2h3V8h4v2h3V8h3v13H4z"/><path d="M10 21v-5a2 2 0 0 1 4 0v5"/><path d="M4 8V4h3v2M17 6V4h3v4"/></svg>`;
+        case "ship":
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20c2 1 4 1 6 0s4-1 6 0 4 1 6 0"/><path d="M4 16l2 3h12l2-3-8-2-8 2z"/><path d="M12 3v11"/><path d="M12 4l6 6h-6"/></svg>`;
+        case "pasture":
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="13" rx="6" ry="4"/><circle cx="18" cy="10" r="2.5"/><path d="M8 17v3M15 17v3M5 12l-2-1"/></svg>`;
+        case "building":
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V9l7-5 7 5v12"/><path d="M10 21v-5h4v5"/><rect x="10" y="9" width="4" height="3"/></svg>`;
+        case "mine":
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5 19 10"/><path d="m3 21 9-9"/><path d="M11 4c3.5 0 7 2 9 6-4-1.5-7-1-9 1-2-2-1.5-5 0-7z"/></svg>`;
+        case "knowledge":
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="9" y1="7" x2="16" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/></svg>`;
+        case "worker":
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a6.5 6.5 0 0 1 13 0"/></svg>`;
+        case "silver":
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 20 7 20 17 12 22 4 17 4 7 12 2"/><circle cx="12" cy="12" r="3.5"/></svg>`;
+        case "goods":
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>`;
+        case "book":
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`;
+        case "bulb":
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5.76.76 1.23 1.52 1.41 2.5"/></svg>`;
+        case "gear":
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
+        case "shield":
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`;
+        default:
+          return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>`;
+      }
+    }
+
+    // 정육면체 주사위 1~6 눈금 SVG 렌더러
+    function dieFaceSvg(pip, size = 26, isSelected = false, isUsed = false) {
+      const p = Number(pip) || 1;
+      const bg = isUsed ? "#1c1917" : (isSelected ? "#fef3c7" : "#f8fafc");
+      const stroke = isUsed ? "#44403c" : (isSelected ? "#f59e0b" : "#94a3b8");
+      const dotCol = isUsed ? "#57534e" : "#0f172a";
+
+      const dotCoords = {
+        1: [[12, 12]],
+        2: [[7, 7], [17, 17]],
+        3: [[7, 7], [12, 12], [17, 17]],
+        4: [[7, 7], [17, 7], [7, 17], [17, 17]],
+        5: [[7, 7], [17, 7], [12, 12], [7, 17], [17, 17]],
+        6: [[7, 6.5], [17, 6.5], [7, 12], [17, 12], [7, 17.5], [17, 17.5]]
+      }[p] || [[12, 12]];
+
+      const dots = dotCoords.map(([cx, cy]) => `<circle cx="${cx}" cy="${cy}" r="2.2" fill="${dotCol}" />`).join("");
+      return `
+        <svg width="${size}" height="${size}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <rect x="2" y="2" width="20" height="20" rx="4.5" fill="${bg}" stroke="${stroke}" stroke-width="${isSelected ? 2.4 : 1.5}" />
+          ${dots}
+        </svg>
+      `;
+    }
+
+    // ---------------------------------------------------------
+    // (B) 6종 육각 지형 메타데이터, 점수표, 건물 8종 & 지식 18종 DB
+    // ---------------------------------------------------------
+    const HEX_TYPES = {
+      castle: {
+        name: "성",
+        fullName: "성채 (Castle)",
+        emptyFill: "#0f2e1f",
+        placedFill: "#065f46",
+        stroke: "#34d399",
+        textClass: "text-emerald-300",
+        bgClass: "bg-emerald-950/70",
+        borderClass: "border-emerald-500/50",
+        shortDesc: "배치 즉시 원하는 무료 주사위 행동 1회 추가!"
+      },
+      ship: {
+        name: "선박",
+        fullName: "선박 (Ship)",
+        emptyFill: "#0c243d",
+        placedFill: "#0369a1",
+        stroke: "#38bdf8",
+        textClass: "text-sky-300",
+        bgClass: "bg-sky-950/70",
+        borderClass: "border-sky-500/50",
+        shortDesc: "시장 데포 1곳의 상품 전량 싹쓸이 + 선공권 전진!"
+      },
+      pasture: {
+        name: "가축",
+        fullName: "목초지 (Pasture)",
+        emptyFill: "#1d3112",
+        placedFill: "#3f6212",
+        stroke: "#a3e635",
+        textClass: "text-lime-300",
+        bgClass: "bg-lime-950/70",
+        borderClass: "border-lime-500/50",
+        shortDesc: "같은 목초지 내 동일 가축 누적 마릿수 중복 득점!"
+      },
+      building: {
+        name: "건물",
+        fullName: "도시 건물 (Building)",
+        emptyFill: "#332414",
+        placedFill: "#92400e",
+        stroke: "#fbbf24",
+        textClass: "text-amber-300",
+        bgClass: "bg-amber-950/70",
+        borderClass: "border-amber-500/50",
+        shortDesc: "8종 건물 고유 즉발 보너스 발동! (구역 내 중복 불가)"
+      },
+      mine: {
+        name: "광산",
+        fullName: "은광 (Silver Mine)",
+        emptyFill: "#1f242d",
+        placedFill: "#475569",
+        stroke: "#cbd5e1",
+        textClass: "text-slate-200",
+        bgClass: "bg-slate-800/80",
+        borderClass: "border-slate-400/50",
+        shortDesc: "매 시대(A~E) 종료마다 광산당 은화 1개 연금 수입!"
+      },
+      knowledge: {
+        name: "지식",
+        fullName: "수도원 지식 (Knowledge)",
+        emptyFill: "#362c0b",
+        placedFill: "#a16207",
+        stroke: "#fde047",
+        textClass: "text-yellow-300",
+        bgClass: "bg-yellow-950/70",
+        borderClass: "border-yellow-400/50",
+        shortDesc: "영구 패시브 규칙 강화 또는 게임 종료 대량 승점!"
+      }
+    };
+
+    // 구역 크기(1~8칸) 완성 시 획득하는 기본 승점 (공식 규칙)
+    const REGION_SIZE_POINTS = [0, 1, 3, 6, 10, 15, 21, 28, 36];
+
+    // 시대(A~E)별 구역 완성 추가 보너스 승점 (일찍 완성할수록 고득점!)
+    const PHASE_NAMES = ["A", "B", "C", "D", "E"];
+    const PHASE_BONUS_POINTS = { A: 10, B: 8, C: 6, D: 4, E: 2 };
+
+    // 상품 종류(주사위 1~6) 색상 정보
+    const GOODS_META = {
+      1: { name: "밀포대(1)", bg: "bg-amber-700/80", border: "border-amber-400", text: "text-amber-200" },
+      2: { name: "포도주(2)", bg: "bg-rose-800/80", border: "border-rose-400", text: "text-rose-200" },
+      3: { name: "직물(3)", bg: "bg-purple-800/80", border: "border-purple-400", text: "text-purple-200" },
+      4: { name: "도자기(4)", bg: "bg-sky-800/80", border: "border-sky-400", text: "text-sky-200" },
+      5: { name: "향신료(5)", bg: "bg-emerald-800/80", border: "border-emerald-400", text: "text-emerald-200" },
+      6: { name: "보석함(6)", bg: "bg-orange-800/80", border: "border-orange-400", text: "text-orange-200" }
+    };
+
+    // 베이지색 건물 8종 데이터베이스
+    const BUILDINGS_DB = [
+      { subType: "warehouse", name: "창고", shortLabel: "창고", desc: "배치 즉시 보유한 상품 1종류를 주사위 소모 없이 무료 판매!" },
+      { subType: "carpenter", name: "목공소", shortLabel: "목공소", desc: "배치 즉시 중앙 시장(1~6)에서 건물 타일 1개 무료 획득!" },
+      { subType: "church", name: "교회", shortLabel: "교회", desc: "배치 즉시 중앙 시장(1~6)에서 성·광산·지식 중 1개 무료 획득!" },
+      { subType: "market", name: "시장", shortLabel: "시장", desc: "배치 즉시 중앙 시장(1~6)에서 선박·가축 중 1개 무료 획득!" },
+      { subType: "boarding", name: "하숙집", shortLabel: "하숙집", desc: "배치 즉시 일꾼 토큰 4개 획득!" },
+      { subType: "bank", name: "은행", shortLabel: "은행", desc: "배치 즉시 은화(Silverling) 2개 획득!" },
+      { subType: "cityhall", name: "시청", shortLabel: "시청", desc: "배치 즉시 내 보관소의 타일 1개를 주사위 없이 영지에 연속 배치!" },
+      { subType: "watchtower", name: "감시탑", shortLabel: "감시탑", desc: "배치 즉시 보너스 승점 +4점 획득!" }
+    ];
+
+    // 연두색 가축 4종 데이터베이스
+    const ANIMALS_DB = [
+      { animal: "cow", name: "소", shortLabel: "소" },
+      { animal: "sheep", name: "양", shortLabel: "양" },
+      { animal: "pig", name: "돼지", shortLabel: "돼지" },
+      { animal: "chicken", name: "닭", shortLabel: "닭" }
+    ];
+
+    // 노란색 수도원 지식 타일 18종 데이터베이스 (#01~#12 지속 패시브, #13~#18 게임 종료 보너스)
+    const KNOWLEDGE_DB = [
+      { kId: 1, name: "도시 계획법", shortLabel: "지식#1", category: "passive", desc: "같은 도시 구역 안에 동일한 종류의 건물을 중복 건설할 수 있습니다." },
+      { kId: 2, name: "광산 자동화", shortLabel: "지식#2", category: "passive", desc: "시대 종료 시 보유한 광산 1개마다 은화 1개에 더해 일꾼 1명도 함께 받습니다." },
+      { kId: 3, name: "무역 독점권", shortLabel: "지식#3", category: "passive", desc: "상품을 판매할 때마다 은화 1개가 아닌 은화 2개를 획득합니다." },
+      { kId: 4, name: "상단 호위대", shortLabel: "지식#4", category: "passive", desc: "상품을 판매할 때마다 일꾼 1명도 추가로 획득합니다." },
+      { kId: 5, name: "원양 항해술", shortLabel: "지식#5", category: "passive", desc: "선박 배치 시 시장 데포 1곳이 아니라 인접한 데포까지 최대 2곳의 상품을 싹쓸이합니다." },
+      { kId: 6, name: "왕실 조달권", shortLabel: "지식#6", category: "passive", desc: "라운드당 1회 2은화 구매 시 암시장뿐 아니라 일반 1~6번 시장 데포 타일도 구매할 수 있습니다." },
+      { kId: 7, name: "품종 개량학", shortLabel: "지식#7", category: "passive", desc: "가축 타일을 영지에 배치할 때마다 가축 점수에 추가 +2점을 더 받습니다." },
+      { kId: 8, name: "숙련 장인단", shortLabel: "지식#8", category: "passive", desc: "일꾼 1명을 소모할 때 주사위 눈금을 ±1뿐 아니라 ±2까지 조절할 수 있습니다!" },
+      { kId: 9, name: "석조 건축술", shortLabel: "지식#9", category: "passive", desc: "건물 타일을 영지에 배치할 때 주사위 눈금 차이 1칸(±1)을 일꾼 없이 무료 보정합니다." },
+      { kId: 10, name: "목축·조선술", shortLabel: "지식#10", category: "passive", desc: "선박·가축 타일을 영지에 배치할 때 주사위 눈금 차이 1칸(±1)을 무료 보정합니다." },
+      { kId: 11, name: "왕립 학술원", shortLabel: "지식#11", category: "passive", desc: "성·광산·지식 타일을 영지에 배치할 때 주사위 눈금 차이 1칸(±1)을 무료 보정합니다." },
+      { kId: 12, name: "대규모 징집", shortLabel: "지식#12", category: "passive", desc: "주사위로 [일꾼 고용] 행동 시 일꾼 2명이 아니라 일꾼 4명을 한꺼번에 얻습니다." },
+      { kId: 13, name: "대상인의 영예", shortLabel: "종료#13", category: "endgame", desc: "[종료 보너스] 게임 종료 시 내가 판매 완료한 상품 타일 1장당 추가 +1점!" },
+      { kId: 14, name: "대건축가의 탑", shortLabel: "종료#14", category: "endgame", desc: "[종료 보너스] 게임 종료 시 내 영지에 건설된 건물 타일 1개당 +2점!" },
+      { kId: 15, name: "목장의 제왕", shortLabel: "종료#15", category: "endgame", desc: "[종료 보너스] 게임 종료 시 내 영지에 보유한 서로 다른 가축 종류(소·양·돼지·닭) 1종당 +4점!" },
+      { kId: 16, name: "무적 함대장", shortLabel: "종료#16", category: "endgame", desc: "[종료 보너스] 게임 종료 시 내 영지에 배치된 선박 타일 1개당 +3점!" },
+      { kId: 17, name: "은광 재벌", shortLabel: "종료#17", category: "endgame", desc: "[종료 보너스] 게임 종료 시 내 영지에 배치된 광산 타일 1개당 +4점!" },
+      { kId: 18, name: "대학자의 서고", shortLabel: "종료#18", category: "endgame", desc: "[종료 보너스] 게임 종료 시 내 영지에 배치된 노란 지식 타일 1개당 +3점!" }
+    ];
+
+    // 초보자용 5단계 입문 비주얼 가이드
+    const GUIDE_SLIDES = [
+      {
+        title: "1. 매 라운드 주사위 2개로 무엇을 하나요?",
+        html: `
+          <div class="p-3 rounded-xl bg-amber-950/50 border border-amber-500/40 space-y-2">
+            <strong class="text-amber-300 text-sm block">주사위 1개당 아래 4가지 행동 중 하나를 수행합니다!</strong>
+            <p>1) <strong class="text-cyan-300">시장에서 타일 영입</strong>: 주사위 눈금(1~6)과 같은 번호의 시장 데포에서 육각 타일 1개를 가져와 <strong>내 보관소(최대 3칸)</strong>에 둡니다.</p>
+            <p>2) <strong class="text-emerald-300">내 영지에 타일 배치</strong>: 보관소의 타일을 내 영지의 <strong>[같은 색깔 + 이미 놓인 타일 옆 + 주사위 눈금 일치]</strong> 칸에 놓습니다.</p>
+            <p>3) <strong class="text-purple-300">상품 판매</strong>: 주사위 눈금과 일치하는 상품 더미를 한꺼번에 팔아 <strong>은화 + 승점</strong>을 얻습니다.</p>
+            <p>4) <strong class="text-sky-300">일꾼 고용</strong>: 눈금이 마음에 안 들면 아무 주사위 1개를 써서 <strong>일꾼 2명</strong>을 얻습니다.</p>
+          </div>
+          <p class="text-sky-200 font-bold">• 핵심: 일꾼 1명을 쓰면 주사위 눈금을 +1 또는 -1 조절할 수 있습니다! (1에서 -1하면 6으로, 6에서 +1하면 1로 순환!)</p>
+        `
+      },
+      {
+        title: "2. 영지 배치 규칙 & 자동 보정 시스템",
+        html: `
+          <div class="p-3 rounded-xl bg-emerald-950/50 border border-emerald-500/40 space-y-2">
+            <strong class="text-emerald-300 text-sm block">암산할 필요 없습니다! 터치만 하면 자동 계산!</strong>
+            <p>• 게임 시작 시 영지 한가운데에 <strong>첫 번째 성</strong>이 놓여 있습니다. 새 타일은 반드시 <strong>이미 놓인 타일과 맞닿은(인접한) 칸</strong>에만 뻗어나갈 수 있습니다.</p>
+            <p>• 상단 <strong>[내 타일 보관소]</strong>에서 타일을 터치해 보세요! 지금 내 주사위와 보유 일꾼으로 놓을 수 있는 모든 영지 칸이 <strong>황금빛 테두리</strong>로 반짝입니다.</p>
+            <p>• 반짝이는 칸을 터치하면 <strong>"주사위 [3] + 일꾼 1명 소모하여 [4]번 칸에 배치"</strong>처럼 가장 일꾼이 적게 드는 최적 조합을 자동으로 안내해 줍니다.</p>
+          </div>
+        `
+      },
+      {
+        title: "3. 버건디의 꽃! 6종 지형 연쇄 콤보",
+        html: `
+          <div class="p-3 rounded-xl bg-sky-950/50 border border-sky-500/40 space-y-1.5">
+            <p>• <strong class="text-emerald-300">성(녹색)</strong>: 놓자마자 <strong>공짜 보너스 행동 1회</strong>! (시장 영입·영지 배치·판매 중 택1)</p>
+            <p>• <strong class="text-amber-300">건물(베이지)</strong>: <strong>시청</strong>(보관소 타일 연속 무료 배치!), <strong>목공소/교회/시장</strong>(시장 타일 공짜 영입!), <strong>창고</strong>(무료 판매!), <strong>하숙집</strong>(일꾼+4), <strong>은행</strong>(은화+2), <strong>감시탑</strong>(+4점).</p>
+            <p>• <strong class="text-lime-300">가축(연두)</strong>: 같은 목초지 안에서 <strong>같은 종류 동물(예: 소+소)</strong>을 모으면 이전 타일 점수까지 매번 <strong>중복 누적 폭발 득점</strong>!</p>
+            <p>• <strong class="text-sky-300">선박(파랑)</strong>: 시장 데포 1곳의 상품을 싹쓸이하고 <strong>선공권</strong>을 빼앗아 옵니다.</p>
+            <p>• <strong class="text-slate-200">광산(회색)</strong>: 매 시대(5라운드)가 끝날 때마다 <strong>은화 연금</strong>을 줍니다.</p>
+            <p>• <strong class="text-yellow-300">지식(노랑)</strong>: 규칙을 내 편으로 바꾸는 사기 패시브 & 게임 종료 보너스 점수!</p>
+          </div>
+        `
+      },
+      {
+        title: "4. 일찍 채울수록 대박! 구역 완성 & 석권 점수",
+        html: `
+          <div class="p-3 rounded-xl bg-purple-950/50 border border-purple-500/40 space-y-2">
+            <strong class="text-purple-200 text-sm block">연결된 같은 색 구역을 빈칸 없이 채우면 즉시 점수 폭발!</strong>
+            <p>1) <strong>구역 크기 점수</strong>: 1칸(1점), 2칸(3점), 3칸(6점), 4칸(10점), 5칸(15점), 6칸(21점)...</p>
+            <p>2) <strong>시대 보너스 점수</strong>: 시대 A에 완성하면 무려 <strong>+10점</strong>! (B:+8점, C:+6점, D:+4점, E:+2점)</p>
+            <p class="text-amber-300 font-bold">→ 초반(시대 A·B)에는 1~2칸짜리 작은 성·광산·선박 구역을 빠르게 완성해 +10점/+8점 시대 보너스를 챙기는 것이 필승 정석입니다!</p>
+            <p>3) <strong>색상 전체 석권 타일</strong>: 한 색깔을 영지에 전부 다 채우면 샤토마보다 먼저 <strong>1등 보너스(+6점)</strong>를 선점합니다!</p>
+          </div>
+        `
+      },
+      {
+        title: "5. 고수의 비기: 은화 2개 '중앙 암시장'",
+        html: `
+          <div class="p-3 rounded-xl bg-rose-950/50 border border-rose-500/40 space-y-2">
+            <strong class="text-rose-200 text-sm block">주사위를 단 1개도 쓰지 않는 무료 추가 영입!</strong>
+            <p>• 은화(Silverling) <strong>2개</strong>가 모이면 매 라운드 1번, 주사위 소모 없이 <strong>[중앙 시장 → 중앙 암시장]</strong>에서 귀한 타일 1개를 공짜 행동으로 사 올 수 있습니다!</p>
+            <p>• 은화는 <strong>상품을 판매</strong>하거나, <strong>광산 수입</strong>, <strong>은행 건설</strong>로 얻을 수 있습니다. 노는 은화를 묵히지 말고 암시장 타일로 바꿔 행동 횟수 차이를 벌리세요!</p>
+          </div>
+        `
+      }
+    ];
+
+    // ---------------------------------------------------------
+    // (C) 37칸 정육각형 영지 보드 좌표계 (반지름 3) & 공국 템플릿 2종
+    // ---------------------------------------------------------
+    const HEX_DIRS = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
+
+    // 반지름 3인 정육각 그리드 37칸 좌표 순서 고정 생성
+    function generateRadius3Coords() {
+      const list = [];
+      for (let r = -3; r <= 3; r++) {
+        const qMin = Math.max(-3, -r - 3);
+        const qMax = Math.min(3, -r + 3);
+        for (let q = qMin; q <= qMax; q++) {
+          list.push({ q, r, key: `${q},${r}` });
+        }
+      }
+      return list; // 정확히 37개!
+    }
+
+    const BASE_COORDS_37 = generateRadius3Coords();
+
+    // 공국 보드 템플릿 정의 (각 좌표 key -> [지형타입, 주사위눈금 1~6])
+    // 공식 보드 밸런스 준수: 성 4칸, 선박 6칸, 광산 3칸, 지식 6칸, 가축 7칸, 건물 11칸 = 총 37칸!
+    const DUCHY_TEMPLATES = {
+      duchy1: {
+        name: "공국 #1 · 루아르 표준령",
+        cells: {
+          // r = -3 (4칸): 북쪽 목초지 & 성
+          "0,-3": ["pasture", 2], "1,-3": ["pasture", 5], "2,-3": ["pasture", 1], "3,-3": ["castle", 6],
+          // r = -2 (5칸): 목초지 연결 & 북동 지식 수도원
+          "-1,-2": ["pasture", 4], "0,-2": ["pasture", 6], "1,-2": ["knowledge", 3], "2,-2": ["knowledge", 5], "3,-2": ["knowledge", 2],
+          // r = -1 (6칸): 서북 도시 & 중앙 강줄기 시작 & 동북 도시
+          "-2,-1": ["building", 1], "-1,-1": ["building", 5], "0,-1": ["ship", 2], "1,-1": ["ship", 4], "2,-1": ["building", 6], "3,-1": ["building", 3],
+          // r = 0 (7칸): 서쪽 은광 & 중앙 시작 성(0,0) & 동쪽 강줄기
+          "-3,0": ["mine", 4], "-2,0": ["mine", 2], "-1,0": ["building", 3], "0,0": ["castle", 6], "1,0": ["ship", 1], "2,0": ["ship", 5], "3,0": ["castle", 4],
+          // r = 1 (6칸): 서남 은광/수도원 & 중앙 도시 & 남동 강줄기
+          "-3,1": ["mine", 6], "-2,1": ["knowledge", 1], "-1,1": ["building", 6], "0,1": ["building", 2], "1,1": ["building", 4], "2,1": ["ship", 3],
+          // r = 2 (5칸): 남서 수도원 & 남부 대도시 & 강 하구
+          "-3,2": ["knowledge", 4], "-2,2": ["knowledge", 6], "-1,2": ["building", 1], "0,2": ["building", 5], "1,2": ["ship", 6],
+          // r = 3 (4칸): 남단 성채 & 비옥한 남부 목초지
+          "-3,3": ["castle", 2], "-2,3": ["building", 3], "-1,3": ["pasture", 3], "0,3": ["pasture", 5]
+        }
+      },
+      duchy2: {
+        name: "공국 #2 · 부르고뉴 대공령",
+        cells: {
+          // r = -3 (4칸)
+          "0,-3": ["castle", 5], "1,-3": ["building", 2], "2,-3": ["building", 6], "3,-3": ["building", 4],
+          // r = -2 (5칸)
+          "-1,-2": ["mine", 3], "0,-2": ["building", 1], "1,-2": ["building", 5], "2,-2": ["building", 3], "3,-2": ["knowledge", 1],
+          // r = -1 (6칸)
+          "-2,-1": ["mine", 5], "-1,-1": ["mine", 1], "0,-1": ["ship", 4], "1,-1": ["pasture", 2], "2,-1": ["knowledge", 6], "3,-1": ["knowledge", 4],
+          // r = 0 (7칸)
+          "-3,0": ["castle", 3], "-2,0": ["ship", 6], "-1,0": ["ship", 2], "0,0": ["castle", 6], "1,0": ["pasture", 6], "2,0": ["pasture", 4], "3,0": ["pasture", 1],
+          // r = 1 (6칸)
+          "-3,1": ["knowledge", 2], "-2,1": ["knowledge", 5], "-1,1": ["ship", 5], "0,1": ["ship", 1], "1,1": ["pasture", 3], "2,1": ["pasture", 5],
+          // r = 2 (5칸)
+          "-3,2": ["knowledge", 3], "-2,2": ["building", 4], "-1,2": ["building", 2], "0,2": ["ship", 3], "1,2": ["pasture", 2],
+          // r = 3 (4칸)
+          "-3,3": ["building", 6], "-2,3": ["building", 1], "-1,3": ["building", 5], "0,3": ["castle", 1]
+        }
+      }
+    };
+
+    // 공국 템플릿으로부터 37칸 객체 배열 및 BFS 연결 구역(Region) 클러스터 생성
+    function createEstateInstance(templateKey) {
+      const tpl = DUCHY_TEMPLATES[templateKey] || DUCHY_TEMPLATES.duchy1;
+      const hexRadius = 29.5;
+      const centerX = 250;
+      const centerY = 230;
+
+      const cells = BASE_COORDS_37.map((coord, index) => {
+        const spec = tpl.cells[coord.key] || ["pasture", 1];
+        const cx = centerX + hexRadius * Math.sqrt(3) * (coord.q + coord.r / 2);
+        const cy = centerY + hexRadius * 1.5 * coord.r;
+        return {
+          idx: index,
+          key: coord.key,
+          q: coord.q,
+          r: coord.r,
+          x: Math.round(cx * 10) / 10,
+          y: Math.round(cy * 10) / 10,
+          type: spec[0],
+          pip: spec[1],
+          regionId: -1,
+          regionSize: 1,
+          tile: null // 배치된 육각 타일 객체
+        };
+      });
+
+      const byKey = {};
+      cells.forEach(c => { byKey[c.key] = c; });
+
+      // BFS로 같은 색상끼리 인접한 구역(Region) 묶기
+      let regCounter = 0;
+      const regions = [];
+      cells.forEach(cell => {
+        if (cell.regionId !== -1) return;
+        const rId = regCounter++;
+        const queue = [cell];
+        const members = [];
+        cell.regionId = rId;
+
+        while (queue.length > 0) {
+          const cur = queue.shift();
+          members.push(cur);
+          HEX_DIRS.forEach(([dq, dr]) => {
+            const nb = byKey[`${cur.q + dq},${cur.r + dr}`];
+            if (nb && nb.regionId === -1 && nb.type === cur.type) {
+              nb.regionId = rId;
+              queue.push(nb);
+            }
+          });
+        }
+
+        members.forEach(m => { m.regionSize = members.length; });
+        regions.push({
+          id: rId,
+          type: cell.type,
+          size: members.length,
+          cellKeys: members.map(m => m.key),
+          completed: false
+        });
+      });
+
+      // 중앙 (0,0) 시작 성채 기본 배치! (공식 셋업 규칙)
+      const startCell = byKey["0,0"];
+      if (startCell) {
+        startCell.tile = {
+          uid: "start_castle",
+          type: "castle",
+          label: "본성",
+          name: "시작 본성",
+          desc: "공국의 출발 거점 성채"
+        };
+        const startReg = regions.find(r => r.id === startCell.regionId);
+        if (startReg && startReg.size === 1) {
+          startReg.completed = true;
+        }
+      }
+
+      return { templateName: tpl.name, cells, regions };
+    }
+
+    // ---------------------------------------------------------
+    // (D) 육각 타일 공급처 생성 및 전역 상태 초기화
+    // ---------------------------------------------------------
+    let G = null;
+    let cfgDuchyKey = "duchy1";
+    let cfgDifficulty = "regular";
+    let cfgMaxPhases = 5;
+    let activeTab = "estate";
+    let coachEnabled = true;
+    let currentGuideSlide = 0;
+
+    // UI 선택 상태 (현재 활성 주사위, 선택한 보관소 슬롯, 선택한 영지 칸)
+    let selectedDieIdx = 0;
+    let selectedStorageIdx = null;
+    let selectedHexKey = null;
+
+    // 보관소 만차 교체 대기 상태 & 실행 취소 스택
+    let pendingIncomingTile = null;
+    let undoStack = [];
+
+    // 영지 SVG 줌 & 팬 상태
+    let estatePan = { x: 0, y: 0 };
+    let estateZoom = 1.0;
+    let isDraggingEstate = false;
+    let estateDragStart = { x: 0, y: 0 };
+
+    let tileUidSeq = 1;
+    function nextUid(prefix) {
+      return `${prefix}_${tileUidSeq++}`;
+    }
+
+    function shuffle(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function rollD6() {
+      return Math.floor(Math.random() * 6) + 1;
+    }
+
+    // 전체 육각 타일 풀 생성
+    function buildTilePools() {
+      const castles = [];
+      for (let i = 0; i < 16; i++) {
+        castles.push({ uid: nextUid("cas"), type: "castle", label: "성채", name: "성채", desc: HEX_TYPES.castle.shortDesc });
+      }
+
+      const ships = [];
+      for (let i = 0; i < 20; i++) {
+        ships.push({ uid: nextUid("shp"), type: "ship", label: "선박", name: "교역 선박", desc: HEX_TYPES.ship.shortDesc });
+      }
+
+      const mines = [];
+      for (let i = 0; i < 12; i++) {
+        mines.push({ uid: nextUid("min"), type: "mine", label: "은광", name: "왕실 은광", desc: HEX_TYPES.mine.shortDesc });
+      }
+
+      const pastures = [];
+      ANIMALS_DB.forEach(an => {
+        [2, 3, 3, 4, 4].forEach(cnt => {
+          pastures.push({
+            uid: nextUid("pas"),
+            type: "pasture",
+            animal: an.animal,
+            animalName: an.name,
+            count: cnt,
+            label: `${an.shortLabel}${cnt}`,
+            name: `${an.name} ${cnt}마리 목장`,
+            desc: `배치 시 +${cnt}점 (같은 목초지 내 다른 [${an.name}] 타일 점수도 다시 누적 합산!)`
+          });
+        });
+      });
+
+      const buildings = [];
+      for (let copy = 0; copy < 5; copy++) {
+        BUILDINGS_DB.forEach(b => {
+          buildings.push({
+            uid: nextUid("bld"),
+            type: "building",
+            subType: b.subType,
+            label: b.shortLabel,
+            name: `${b.name} (건물)`,
+            desc: b.desc
+          });
+        });
+      }
+
+      const knowledges = KNOWLEDGE_DB.map(k => ({
+        uid: nextUid("knw"),
+        type: "knowledge",
+        kId: k.kId,
+        category: k.category,
+        label: k.shortLabel,
+        name: `#${String(k.kId).padStart(2, "0")} ${k.name}`,
+        desc: k.desc
+      }));
+      // 지식 타일 여분 복제본 추가 (시장 순환 풍부화)
+      KNOWLEDGE_DB.slice(0, 8).forEach(k => {
+        knowledges.push({
+          uid: nextUid("knw"),
+          type: "knowledge",
+          kId: k.kId,
+          category: k.category,
+          label: k.shortLabel,
+          name: `#${String(k.kId).padStart(2, "0")} ${k.name}`,
+          desc: k.desc
+        });
+      });
+
+      return {
+        castle: shuffle(castles),
+        ship: shuffle(ships),
+        mine: shuffle(mines),
+        pasture: shuffle(pastures),
+        building: shuffle(buildings),
+        knowledge: shuffle(knowledges)
+      };
+    }
+
+    function drawSupplyTile(pools, preferredTypes) {
+      for (const t of preferredTypes) {
+        if (pools[t] && pools[t].length > 0) {
+          return pools[t].pop();
+        }
+      }
+      const allKeys = Object.keys(pools).filter(k => pools[k].length > 0);
+      if (allKeys.length === 0) {
+        return { uid: nextUid("bld"), type: "building", subType: "watchtower", label: "감시탑", name: "감시탑 (건물)", desc: BUILDINGS_DB[7].desc };
+      }
+      const rk = allKeys[Math.floor(Math.random() * allKeys.length)];
+      return pools[rk].pop();
+    }
+
+    function initNewBurgundyGame() {
+      tileUidSeq = 1;
+      undoStack = [];
+      pendingIncomingTile = null;
+      selectedDieIdx = 0;
+      selectedStorageIdx = null;
+      selectedHexKey = null;
+
+      const pools = buildTilePools();
+      const playerEstate = createEstateInstance(cfgDuchyKey);
+      const botEstate = createEstateInstance(cfgDuchyKey === "duchy1" ? "duchy2" : "duchy1");
+
+      const colorBonuses = {};
+      Object.keys(HEX_TYPES).forEach(t => {
+        colorBonuses[t] = { first: null, second: null };
+      });
+
+      G = {
+        phaseIdx: 0, // 0='A', 1='B', ...
+        maxPhases: parseInt(cfgMaxPhases) || 5,
+        roundInPhase: 1, // 1..5
+        diff: cfgDifficulty,
+        whiteDie: 1,
+
+        // 선박 턴 오더: turnOrder[0]이 선공!
+        turnOrder: ["player", "bot"],
+
+        player: {
+          id: "player",
+          name: "내 공국",
+          isPlayer: true,
+          score: 0,
+          workers: 1,
+          silver: 1,
+          shipPos: 0,
+          estate: playerEstate,
+          storage: [null, null, null],
+          goods: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 },
+          soldGoodsCount: 0,
+          soldGoodsTypes: [],
+          dice: [
+            { idx: 0, val: 3, used: false },
+            { idx: 1, val: 5, used: false }
+          ],
+          usedBlackMarketThisRound: false
+        },
+
+        bot: {
+          id: "bot",
+          name: "샤토마 공작",
+          isPlayer: false,
+          score: 0,
+          workers: 2,
+          silver: 1,
+          shipPos: 0,
+          estate: botEstate,
+          storage: [null, null, null],
+          goods: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 },
+          soldGoodsCount: 0,
+          soldGoodsTypes: [],
+          dice: [
+            { idx: 0, val: 2, used: false },
+            { idx: 1, val: 4, used: false }
+          ]
+        },
+
+        pools,
+        // 1~6번 시장 데포: 각 데포에 tiles 배열과 goods(상품 번호 배열)
+        depots: {
+          1: { tiles: [], goods: [] },
+          2: { tiles: [], goods: [] },
+          3: { tiles: [], goods: [] },
+          4: { tiles: [], goods: [] },
+          5: { tiles: [], goods: [] },
+          6: { tiles: [], goods: [] }
+        },
+        blackMarket: [],
+        colorBonuses,
+
+        // 연쇄 콤보 보너스 큐
+        bonusQueue: [],
+
+        rivalLastMsg: "샤토마 공작이 영지 개척을 시작했습니다. 선공권은 내 공국에 있습니다!",
+        logs: [],
+        ended: false
+      };
+
+      // 초기 지급 상품 3장 (공식 셋업: 시작 상품 3개 지급)
+      [1, 3, 5].forEach(gPip => { G.player.goods[gPip] += 1; });
+      [2, 4, 6].forEach(gPip => { G.bot.goods[gPip] += 1; });
+
+      closeAllModals();
+      refillMarketForNewPhase();
+      startNewRound();
+
+      log("=== 부르고뉴 공국 번영의 시대 개막! (시대 A · 1라운드) ===");
+      switchTab("estate");
+      renderAll();
+      pushToast("게임 시작! 주사위 2개로 시장 타일을 영입하거나 영지를 개척하세요.");
+    }
+
+    function getCurrentPhaseLetter() {
+      return PHASE_NAMES[Math.min(PHASE_NAMES.length - 1, G.phaseIdx)];
+    }
+
+    // 새 시대(Phase A~E) 시작 시 중앙 시장 데포 1~6 및 암시장 타일 새로 깔기
+    function refillMarketForNewPhase() {
+      const depotPatterns = {
+        1: [["building", "pasture"], ["knowledge", "ship"]],
+        2: [["castle", "building"], ["pasture", "knowledge"]],
+        3: [["ship", "building"], ["pasture", "mine"]],
+        4: [["knowledge", "building"], ["ship", "pasture"]],
+        5: [["mine", "building"], ["castle", "pasture"]],
+        6: [["building", "knowledge"], ["ship", "castle"]]
+      };
+
+      for (let d = 1; d <= 6; d++) {
+        G.depots[d].tiles = depotPatterns[d].map(pref => drawSupplyTile(G.pools, pref));
+      }
+
+      // 중앙 암시장 4장 세팅 (귀한 성·광산·지식·시청 위주)
+      G.blackMarket = [
+        drawSupplyTile(G.pools, ["castle", "building"]),
+        drawSupplyTile(G.pools, ["knowledge", "building"]),
+        drawSupplyTile(G.pools, ["mine", "ship"]),
+        drawSupplyTile(G.pools, ["pasture", "building"])
+      ];
+    }
+
+    // 매 라운드 시작: 흰색 주사위 상품 투입 + 주사위 굴림 + 샤토마가 선공이면 샤토마 먼저 행동!
+    function startNewRound() {
+      undoStack = [];
+      G.whiteDie = rollD6();
+      const goodsTilePip = rollD6();
+      G.depots[G.whiteDie].goods.push(goodsTilePip);
+
+      G.player.dice = [
+        { idx: 0, val: rollD6(), used: false },
+        { idx: 1, val: rollD6(), used: false }
+      ];
+      G.player.usedBlackMarketThisRound = false;
+
+      G.bot.dice = [
+        { idx: 0, val: rollD6(), used: false },
+        { idx: 1, val: rollD6(), used: false }
+      ];
+
+      selectedDieIdx = 0;
+
+      // 만약 샤토마가 선공이면 샤토마가 라운드 시작 시 먼저 2주사위를 실행!
+      if (G.turnOrder[0] === "bot") {
+        executeChateaumaTurn();
+      }
+
+      saveUndoSnapshot();
+    }
+
+    // ---------------------------------------------------------
+    // (E) 지식 패시브 확인 & 주사위 눈금 순환(1<->6) 일꾼 보정 계산기
+    // ---------------------------------------------------------
+    function hasKnowledge(lord, kId) {
+      return lord.estate.cells.some(c => c.tile && c.tile.type === "knowledge" && c.tile.kId === kId);
+    }
+
+    function getCircularPipDistance(pipA, pipB) {
+      const diff = Math.abs(pipA - pipB);
+      return Math.min(diff, 6 - diff);
+    }
+
+    // 특정 주사위 값(dieVal)을 목표 눈금(targetPip)으로 맞출 때 필요한 최소 일꾼 수 계산
+    function calcWorkersNeededForDie(lord, dieVal, targetPip, placementTileType = null) {
+      let dist = getCircularPipDistance(dieVal, targetPip);
+      if (dist === 0) return 0;
+
+      // 지식 패시브 무료 보정 할인 (#09 건물, #10 선박·가축, #11 성·광산·지식)
+      if (placementTileType) {
+        if (placementTileType === "building" && hasKnowledge(lord, 9)) dist = Math.max(0, dist - 1);
+        if ((placementTileType === "ship" || placementTileType === "pasture") && hasKnowledge(lord, 10)) dist = Math.max(0, dist - 1);
+        if ((placementTileType === "castle" || placementTileType === "mine" || placementTileType === "knowledge") && hasKnowledge(lord, 11)) dist = Math.max(0, dist - 1);
+      }
+
+      if (dist === 0) return 0;
+      // 지식 #08 숙련 장인단 보유 시 일꾼 1명당 눈금 ±2까지 보정!
+      const stepPerWorker = hasKnowledge(lord, 8) ? 2 : 1;
+      return Math.ceil(dist / stepPerWorker);
+    }
+
+    // 현재 사용 가능한 주사위 중 목표 눈금을 가장 적은 일꾼으로 수행할 수 있는 옵션 탐색
+    function findBestDieOption(targetPip, placementTileType = null) {
+      const player = G.player;
+      const unusedDice = player.dice.filter(d => !d.used);
+      if (unusedDice.length === 0) {
+        return { canAfford: false, reason: "남은 주사위가 없습니다." };
+      }
+
+      // 사용자가 선택해 둔 주사위가 미사용 상태고 일꾼이 0명 드는 경우 우선 채택, 아니면 최소 일꾼 주사위 채택
+      const candidates = unusedDice.map(d => {
+        const wNeed = calcWorkersNeededForDie(player, d.val, targetPip, placementTileType);
+        const isPreferred = (d.idx === selectedDieIdx);
+        return {
+          dieIdx: d.idx,
+          dieVal: d.val,
+          targetPip,
+          workersNeeded: wNeed,
+          canAfford: player.workers >= wNeed,
+          isPreferred
+        };
+      }).sort((a, b) => {
+        if (a.workersNeeded !== b.workersNeeded) return a.workersNeeded - b.workersNeeded;
+        return (b.isPreferred ? 1 : 0) - (a.isPreferred ? 1 : 0);
+      });
+
+      const best = candidates[0];
+      if (!best.canAfford) {
+        return {
+          ...best,
+          reason: `일꾼 부족 (필요 ${best.workersNeeded}명 / 보유 ${player.workers}명)`
+        };
+      }
+      return { ...best, reason: "가능" };
+    }
+
+    // 주사위 소비 및 다음 미사용 주사위 자동 포커스
+    function consumePlayerDieAndWorkers(dieIdx, workersToSpend) {
+      const dieObj = G.player.dice.find(d => d.idx === dieIdx);
+      if (dieObj) dieObj.used = true;
+      G.player.workers = Math.max(0, G.player.workers - workersToSpend);
+
+      const nextUnused = G.player.dice.find(d => !d.used);
+      if (nextUnused) selectedDieIdx = nextUnused.idx;
+    }
+
+    // ---------------------------------------------------------
+    // (F) 턴 스냅샷 저장 & 되돌리기 (Undo)
+    // ---------------------------------------------------------
+    function saveUndoSnapshot() {
+      if (!G) return;
+      const snap = JSON.stringify({
+        player: G.player,
+        bot: G.bot,
+        depots: G.depots,
+        blackMarket: G.blackMarket,
+        pools: G.pools,
+        colorBonuses: G.colorBonuses,
+        turnOrder: G.turnOrder,
+        bonusQueue: G.bonusQueue,
+        logs: G.logs.slice(-30)
+      });
+      undoStack.push(snap);
+      if (undoStack.length > 6) undoStack.shift();
+    }
+
+    function undoLastAction() {
+      if (!G || G.ended) return;
+      if (undoStack.length <= 1) {
+        pushToast("이번 라운드 시작 상태입니다. 더 이상 되돌릴 수 없습니다.", true);
+        return;
+      }
+      // 현재 상태 직전 스냅샷으로 복구
+      undoStack.pop();
+      const prevJson = undoStack[undoStack.length - 1];
+      const parsed = JSON.parse(prevJson);
+
+      G.player = parsed.player;
+      G.bot = parsed.bot;
+      G.depots = parsed.depots;
+      G.blackMarket = parsed.blackMarket;
+      G.pools = parsed.pools;
+      G.colorBonuses = parsed.colorBonuses;
+      G.turnOrder = parsed.turnOrder;
+      G.bonusQueue = parsed.bonusQueue;
+      G.logs = parsed.logs;
+
+      const firstUnused = G.player.dice.find(d => !d.used);
+      selectedDieIdx = firstUnused ? firstUnused.idx : 0;
+      selectedHexKey = null;
+      pendingIncomingTile = null;
+      closeAllModals();
+      pushToast("직전 행동을 되돌렸습니다!");
+      renderAll();
+    }
+
+    // ---------------------------------------------------------
+    // (G) 플레이어 4대 주 행동 + 암시장 구매 + 연쇄 콤보 보너스 큐
+    // ---------------------------------------------------------
+    // 내 보관소에 타일 넣기 (빈 슬롯 자동 탐색, 꽉 찼으면 교체 모달 호출)
+    function putTileIntoPlayerStorage(tileObj) {
+      const emptyIdx = G.player.storage.findIndex(s => s === null);
+      if (emptyIdx !== -1) {
+        G.player.storage[emptyIdx] = tileObj;
+        selectedStorageIdx = emptyIdx;
+        return true;
+      } else {
+        pendingIncomingTile = tileObj;
+        openStorageReplaceModal();
+        return false;
+      }
+    }
+
+    function openStorageReplaceModal() {
+      const modal = document.getElementById("modalStorageFull");
+      const list = document.getElementById("storageReplaceList");
+      if (!modal || !list) return;
+
+      list.innerHTML = G.player.storage.map((st, idx) => {
+        if (!st) return "";
+        const hInfo = HEX_TYPES[st.type];
+        return `
+          <button onclick="confirmReplaceStorageSlot(${idx})" class="w-full p-2.5 rounded-xl border ${hInfo.borderClass} ${hInfo.bgClass} flex items-center justify-between text-xs">
+            <div class="text-left">
+              <strong class="${hInfo.textClass} font-black">${st.name}</strong>
+              <div class="text-[12px] text-slate-300">${st.desc}</div>
+            </div>
+            <span class="px-2 py-1 rounded bg-rose-600 text-white font-black text-[12px] shrink-0">교체</span>
+          </button>
+        `;
+      }).join("");
+      modal.classList.remove("hidden");
+    }
+
+    function confirmReplaceStorageSlot(slotIdx) {
+      if (pendingIncomingTile && slotIdx >= 0 && slotIdx < 3) {
+        G.player.storage[slotIdx] = pendingIncomingTile;
+        selectedStorageIdx = slotIdx;
+        pendingIncomingTile = null;
+      }
+      document.getElementById("modalStorageFull").classList.add("hidden");
+      checkAutoFinishTurnOrPrompt();
+      renderAll();
+    }
+
+    function cancelPendingStorageTile() {
+      pendingIncomingTile = null;
+      document.getElementById("modalStorageFull").classList.add("hidden");
+      undoLastAction();
+    }
+
+    // [행동 1] 중앙 시장 데포(1~6)에서 육각 타일 가져오기
+    function onClickTakeMarketTile(depotNum, tileUid) {
+      if (G.ended) return;
+      const depot = G.depots[depotNum];
+      if (!depot) return;
+      const tIdx = depot.tiles.findIndex(t => t.uid === tileUid);
+      if (tIdx === -1) return;
+      const targetTile = depot.tiles[tIdx];
+
+      // 만약 연쇄 보너스 큐(성 무료 행동 또는 목공소/교회/시장 무료 영입)가 활성화된 상태라면 무료 처리!
+      const activeBonus = G.bonusQueue[0];
+      if (activeBonus) {
+        if (activeBonus.type === "castle_free" || (activeBonus.type === "free_market_take" && activeBonus.allowed.includes(targetTile.type))) {
+          G.bonusQueue.shift();
+          depot.tiles.splice(tIdx, 1);
+          log(`[보너스 영입] 시장 #${depotNum}에서 [${targetTile.name}] 무료 획득!`);
+          pushToast(`[보너스 영입] ${targetTile.name} 보관소에 추가!`);
+          const stored = putTileIntoPlayerStorage(targetTile);
+          saveUndoSnapshot();
+          if (stored && G.bonusQueue.length === 0) switchTab("estate");
+          renderAll();
+          return;
+        } else {
+          pushToast("상단 [연쇄 콤보 발동!] 보너스 행동을 먼저 완료하거나 건너뛰기 해주세요.", true);
+          return;
+        }
+      }
+
+      const opt = findBestDieOption(depotNum, null);
+      if (!opt.canAfford) {
+        // 지식 #06 왕실 조달권이 있고 은화 2개가 남아있다면 은화 구매 안내
+        if (hasKnowledge(G.player, 6) && !G.player.usedBlackMarketThisRound && G.player.silver >= 2) {
+          onClickBuyWithSilverFromDepot(depotNum, tileUid);
+          return;
+        }
+        pushToast(`시장 #${depotNum} 영입 불가: ${opt.reason}`, true);
+        return;
+      }
+
+      consumePlayerDieAndWorkers(opt.dieIdx, opt.workersNeeded);
+      depot.tiles.splice(tIdx, 1);
+
+      log(`[시장 영입] 주사위[${opt.dieVal}]${opt.workersNeeded > 0 ? `+일꾼${opt.workersNeeded}` : ""} → 데포#${depotNum} [${targetTile.name}] 획득`);
+      pushToast(`[${targetTile.name}] 획득! 내 영지에 배치해 보세요.`);
+
+      const stored = putTileIntoPlayerStorage(targetTile);
+      saveUndoSnapshot();
+      if (stored) {
+        checkAutoFinishTurnOrPrompt();
+      }
+      renderAll();
+    }
+
+    // [부가 행동] 은화 2개로 중앙 암시장(또는 지식#06 보유 시 일반 데포) 타일 구매
+    function onClickBuyBlackMarketTile(tileUid) {
+      if (G.ended) return;
+      if (G.player.usedBlackMarketThisRound) {
+        pushToast("중앙 암시장은 한 라운드에 1번만 이용할 수 있습니다.", true);
+        return;
+      }
+      if (G.player.silver < 2) {
+        pushToast(`은화가 부족합니다! (암시장 가격: 은화 2개 / 보유: ${G.player.silver}개)`, true);
+        return;
+      }
+      const idx = G.blackMarket.findIndex(t => t.uid === tileUid);
+      if (idx === -1) return;
+
+      const tile = G.blackMarket.splice(idx, 1)[0];
+      G.player.silver -= 2;
+      G.player.usedBlackMarketThisRound = true;
+
+      log(`[암시장 구매] 은화 2개 지불 → [${tile.name}] 즉시 영입!`);
+      pushToast(`[암시장 영입] ${tile.name} 획득! (-은화 2)`);
+      putTileIntoPlayerStorage(tile);
+      saveUndoSnapshot();
+      renderAll();
+    }
+
+    function onClickBuyWithSilverFromDepot(depotNum, tileUid) {
+      if (G.player.usedBlackMarketThisRound || G.player.silver < 2) return;
+      const depot = G.depots[depotNum];
+      const idx = depot.tiles.findIndex(t => t.uid === tileUid);
+      if (idx === -1) return;
+
+      const tile = depot.tiles.splice(idx, 1)[0];
+      G.player.silver -= 2;
+      G.player.usedBlackMarketThisRound = true;
+      log(`[지식#06 왕실 조달권] 은화 2개로 일반 데포#${depotNum} [${tile.name}] 특별 영입!`);
+      pushToast(`[왕실 조달권] 은화 2개로 ${tile.name} 영입!`);
+      putTileIntoPlayerStorage(tile);
+      saveUndoSnapshot();
+      renderAll();
+    }
+
+    // 영지 특정 칸이 이미 배치된 타일과 최소 1변 맞닿아 있는지 검사
+    function isHexAdjacentToPlaced(estate, targetCell) {
+      const byKey = {};
+      estate.cells.forEach(c => { byKey[c.key] = c; });
+      return HEX_DIRS.some(([dq, dr]) => {
+        const nb = byKey[`${targetCell.q + dq},${targetCell.r + dr}`];
+        return nb && nb.tile !== null;
+      });
+    }
+
+    // 특정 영지 칸에 특정 타일을 놓을 수 있는지 종합 판정 (주사위/보너스 조건 포함)
+    function evaluateHexPlacement(lord, tileObj, cell, allowFreePip = false) {
+      if (!tileObj || !cell) return { valid: false, reason: "선택된 타일이 없습니다." };
+      if (cell.tile !== null) return { valid: false, reason: "이미 타일이 배치된 칸입니다." };
+      if (cell.type !== tileObj.type) {
+        return { valid: false, reason: `지형 불일치 (${HEX_TYPES[cell.type].name} 칸에는 ${HEX_TYPES[cell.type].name} 타일만 배치 가능)` };
+      }
+      if (!isHexAdjacentToPlaced(lord.estate, cell)) {
+        return { valid: false, reason: "이미 배치된 내 타일과 맞닿은(인접한) 칸에만 놓을 수 있습니다." };
+      }
+
+      // 건물 타일인 경우 같은 연결 도시 구역 내 동일 subType 중복 금지 검사 (지식 #01 보유 시 허용!)
+      if (tileObj.type === "building" && !hasKnowledge(lord, 1)) {
+        const sameRegionCells = lord.estate.cells.filter(c => c.regionId === cell.regionId && c.tile !== null);
+        const dup = sameRegionCells.find(c => c.tile.subType === tileObj.subType);
+        if (dup) {
+          return { valid: false, reason: `같은 도시 구역 안에 이미 [${dup.tile.label}] 건물이 있습니다! (중복 건설 불가)` };
+        }
+      }
+
+      if (allowFreePip) {
+        return { valid: true, isFreeBonus: true, workersNeeded: 0, dieIdx: null, dieVal: null, reason: "보너스 무료 배치 가능!" };
+      }
+
+      const dieOpt = findBestDieOption(cell.pip, tileObj.type);
+      if (!dieOpt.canAfford) {
+        return { valid: false, reason: dieOpt.reason, workersNeeded: dieOpt.workersNeeded };
+      }
+
+      return {
+        valid: true,
+        isFreeBonus: false,
+        dieIdx: dieOpt.dieIdx,
+        dieVal: dieOpt.dieVal,
+        workersNeeded: dieOpt.workersNeeded,
+        reason: dieOpt.workersNeeded === 0
+          ? `주사위 [${dieOpt.dieVal}] 그대로 즉시 배치!`
+          : `주사위 [${dieOpt.dieVal}] + 일꾼 ${dieOpt.workersNeeded}명 보정하여 [${cell.pip}]번 칸에 배치!`
+      };
+    }
+
+    // 보관소 슬롯 터치 선택
+    function onSelectStorageSlot(idx) {
+      if (!G.player.storage[idx]) {
+        switchTab("market");
+        pushToast("빈 보관소 슬롯입니다. 중앙 시장에서 타일을 가져오세요!");
+        return;
+      }
+      selectedStorageIdx = (selectedStorageIdx === idx) ? null : idx;
+      selectedHexKey = null;
+      renderAll();
+    }
+
+    // 영지 육각형 칸 터치
+    function onClickEstateHex(cellKey) {
+      const cell = G.player.estate.cells.find(c => c.key === cellKey);
+      if (!cell) return;
+
+      // 만약 보관소에서 아직 선택된 타일이 없는데, 해당 지형과 같은 타일이 보관소에 있다면 자동 매칭!
+      if ((selectedStorageIdx === null || !G.player.storage[selectedStorageIdx]) && cell.tile === null) {
+        const matchIdx = G.player.storage.findIndex(st => st && st.type === cell.type);
+        if (matchIdx !== -1) {
+          selectedStorageIdx = matchIdx;
+        }
+      }
+
+      // 이미 선택된 칸을 한 번 더 터치했고 배치 가능하다면 즉시 확정!
+      if (selectedHexKey === cellKey && selectedStorageIdx !== null && G.player.storage[selectedStorageIdx]) {
+        const activeBonus = G.bonusQueue[0];
+        const allowFree = Boolean(activeBonus && (activeBonus.type === "castle_free" || activeBonus.type === "cityhall_place"));
+        const check = evaluateHexPlacement(G.player, G.player.storage[selectedStorageIdx], cell, allowFree);
+        if (check.valid) {
+          confirmPlaceTileOnHex();
+          return;
+        }
+      }
+
+      selectedHexKey = cellKey;
+      renderAll();
+    }
+
+    function clearHexSelection() {
+      selectedHexKey = null;
+      renderAll();
+    }
+
+    // [행동 2] 영지 칸에 보관소 타일 배치 확정 및 연쇄 콤보 발동!
+    function confirmPlaceTileOnHex() {
+      if (G.ended || !selectedHexKey || selectedStorageIdx === null) return;
+      const tileObj = G.player.storage[selectedStorageIdx];
+      const cell = G.player.estate.cells.find(c => c.key === selectedHexKey);
+      if (!tileObj || !cell) return;
+
+      const activeBonus = G.bonusQueue[0];
+      const allowFree = Boolean(activeBonus && (activeBonus.type === "castle_free" || activeBonus.type === "cityhall_place"));
+
+      if (activeBonus && !allowFree) {
+        pushToast("상단 [연쇄 콤보 발동!] 보너스 행동을 먼저 처리해 주세요.", true);
+        return;
+      }
+
+      const check = evaluateHexPlacement(G.player, tileObj, cell, allowFree);
+      if (!check.valid) {
+        pushToast(`배치 불가: ${check.reason}`, true);
+        return;
+      }
+
+      if (allowFree) {
+        G.bonusQueue.shift();
+      } else {
+        consumePlayerDieAndWorkers(check.dieIdx, check.workersNeeded);
+      }
+
+      // 보관소에서 제거 후 영지 칸에 장착
+      G.player.storage[selectedStorageIdx] = null;
+      cell.tile = tileObj;
+      selectedHexKey = null;
+
+      // 다음 남은 보관소 타일이 있으면 자동 포커스
+      const nextSt = G.player.storage.findIndex(s => s !== null);
+      selectedStorageIdx = nextSt !== -1 ? nextSt : null;
+
+      log(`[영지 건설] [${tileObj.name}] → ${HEX_TYPES[cell.type].name}[${cell.pip}] 배치 완료!`);
+
+      // 1) 타일 고유 배치 즉발 효과 발동
+      applyTileImmediateEffect(G.player, tileObj, cell);
+
+      // 2) 구역 완성 & 6색상 전체 석권 점수 검사
+      checkRegionAndColorCompletion(G.player, cell);
+
+      saveUndoSnapshot();
+      checkAutoFinishTurnOrPrompt();
+      renderAll();
+    }
+
+    // 타일 배치 즉시 발동하는 고유 연쇄 효과 처리
+    function applyTileImmediateEffect(lord, tileObj, placedCell) {
+      if (tileObj.type === "castle") {
+        if (lord.isPlayer) {
+          G.bonusQueue.push({
+            type: "castle_free",
+            title: "성채 배치 보너스: 공짜 주사위 행동 1회!",
+            desc: "시장 타일 무료 영입, 보관소 타일 눈금 무시 무료 배치, 상품 무료 판매, 일꾼 +2명 중 원하는 행동을 즉시 수행하세요!"
+          });
+          pushToast("[성채 콤보!] 원하는 무료 추가 행동 1회가 발동되었습니다!");
+        } else {
+          lord.score += 3;
+          lord.workers += 1;
+        }
+      } else if (tileObj.type === "ship") {
+        // 선박 트랙 전진 및 선공권 탈환!
+        lord.shipPos += 1;
+        const other = lord.isPlayer ? G.bot : G.player;
+        if (lord.shipPos >= other.shipPos) {
+          G.turnOrder = lord.isPlayer ? ["player", "bot"] : ["bot", "player"];
+        }
+
+        if (lord.isPlayer) {
+          const sweepCount = hasKnowledge(lord, 5) ? 2 : 1;
+          const hasAnyGoodsInMarket = [1, 2, 3, 4, 5, 6].some(d => G.depots[d].goods.length > 0);
+          if (hasAnyGoodsInMarket) {
+            G.bonusQueue.push({
+              type: "ship_goods",
+              remaining: sweepCount,
+              title: `선박 배치 보너스: 시장 데포 상품 싹쓸이 (${sweepCount}곳)`,
+              desc: "상품을 가져올 데포 번호를 선택하세요! 선박 전진으로 선공권 경쟁에서도 유리해졌습니다."
+            });
+          } else {
+            pushToast("선박 배치 완료! 선공권 트랙을 전진했습니다.");
+          }
+        } else {
+          // 봇은 가장 상품이 많은 데포 자동 싹쓸이
+          let bestD = 1;
+          for (let d = 2; d <= 6; d++) {
+            if (G.depots[d].goods.length > G.depots[bestD].goods.length) bestD = d;
+          }
+          G.depots[bestD].goods.forEach(gPip => { lord.goods[gPip] += 1; });
+          G.depots[bestD].goods = [];
+        }
+      } else if (tileObj.type === "pasture") {
+        // 같은 목초지 구역 내 동일한 동물(animal) 타일들의 마릿수를 모두 합산해 득점!
+        const samePastureAnimals = lord.estate.cells.filter(
+          c => c.regionId === placedCell.regionId && c.tile && c.tile.type === "pasture" && c.tile.animal === tileObj.animal
+        );
+        let pts = samePastureAnimals.reduce((sum, c) => sum + (c.tile.count || 2), 0);
+        if (hasKnowledge(lord, 7)) pts += 2;
+        lord.score += pts;
+        if (lord.isPlayer) {
+          const comboNote = samePastureAnimals.length > 1 ? ` (${tileObj.animalName} ${samePastureAnimals.length}타일 누적 폭발!)` : "";
+          log(`[목축 득점] ${tileObj.name}${comboNote} → +${pts}점 획득!`);
+          pushToast(`[목장 득점] +${pts}점 획득!${comboNote}`);
+        }
+      } else if (tileObj.type === "building") {
+        const sub = tileObj.subType;
+        if (sub === "boarding") {
+          lord.workers += 4;
+          if (lord.isPlayer) pushToast("[하숙집 완공] 일꾼 토큰 +4명 획득!");
+        } else if (sub === "bank") {
+          lord.silver += 2;
+          if (lord.isPlayer) pushToast("[은행 완공] 은화 +2개 획득!");
+        } else if (sub === "watchtower") {
+          lord.score += 4;
+          if (lord.isPlayer) pushToast("[감시탑 완공] 승점 +4점 획득!");
+        } else if (sub === "warehouse") {
+          if (lord.isPlayer) {
+            const availGoods = [1, 2, 3, 4, 5, 6].filter(p => lord.goods[p] > 0);
+            if (availGoods.length > 0) {
+              G.bonusQueue.push({
+                type: "warehouse_sell",
+                title: "창고 완공 보너스: 보유 상품 1종류 무료 판매!",
+                desc: "판매할 상품을 선택하면 주사위 소모 없이 즉시 은화와 승점을 획득합니다."
+              });
+            } else {
+              pushToast("[창고 완공] 현재 창고에 판매할 상품이 없어 보너스를 건너뜁니다.");
+            }
+          }
+        } else if (sub === "cityhall") {
+          if (lord.isPlayer) {
+            const hasAnyStored = lord.storage.some(s => s !== null);
+            if (hasAnyStored) {
+              G.bonusQueue.push({
+                type: "cityhall_place",
+                title: "시청 완공 보너스: 보관소 타일 연속 무료 배치!",
+                desc: "내 보관소의 타일 1개를 골라 주사위 눈금과 무관하게 영지 빈칸에 즉시 배치하세요!"
+              });
+              pushToast("[시청 연쇄 콤보!] 보관소 타일 1개를 공짜로 연속 배치할 수 있습니다!");
+            }
+          }
+        } else if (sub === "carpenter" || sub === "church" || sub === "market") {
+          const allowedMap = {
+            carpenter: { allowed: ["building"], name: "목공소 보너스: 시장의 [건물] 타일 1개 무료 영입!" },
+            church: { allowed: ["castle", "mine", "knowledge"], name: "교회 보너스: 시장의 [성·광산·지식] 중 1개 무료 영입!" },
+            market: { allowed: ["ship", "pasture"], name: "시장 건물 보너스: 시장의 [선박·가축] 중 1개 무료 영입!" }
+          }[sub];
+
+          if (lord.isPlayer && allowedMap) {
+            const anyInMarket = [1, 2, 3, 4, 5, 6].some(d => G.depots[d].tiles.some(t => allowedMap.allowed.includes(t.type)));
+            if (anyInMarket) {
+              G.bonusQueue.push({
+                type: "free_market_take",
+                allowed: allowedMap.allowed,
+                title: allowedMap.name,
+                desc: "[중앙 시장]에서 조건에 맞는 타일 1개를 골라 무료로 보관소에 넣으세요!"
+              });
+              switchTab("market");
+            } else {
+              lord.workers += 2;
+              pushToast(`시장에 대상 타일이 없어 대체 보상으로 일꾼 +2명을 받았습니다.`);
+            }
+          }
+        }
+      } else if (tileObj.type === "mine") {
+        if (lord.isPlayer) {
+          pushToast("[은광 완공!] 이제 매 시대 종료마다 은화 연금을 수령합니다!");
+        }
+      } else if (tileObj.type === "knowledge") {
+        if (lord.isPlayer) {
+          pushToast(`[수도원 지식 습득!] ${tileObj.name} 효과가 활성화되었습니다!`);
+        }
+      }
+    }
+
+    // 구역(Region) 완성 및 6색상 전체 석권 보너스 타일 수여 검사
+    function checkRegionAndColorCompletion(lord, placedCell) {
+      const reg = lord.estate.regions.find(r => r.id === placedCell.regionId);
+      if (reg && !reg.completed) {
+        const allFilled = reg.cellKeys.every(k => {
+          const c = lord.estate.cells.find(cell => cell.key === k);
+          return c && c.tile !== null;
+        });
+
+        if (allFilled) {
+          reg.completed = true;
+          const sizePts = REGION_SIZE_POINTS[Math.min(REGION_SIZE_POINTS.length - 1, reg.size)] || 1;
+          const phaseLetter = getCurrentPhaseLetter();
+          const phasePts = PHASE_BONUS_POINTS[phaseLetter] || 2;
+          const totalRegPts = sizePts + phasePts;
+          lord.score += totalRegPts;
+
+          log(`[구역 완성!] ${lord.name}: ${HEX_TYPES[reg.type].name} ${reg.size}칸 구역 완성 → 크기(${sizePts}점) + 시대${phaseLetter}(${phasePts}점) = +${totalRegPts}점!`);
+          if (lord.isPlayer) {
+            pushToast(`[구역 완성 대박!] ${HEX_TYPES[reg.type].name} ${reg.size}칸 완성으로 +${totalRegPts}점 획득!`);
+          }
+        }
+      }
+
+      // 해당 지형 색상의 모든 영지 칸을 100% 다 채웠는지 검사
+      const tKey = placedCell.type;
+      const allTypeCells = lord.estate.cells.filter(c => c.type === tKey);
+      const isAllColorDone = allTypeCells.length > 0 && allTypeCells.every(c => c.tile !== null);
+      const bonusInfo = G.colorBonuses[tKey];
+
+      if (isAllColorDone && bonusInfo && bonusInfo.first !== lord.id && bonusInfo.second !== lord.id) {
+        if (!bonusInfo.first) {
+          bonusInfo.first = lord.id;
+          lord.score += 6;
+          log(`[색상 최초 석권!] ${lord.name}이(가) 모든 [${HEX_TYPES[tKey].name}] 구역을 선점 완성해 1등 보너스 +6점 획득!`);
+          if (lord.isPlayer) pushToast(`[1등 석권 보너스!] 모든 ${HEX_TYPES[tKey].name} 완성으로 +6점 획득!`);
+        } else if (!bonusInfo.second) {
+          bonusInfo.second = lord.id;
+          lord.score += 3;
+          log(`[색상 2위 완성] ${lord.name}이(가) 모든 [${HEX_TYPES[tKey].name}] 구역을 완성해 2등 보너스 +3점 획득!`);
+          if (lord.isPlayer) pushToast(`[2등 석권 보너스!] 모든 ${HEX_TYPES[tKey].name} 완성으로 +3점 획득!`);
+        }
+      }
+    }
+
+    // [행동 3] 상품 더미 일괄 판매
+    function onClickSellGoods(goodsPip) {
+      if (G.ended) return;
+      const count = G.player.goods[goodsPip] || 0;
+      if (count <= 0) {
+        pushToast(`${GOODS_META[goodsPip].name} 보유 수량이 없습니다.`, true);
+        return;
+      }
+
+      const activeBonus = G.bonusQueue[0];
+      const isFreeSell = Boolean(activeBonus && (activeBonus.type === "castle_free" || activeBonus.type === "warehouse_sell"));
+
+      if (activeBonus && !isFreeSell) {
+        pushToast("상단 [연쇄 콤보 발동!] 보너스 행동을 먼저 완료해 주세요.", true);
+        return;
+      }
+
+      if (isFreeSell) {
+        G.bonusQueue.shift();
+      } else {
+        const opt = findBestDieOption(goodsPip, null);
+        if (!opt.canAfford) {
+          pushToast(`상품 #${goodsPip} 판매 불가: ${opt.reason}`, true);
+          return;
+        }
+        consumePlayerDieAndWorkers(opt.dieIdx, opt.workersNeeded);
+      }
+
+      // 공식 2인/스페셜 밸런스: 판매한 상품 1장당 +3점 + 더미당 은화 1개(#03 보유 시 2개)
+      const pts = count * 3;
+      const silverGain = hasKnowledge(G.player, 3) ? 2 : 1;
+      const workerGain = hasKnowledge(G.player, 4) ? 1 : 0;
+
+      G.player.goods[goodsPip] = 0;
+      G.player.soldGoodsCount += count;
+      if (!G.player.soldGoodsTypes.includes(goodsPip)) G.player.soldGoodsTypes.push(goodsPip);
+      G.player.score += pts;
+      G.player.silver += silverGain;
+      G.player.workers += workerGain;
+
+      log(`[상품 판매] ${GOODS_META[goodsPip].name} ${count}장 판매 → +${pts}점, 은화 +${silverGain}${workerGain ? `, 일꾼 +${workerGain}` : ""}`);
+      pushToast(`${GOODS_META[goodsPip].name} ${count}장 판매 완료! (+${pts}점, 은화 +${silverGain})`);
+
+      saveUndoSnapshot();
+      checkAutoFinishTurnOrPrompt();
+      renderAll();
+    }
+
+    // [행동 4] 선택한 주사위 1개를 소모해 일꾼 고용 (+2명, 지식#12 보유 시 +4명)
+    function actionHireWorkersWithSelectedDie() {
+      if (G.ended) return;
+      if (G.bonusQueue.length > 0 && G.bonusQueue[0].type === "castle_free") {
+        G.bonusQueue.shift();
+        const gain = hasKnowledge(G.player, 12) ? 4 : 2;
+        G.player.workers += gain;
+        log(`[성채 보너스] 무료 일꾼 +${gain}명 고용!`);
+        pushToast(`보너스 행동으로 일꾼 +${gain}명을 고용했습니다!`);
+        saveUndoSnapshot();
+        renderAll();
+        return;
+      }
+      if (G.bonusQueue.length > 0) {
+        pushToast("상단 보너스 행동을 먼저 완료하거나 건너뛰기 해주세요.", true);
+        return;
+      }
+
+      const unused = G.player.dice.filter(d => !d.used);
+      if (unused.length === 0) {
+        pushToast("이번 라운드 주사위 2개를 모두 사용했습니다! 하단 [턴 종료] 버튼을 누르세요.", true);
+        return;
+      }
+      const targetDie = unused.find(d => d.idx === selectedDieIdx) || unused[0];
+      const gain = hasKnowledge(G.player, 12) ? 4 : 2;
+
+      consumePlayerDieAndWorkers(targetDie.idx, 0);
+      G.player.workers += gain;
+
+      log(`[일꾼 고용] 주사위[${targetDie.val}] 소모 → 일꾼 +${gain}명 획득 (보유 ${G.player.workers}명)`);
+      pushToast(`주사위 [${targetDie.val}] 소모 → 일꾼 +${gain}명 고용 완료!`);
+
+      saveUndoSnapshot();
+      checkAutoFinishTurnOrPrompt();
+      renderAll();
+    }
+
+    // 선박 보너스로 특정 데포 상품 싹쓸이 선택
+    function resolveShipSweepDepot(depotNum) {
+      const active = G.bonusQueue[0];
+      if (!active || active.type !== "ship_goods") return;
+
+      const goodsArr = G.depots[depotNum].goods;
+      if (goodsArr.length === 0) {
+        pushToast(`데포 #${depotNum}에는 쌓인 상품이 없습니다.`, true);
+        return;
+      }
+
+      const count = goodsArr.length;
+      goodsArr.forEach(gPip => { G.player.goods[gPip] += 1; });
+      G.depots[depotNum].goods = [];
+      log(`[선박 상품 확보] 데포 #${depotNum}에서 상품 ${count}장 싹쓸이!`);
+      pushToast(`데포 #${depotNum} 상품 ${count}장을 창고에 실었습니다!`);
+
+      active.remaining -= 1;
+      const anyLeft = [1, 2, 3, 4, 5, 6].some(d => G.depots[d].goods.length > 0);
+      if (active.remaining <= 0 || !anyLeft) {
+        G.bonusQueue.shift();
+      }
+      saveUndoSnapshot();
+      renderAll();
+    }
+
+    function skipCurrentBonusAction() {
+      if (G.bonusQueue.length > 0) {
+        G.bonusQueue.shift();
+        saveUndoSnapshot();
+        renderAll();
+      }
+    }
+
+    function checkAutoFinishTurnOrPrompt() {
+      // 아직 주사위를 다 썼더라도 은화 2개 암시장 구매 기회가 남아 있을 수 있으므로 강제 턴 종료 대신 하단 버튼으로 안내!
+      renderAll();
+    }
+
+    // ---------------------------------------------------------
+    // (H) 내 턴 종료 → 샤토마 공작(Chateauma AI) 행동 & 라운드/시대 전환
+    // ---------------------------------------------------------
+    function endPlayerTurnAndAdvanceRound() {
+      if (G.ended) return;
+      if (G.bonusQueue.length > 0) {
+        pushToast("발동 중인 [연쇄 콤보 보너스]를 먼저 선택하거나 건너뛰기 해주세요!", true);
+        return;
+      }
+
+      // 내가 선공이었다면 이제 후공인 샤토마 공작이 이번 라운드 행동을 수행!
+      if (G.turnOrder[0] === "player") {
+        executeChateaumaTurn();
+      }
+
+      // 라운드 전진 또는 시대(Phase) 결산!
+      if (G.roundInPhase < 5) {
+        G.roundInPhase += 1;
+        startNewRound();
+        renderAll();
+      } else {
+        executeEndOfPhaseSettlement();
+      }
+    }
+
+    // 샤토마 공작 (Chateauma AI) 고지능 턴 시뮬레이션
+    function executeChateaumaTurn() {
+      const bot = G.bot;
+      const diffBonus = G.diff === "expert" ? 1 : 0;
+      const actionsSummary = [];
+
+      // 샤토마도 은화 2개 이상이면 암시장 우선 구매
+      if (bot.silver >= 2 && G.blackMarket.length > 0) {
+        const bmTile = G.blackMarket.shift();
+        bot.silver -= 2;
+        placeOrStoreForBot(bot, bmTile, actionsSummary);
+      }
+
+      bot.dice.forEach(d => {
+        // 1순위: 보관소에 있는 타일을 영지의 인접 빈칸에 배치 시도
+        const storedIdx = bot.storage.findIndex(s => s !== null);
+        if (storedIdx !== -1) {
+          const stTile = bot.storage[storedIdx];
+          const validCells = bot.estate.cells.filter(
+            c => c.tile === null && c.type === stTile.type && isHexAdjacentToPlaced(bot.estate, c)
+          );
+          if (validCells.length > 0) {
+            // 구역 크기가 작아 즉시 완성 점수를 먹을 수 있는 칸 최우선!
+            validCells.sort((a, b) => a.regionSize - b.regionSize);
+            const targetCell = validCells[0];
+            const dist = getCircularPipDistance(d.val, targetCell.pip);
+            if (dist <= bot.workers + diffBonus) {
+              bot.workers = Math.max(0, bot.workers - Math.max(0, dist - diffBonus));
+              bot.storage[storedIdx] = null;
+              targetCell.tile = stTile;
+              applyTileImmediateEffect(bot, stTile, targetCell);
+              checkRegionAndColorCompletion(bot, targetCell);
+              actionsSummary.push(`[${stTile.label}] 건설`);
+              d.used = true;
+              return;
+            }
+          }
+        }
+
+        // 2순위: 보유 상품이 2장 이상 쌓인 더미 판매
+        const sellPip = [1, 2, 3, 4, 5, 6].find(p => bot.goods[p] >= 2 && getCircularPipDistance(d.val, p) <= 1);
+        if (sellPip) {
+          const cnt = bot.goods[sellPip];
+          bot.goods[sellPip] = 0;
+          bot.soldGoodsCount += cnt;
+          if (!bot.soldGoodsTypes.includes(sellPip)) bot.soldGoodsTypes.push(sellPip);
+          bot.score += cnt * 3;
+          bot.silver += 1;
+          actionsSummary.push(`상품 ${cnt}장 판매(+${cnt * 3}점)`);
+          d.used = true;
+          return;
+        }
+
+        // 3순위: 중앙 시장 데포에서 샤토마 영지에 필요한 타일 선점 영입
+        const neededTypes = new Set(
+          bot.estate.cells.filter(c => c.tile === null && isHexAdjacentToPlaced(bot.estate, c)).map(c => c.type)
+        );
+        let picked = null;
+        let pickedDepot = d.val;
+
+        const searchOrder = [d.val, ((d.val) % 6) + 1, ((d.val + 4) % 6) + 1];
+        for (const depNum of searchOrder) {
+          const cand = G.depots[depNum].tiles.find(t => neededTypes.has(t.type));
+          if (cand) {
+            picked = cand;
+            pickedDepot = depNum;
+            break;
+          }
+        }
+
+        if (picked) {
+          G.depots[pickedDepot].tiles = G.depots[pickedDepot].tiles.filter(t => t.uid !== picked.uid);
+          const emptySlot = bot.storage.findIndex(s => s === null);
+          if (emptySlot !== -1) bot.storage[emptySlot] = picked;
+          else bot.storage[0] = picked;
+          actionsSummary.push(`데포#${pickedDepot} [${picked.label}] 영입`);
+          d.used = true;
+          return;
+        }
+
+        // 4순위: 일꾼 보충
+        bot.workers += 2;
+        actionsSummary.push("일꾼+2 고용");
+        d.used = true;
+      });
+
+      if (G.diff === "expert") {
+        bot.score += 1; // 마스터 샤토마 운영 정밀도 보정
+      }
+
+      if (actionsSummary.length > 0) {
+        G.rivalLastMsg = `샤토마(${G.turnOrder[0] === "bot" ? "선공" : "후공"}): ${actionsSummary.join(" · ")}`;
+        log(`[샤토마 턴] ${actionsSummary.join(", ")} (현재 ${bot.score}점)`);
+      }
+    }
+
+    function placeOrStoreForBot(bot, tile, summaryArr) {
+      const validCells = bot.estate.cells.filter(
+        c => c.tile === null && c.type === tile.type && isHexAdjacentToPlaced(bot.estate, c)
+      );
+      if (validCells.length > 0) {
+        validCells.sort((a, b) => a.regionSize - b.regionSize);
+        const c = validCells[0];
+        c.tile = tile;
+        applyTileImmediateEffect(bot, tile, c);
+        checkRegionAndColorCompletion(bot, c);
+        summaryArr.push(`암시장 [${tile.label}] 즉시 건설`);
+      } else {
+        const idx = bot.storage.findIndex(s => s === null);
+        if (idx !== -1) bot.storage[idx] = tile;
+      }
+    }
+
+    // 시대(Phase) 5라운드 완료 시 은광 연금 정산 및 다음 시대 진입 / 최종 게임 종료
+    function executeEndOfPhaseSettlement() {
+      const finishedPhaseLetter = getCurrentPhaseLetter();
+
+      const myMines = G.player.estate.cells.filter(c => c.tile && c.tile.type === "mine").length;
+      const botMines = G.bot.estate.cells.filter(c => c.tile && c.tile.type === "mine").length;
+
+      G.player.silver += myMines;
+      const myMineWorkers = hasKnowledge(G.player, 2) ? myMines : 0;
+      G.player.workers += myMineWorkers;
+
+      G.bot.silver += botMines;
+
+      log(`=== [시대 ${finishedPhaseLetter} 종료] 내 은광 ${myMines}곳 → 은화 +${myMines}${myMineWorkers ? `, 일꾼 +${myMineWorkers}` : ""} 수령 ===`);
+
+      // 마지막 시대까지 모두 끝난 경우 최종 종료 결산으로 직행!
+      if (G.phaseIdx + 1 >= G.maxPhases) {
+        triggerFinalBurgundyEnd();
+        return;
+      }
+
+      const nextLetter = PHASE_NAMES[G.phaseIdx + 1];
+      document.getElementById("phaseSummaryBadge").textContent = `시대 ${finishedPhaseLetter} 종료 결산 완료`;
+      document.getElementById("phaseSummaryBody").innerHTML = `
+        <div class="p-3 rounded-xl bg-emerald-950/50 border border-emerald-500/40 space-y-1">
+          <strong class="text-emerald-300 font-black">내 공국 은광 연금 수령</strong>
+          <div class="text-slate-200">가동 중인 은광 <strong>${myMines}곳</strong> → <strong class="text-amber-300">은화 +${myMines}개</strong>${myMineWorkers > 0 ? `, <strong class="text-sky-300">일꾼 +${myMineWorkers}명</strong>` : ""} 획득!</div>
+        </div>
+        <div class="p-3 rounded-xl bg-rose-950/40 border border-rose-500/30 space-y-1">
+          <strong class="text-rose-300 font-black">샤토마 공작 현황</strong>
+          <div class="text-slate-300">은광 ${botMines}곳 수입 수령 · 현재 점수: <strong class="text-white">${G.bot.score}점</strong> (나: <strong class="text-amber-300">${G.player.score}점</strong>)</div>
+        </div>
+        <div class="p-2.5 rounded-xl bg-black/50 border border-white/10 text-amber-200 font-bold text-[12px]">
+          다음 [시대 ${nextLetter}]의 중앙 시장 타일 12장과 암시장 타일 4장이 새롭게 교체됩니다! (시대 ${nextLetter} 구역 완성 보너스: +${PHASE_BONUS_POINTS[nextLetter]}점)
+        </div>
+      `;
+
+      document.getElementById("modalPhaseSummary").classList.remove("hidden");
+      renderAll();
+    }
+
+    function closePhaseSummaryModal() {
+      document.getElementById("modalPhaseSummary").classList.add("hidden");
+      G.phaseIdx += 1;
+      G.roundInPhase = 1;
+      refillMarketForNewPhase();
+      startNewRound();
+      log(`=== 새로운 [시대 ${getCurrentPhaseLetter()}] 제 1라운드 개막! ===`);
+      renderAll();
+    }
+
+    // 게임 종료 시 잔여 자원 점수 & 노란색 종료 지식 타일(#13~#18) 점수 계산
+    function calcLordEndgameBreakdown(lord) {
+      const baseScore = lord.score;
+      const silverPts = lord.silver * 1; // 남은 은화 1개당 1점! (공식 규칙)
+      const unsoldGoodsCount = [1, 2, 3, 4, 5, 6].reduce((s, p) => s + (lord.goods[p] || 0), 0);
+      const leftoverPts = Math.floor((lord.workers + unsoldGoodsCount) / 2); // 남은 일꾼+미판매 상품 2개당 1점!
+
+      let knowledgeBonusPts = 0;
+      const placedCells = lord.estate.cells.filter(c => c.tile !== null);
+
+      if (hasKnowledge(lord, 13)) knowledgeBonusPts += lord.soldGoodsCount * 1;
+      if (hasKnowledge(lord, 14)) knowledgeBonusPts += placedCells.filter(c => c.tile.type === "building").length * 2;
+      if (hasKnowledge(lord, 15)) {
+        const distinctAnimals = new Set(placedCells.filter(c => c.tile.type === "pasture").map(c => c.tile.animal));
+        knowledgeBonusPts += distinctAnimals.size * 4;
+      }
+      if (hasKnowledge(lord, 16)) knowledgeBonusPts += placedCells.filter(c => c.tile.type === "ship").length * 3;
+      if (hasKnowledge(lord, 17)) knowledgeBonusPts += placedCells.filter(c => c.tile.type === "mine").length * 4;
+      if (hasKnowledge(lord, 18)) knowledgeBonusPts += placedCells.filter(c => c.tile.type === "knowledge").length * 3;
+
+      const finalTotal = baseScore + silverPts + leftoverPts + knowledgeBonusPts;
+      return { baseScore, silverPts, leftoverPts, knowledgeBonusPts, finalTotal, placedCount: placedCells.length };
+    }
+
+    function triggerFinalBurgundyEnd() {
+      G.ended = true;
+      const myRes = calcLordEndgameBreakdown(G.player);
+      const botRes = calcLordEndgameBreakdown(G.bot);
+
+      G.player.score = myRes.finalTotal;
+      G.bot.score = botRes.finalTotal;
+
+      const isWin = myRes.finalTotal > botRes.finalTotal || (myRes.finalTotal === botRes.finalTotal && myRes.placedCount <= botRes.placedCount);
+
+      document.getElementById("finishTitle").textContent = isWin
+        ? "부르고뉴 최고의 대공 등극! (승리)"
+        : "샤토마 공작의 근소한 승리!";
+      document.getElementById("finishDesc").textContent = isWin
+        ? `최종 합계 ${myRes.finalTotal}점 대 ${botRes.finalTotal}점으로 찬란한 루아르 영지를 완성했습니다!`
+        : `최종 합계 ${myRes.finalTotal}점 대 ${botRes.finalTotal}점으로 아쉬운 석패를 기록했습니다. 연쇄 콤보로 재도전해 보세요!`;
+
+      document.getElementById("finishBreakdownList").innerHTML = [
+        { name: "내 공국 (플레이어)", res: myRes, isMe: true },
+        { name: "샤토마 공작 (오토마)", res: botRes, isMe: false }
+      ].map(item => `
+        <div class="p-3.5 rounded-xl border ${item.isMe ? "bg-amber-950/60 border-amber-400" : "bg-black/50 border-white/10"} space-y-1.5">
+          <div class="flex items-center justify-between">
+            <strong class="text-sm font-black ${item.isMe ? "text-amber-200" : "text-rose-300"}">${item.name}</strong>
+            <strong class="text-base font-black text-emerald-300">총 ${item.res.finalTotal}점</strong>
+          </div>
+          <div class="grid grid-cols-2 gap-1 text-[12px] text-slate-300 pt-1 border-t border-white/10">
+            <div>시대 누적 점수: <strong class="text-white">${item.res.baseScore}점</strong></div>
+            <div>잔여 은화 점수: <strong class="text-amber-300">+${item.res.silverPts}점</strong></div>
+            <div>지식 종료 보너스: <strong class="text-yellow-300">+${item.res.knowledgeBonusPts}점</strong></div>
+            <div>일꾼·상품 잔여: <strong class="text-sky-300">+${item.res.leftoverPts}점</strong></div>
+          </div>
+        </div>
+      `).join("");
+
+      document.getElementById("modalGameFinish").classList.remove("hidden");
+      renderAll();
+    }
+
+    // ---------------------------------------------------------
+    // (I) 고품격 UI 렌더링 엔진 & 왕실 수석 AI 코치 분석기
+    // ---------------------------------------------------------
+    function renderAll() {
+      if (!G) return;
+      renderHUDAndDice();
+      renderBonusActionConsole();
+      renderCoachAndRivalTicker();
+      renderEstateView();
+      renderMarketView();
+      renderCodexView();
+      renderRivalView();
+      renderBottomActionBar();
+    }
+
+    function selectDie(idx) {
+      const d = G.player.dice.find(x => x.idx === idx);
+      if (!d || d.used) return;
+      selectedDieIdx = idx;
+      renderAll();
+    }
+
+    function renderHUDAndDice() {
+      const pLetter = getCurrentPhaseLetter();
+      document.getElementById("hudPhaseRoundBadge").textContent = `시대 ${pLetter} · ${G.roundInPhase}/5`;
+      document.getElementById("hudMyScore").textContent = `${G.player.score}점`;
+      document.getElementById("hudBotScore").textContent = `${G.bot.score}점`;
+      document.getElementById("hudWorkers").textContent = `${G.player.workers}`;
+      document.getElementById("hudSilver").textContent = `${G.player.silver}`;
+
+      const isFirst = (G.turnOrder[0] === "player");
+      const orderEl = document.getElementById("hudTurnOrderBadge");
+      orderEl.textContent = isFirst ? "1번 선공" : "2번 후공";
+      orderEl.className = isFirst ? "text-emerald-300 font-extrabold" : "text-amber-300 font-extrabold";
+
+      // 주사위 2개 트레이 렌더링
+      document.getElementById("hudDiceTray").innerHTML = G.player.dice.map(d => {
+        const isSel = (!d.used && d.idx === selectedDieIdx);
+        return `
+          <button onclick="selectDie(${d.idx})" ${d.used ? "disabled" : ""}
+                  class="px-2 py-1 rounded-xl border flex items-center gap-1.5 transition ${
+                    d.used
+                      ? "bg-stone-900/60 border-white/5 opacity-45 cursor-not-allowed"
+                      : (isSel
+                          ? "bg-amber-950/90 border-amber-400 shadow-lg scale-[1.03]"
+                          : "bg-stone-800/90 border-white/15 hover:border-amber-400/60")
+                  }">
+            ${dieFaceSvg(d.val, 22, isSel, d.used)}
+            <span class="text-xs font-black ${d.used ? "text-stone-500 line-through" : (isSel ? "text-amber-200" : "text-white")}">${d.val}</span>
+          </button>
+        `;
+      }).join("");
+
+      const hasUnusedDie = G.player.dice.some(d => !d.used);
+      const hireGain = hasKnowledge(G.player, 12) ? 4 : 2;
+      const btnHire = document.getElementById("btnHireWorkers");
+      if (btnHire) {
+        btnHire.textContent = `일꾼+${hireGain}`;
+        btnHire.disabled = (!hasUnusedDie && !(G.bonusQueue[0] && G.bonusQueue[0].type === "castle_free"));
+        btnHire.className = (!btnHire.disabled)
+          ? "px-2.5 py-1 rounded-lg bg-sky-900/85 hover:bg-sky-800 border border-sky-400/50 text-sky-100 font-extrabold text-[12px] transition"
+          : "px-2.5 py-1 rounded-lg bg-stone-900 border border-white/5 text-stone-600 font-bold text-[12px] cursor-not-allowed";
+      }
+
+      const btnUndo = document.getElementById("btnUndoAction");
+      if (btnUndo) {
+        const canUndo = undoStack.length > 1;
+        btnUndo.disabled = !canUndo;
+        btnUndo.className = canUndo
+          ? "px-2.5 py-1 rounded-lg bg-stone-800 hover:bg-rose-950 border border-rose-500/40 text-rose-200 font-extrabold text-[12px] transition"
+          : "px-2.5 py-1 rounded-lg bg-stone-900 border border-white/5 text-stone-600 font-bold text-[12px] cursor-not-allowed";
+      }
+    }
+
+    // 연쇄 콤보 보너스 액션 콘솔 렌더링
+    function renderBonusActionConsole() {
+      const box = document.getElementById("bonusActionConsole");
+      if (!box) return;
+
+      if (!G.bonusQueue || G.bonusQueue.length === 0) {
+        box.classList.add("hidden");
+        return;
+      }
+
+      box.classList.remove("hidden");
+      const active = G.bonusQueue[0];
+      document.getElementById("bonusConsoleTitle").textContent = active.title;
+      document.getElementById("bonusConsoleDesc").textContent = active.desc;
+
+      const choicesEl = document.getElementById("bonusConsoleChoices");
+      if (active.type === "ship_goods") {
+        choicesEl.innerHTML = [1, 2, 3, 4, 5, 6].map(d => {
+          const cnt = G.depots[d].goods.length;
+          return `
+            <button onclick="resolveShipSweepDepot(${d})" ${cnt === 0 ? "disabled" : ""}
+                    class="px-3 py-1.5 rounded-xl font-black text-xs transition ${
+                      cnt > 0 ? "bg-sky-500 hover:bg-sky-400 text-slate-950 shadow" : "bg-stone-800 text-stone-500 cursor-not-allowed"
+                    }">
+              데포 #${d} 상품 (${cnt}장)
+            </button>
+          `;
+        }).join("");
+      } else if (active.type === "warehouse_sell") {
+        choicesEl.innerHTML = [1, 2, 3, 4, 5, 6].filter(p => G.player.goods[p] > 0).map(p => `
+          <button onclick="onClickSellGoods(${p})" class="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow">
+            ${GOODS_META[p].name} ${G.player.goods[p]}장 무료 판매
+          </button>
+        `).join("");
+      } else if (active.type === "cityhall_place") {
+        choicesEl.innerHTML = `
+          <button onclick="switchTab('estate')" class="px-3 py-1.5 rounded-xl bg-emerald-400 text-slate-950 font-black text-xs shadow">
+            내 영지에서 무료 배치할 칸 터치하기 →
+          </button>
+        `;
+      } else if (active.type === "free_market_take") {
+        choicesEl.innerHTML = `
+          <button onclick="switchTab('market')" class="px-3 py-1.5 rounded-xl bg-cyan-400 text-slate-950 font-black text-xs shadow">
+            중앙 시장에서 무료 영입할 타일 고르기 →
+          </button>
+        `;
+      } else if (active.type === "castle_free") {
+        choicesEl.innerHTML = `
+          <button onclick="switchTab('estate')" class="px-2.5 py-1.5 rounded-xl bg-emerald-400 text-slate-950 font-black text-[12px]">영지 무료 배치</button>
+          <button onclick="switchTab('market')" class="px-2.5 py-1.5 rounded-xl bg-cyan-400 text-slate-950 font-black text-[12px]">시장 무료 영입</button>
+          <button onclick="actionHireWorkersWithSelectedDie()" class="px-2.5 py-1.5 rounded-xl bg-sky-400 text-slate-950 font-black text-[12px]">일꾼 무료 고용</button>
+        `;
+      }
+    }
+
+    // AI 왕실 전략 코치 & 샤토마 동향 중계
+    function renderCoachAndRivalTicker() {
+      document.getElementById("rivalTickerText").textContent = G.rivalLastMsg || "";
+
+      const pLetter = getCurrentPhaseLetter();
+      document.getElementById("coachPhaseBonusHint").textContent = `시대 ${pLetter} 구역 완성 보너스: +${PHASE_BONUS_POINTS[pLetter]}점`;
+
+      const adviceEl = document.getElementById("coachAdviceText");
+      if (!adviceEl) return;
+
+      if (G.bonusQueue.length > 0) {
+        adviceEl.textContent = `[연쇄 콤보 찬스!] 지금 발동된 무료 보너스 행동으로 주사위 소모 없이 점수와 타일 이득을 극대화하세요!`;
+        return;
+      }
+
+      const unusedDice = G.player.dice.filter(d => !d.used);
+      if (unusedDice.length === 0) {
+        if (!G.player.usedBlackMarketThisRound && G.player.silver >= 2 && G.blackMarket.length > 0) {
+          adviceEl.textContent = `[잊지 마세요!] 주사위는 다 썼지만 보유 은화가 ${G.player.silver}개 있습니다! [중앙 시장 → 암시장]에서 은화 2개로 공짜 타일 1개를 더 챙긴 뒤 턴을 종료하세요!`;
+        } else {
+          adviceEl.textContent = `이번 라운드 주사위 행동을 모두 마쳤습니다. 하단 [턴 종료 → 다음 라운드] 버튼을 눌러 진행하세요.`;
+        }
+        return;
+      }
+
+      // 1순위 코칭: 보관소 타일 중 일꾼 0명으로 즉시 구역 완성이 가능한 영지 칸이 있는지 탐색!
+      for (let sIdx = 0; sIdx < 3; sIdx++) {
+        const st = G.player.storage[sIdx];
+        if (!st) continue;
+        const zeroCostCells = G.player.estate.cells.filter(c => {
+          const ev = evaluateHexPlacement(G.player, st, c, false);
+          return ev.valid && ev.workersNeeded === 0;
+        });
+        if (zeroCostCells.length > 0) {
+          zeroCostCells.sort((a, b) => a.regionSize - b.regionSize);
+          const bestCell = zeroCostCells[0];
+          adviceEl.textContent = `[코치 추천 1순위] 보관소의 [${st.name}]을(를) 일꾼 소모 없이 영지 [${bestCell.pip}]번 칸에 바로 건설할 수 있습니다! (${bestCell.regionSize <= 2 ? "소형 구역 조기 완성 찬스!" : "즉발 보너스 획득!"})`;
+          return;
+        }
+      }
+
+      // 2순위 코칭: 암시장 은화 여유 안내
+      if (!G.player.usedBlackMarketThisRound && G.player.silver >= 2 && G.blackMarket.length > 0) {
+        adviceEl.textContent = `[암시장 팁] 은화 ${G.player.silver}개를 보유 중입니다! [중앙 시장]의 암시장에서 주사위 소모 없이 귀한 성·광산·지식 타일을 먼저 사 오면 콤보 설계가 훨씬 쉬워집니다.`;
+        return;
+      }
+
+      // 3순위 코칭: 시장 데포 중 현재 주사위 눈금으로 바로 가져올 수 있는 핵심 타일(성·광산·시청·지식) 안내
+      for (const d of unusedDice) {
+        const depotTiles = G.depots[d.val].tiles;
+        const highVal = depotTiles.find(t => t.type === "castle" || t.type === "mine" || t.subType === "cityhall" || t.type === "knowledge");
+        if (highVal) {
+          adviceEl.textContent = `[코치 추천] 주사위 [${d.val}]로 [중앙 시장 데포 #${d.val}]의 고가치 타일 [${highVal.name}]을(를) 일꾼 소모 없이 즉시 영입할 수 있습니다!`;
+          return;
+        }
+      }
+
+      adviceEl.textContent = `남은 주사위(${unusedDice.map(d => d.val).join(", ")})로 [중앙 시장]에서 영지 인접 색상의 타일을 영입하거나, 상품을 모아 판매해 은화를 확보하세요.`;
+    }
+
+    // ---------------------------------------------------------
+    // (J) [탭 1] 37칸 정육각형 영지 SVG + 개인 보관소 + 상품 창고 렌더링
+    // ---------------------------------------------------------
+    function calcHexPolygonPoints(cx, cy, radius) {
+      const pts = [];
+      for (let i = 0; i < 6; i++) {
+        const angleRad = (Math.PI / 180) * (60 * i - 30);
+        const px = (cx + radius * Math.cos(angleRad)).toFixed(1);
+        const py = (cy + radius * Math.sin(angleRad)).toFixed(1);
+        pts.push(`${px},${py}`);
+      }
+      return pts.join(" ");
+    }
+
+    function renderEstateView() {
+      document.getElementById("estateBoardNameBadge").textContent = G.player.estate.templateName;
+
+      // 1. 상단 개인 타일 보관소 3슬롯 렌더링
+      const storageGrid = document.getElementById("myStorageSlotsGrid");
+      storageGrid.innerHTML = [0, 1, 2].map(idx => {
+        const st = G.player.storage[idx];
+        const isSel = (selectedStorageIdx === idx && st !== null);
+        if (!st) {
+          return `
+            <div onclick="onSelectStorageSlot(${idx})" class="p-2 rounded-xl border border-dashed border-white/15 bg-black/35 text-center text-[12px] text-stone-500 flex items-center justify-center min-h-[54px] cursor-pointer hover:border-amber-500/40">
+              빈 보관소 ${idx + 1}
+            </div>
+          `;
+        }
+        const hInfo = HEX_TYPES[st.type];
+        return `
+          <div onclick="onSelectStorageSlot(${idx})"
+               class="p-2 rounded-xl border-2 transition cursor-pointer flex flex-col justify-between min-h-[54px] text-[12px] ${
+                 isSel ? "border-amber-300 bg-amber-950/80 shadow-lg scale-[1.02]" : `${hInfo.borderClass} ${hInfo.bgClass}`
+               }">
+            <div class="flex items-center justify-between gap-1">
+              <span class="font-black ${hInfo.textClass} truncate">${st.label}</span>
+              <span class="px-1 rounded bg-black/60 text-slate-200 font-bold text-[12px]">${hInfo.name}</span>
+            </div>
+            <div class="text-[12px] text-slate-200 truncate mt-0.5">${isSel ? "영지 칸 선택 중" : st.name}</div>
+          </div>
+        `;
+      }).join("");
+
+      // 2. 37칸 정육각형 영지 SVG 렌더링
+      const hexLayer = document.getElementById("estateHexLayer");
+      const activeStTile = (selectedStorageIdx !== null) ? G.player.storage[selectedStorageIdx] : null;
+      const activeBonus = G.bonusQueue[0];
+      const allowFree = Boolean(activeBonus && (activeBonus.type === "castle_free" || activeBonus.type === "cityhall_place"));
+
+      hexLayer.innerHTML = G.player.estate.cells.map(cell => {
+        const hInfo = HEX_TYPES[cell.type];
+        const isPlaced = (cell.tile !== null);
+        const isSelected = (selectedHexKey === cell.key);
+        const regObj = G.player.estate.regions.find(r => r.id === cell.regionId);
+        const isRegDone = Boolean(regObj && regObj.completed);
+
+        let isValidNow = false;
+        if (!isPlaced && activeStTile) {
+          const ev = evaluateHexPlacement(G.player, activeStTile, cell, allowFree);
+          isValidNow = ev.valid;
+        }
+
+        const outerPts = calcHexPolygonPoints(cell.x, cell.y, 28.0);
+        const innerPts = calcHexPolygonPoints(cell.x, cell.y, 23.8);
+
+        const fillColor = isPlaced ? hInfo.placedFill : hInfo.emptyFill;
+        const strokeColor = isSelected ? "#38bdf8" : (isValidNow ? "#fde047" : (isRegDone ? "#fbbf24" : hInfo.stroke));
+        const strokeWidth = isSelected ? 3.5 : (isValidNow ? 2.8 : (isRegDone ? 2.4 : 1.3));
+        const pulseCls = isSelected ? "hex-selected-target" : (isValidNow ? "hex-valid-target" : "");
+
+        if (isPlaced) {
+          return `
+            <g onclick="onClickEstateHex('${cell.key}')" class="cursor-pointer ${pulseCls}">
+              <polygon points="${outerPts}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}" />
+              <polygon points="${innerPts}" fill="none" stroke="${isRegDone ? "#fef08a" : "rgba(255,255,255,0.22)"}" stroke-width="1" />
+              <text x="${cell.x}" y="${cell.y + 4}" text-anchor="middle" font-size="12" font-weight="900" fill="#ffffff">${cell.tile.label}</text>
+            </g>
+          `;
+        } else {
+          const isAdj = isHexAdjacentToPlaced(G.player.estate, cell);
+          return `
+            <g onclick="onClickEstateHex('${cell.key}')" class="cursor-pointer ${pulseCls}" opacity="${isAdj ? "1" : "0.72"}">
+              <polygon points="${outerPts}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-dasharray="${isAdj ? "none" : "3,2"}" />
+              <text x="${cell.x}" y="${cell.y - 6}" text-anchor="middle" font-size="12" font-weight="700" fill="${hInfo.stroke}">${hInfo.name}</text>
+              <rect x="${cell.x - 10}" y="${cell.y + 1}" width="20" height="16" rx="4" fill="${isValidNow ? "#fef08a" : "#090d16"}" stroke="${hInfo.stroke}" stroke-width="1" />
+              <text x="${cell.x}" y="${cell.y + 13}" text-anchor="middle" font-size="12" font-weight="900" fill="${isValidNow ? "#0f172a" : "#f8fafc"}">${cell.pip}</text>
+            </g>
+          `;
+        }
+      }).join("");
+
+      // 3. 선택한 영지 칸 상세 배치 견적 프리뷰 카드
+      renderHexPreviewCard(allowFree);
+
+      // 4. 하단 내 보유 상품 창고 1~6 렌더링
+      document.getElementById("soldGoodsCountText").textContent = `누적 판매: ${G.player.soldGoodsCount}장 (장당 +3점)`;
+      const freeSellMode = Boolean(activeBonus && (activeBonus.type === "castle_free" || activeBonus.type === "warehouse_sell"));
+
+      document.getElementById("myGoodsRackGrid").innerHTML = [1, 2, 3, 4, 5, 6].map(gPip => {
+        const cnt = G.player.goods[gPip] || 0;
+        const gMeta = GOODS_META[gPip];
+        const sellOpt = findBestDieOption(gPip, null);
+        const canSellNow = cnt > 0 && (freeSellMode || (!activeBonus && sellOpt.canAfford));
+
+        return `
+          <button onclick="onClickSellGoods(${gPip})" ${cnt === 0 ? "disabled" : ""}
+                  class="p-1.5 rounded-xl border text-center transition ${
+                    cnt > 0
+                      ? `${gMeta.bg} ${canSellNow ? "border-amber-300 shadow-md cursor-pointer hover:scale-105" : "border-white/20 opacity-85"}`
+                      : "bg-black/35 border-white/5 opacity-45 cursor-not-allowed"
+                  }">
+            <div class="text-[12px] font-black text-white">#${gPip}</div>
+            <div class="text-[12px] font-extrabold ${cnt > 0 ? "text-amber-200" : "text-stone-500"}">${cnt}장</div>
+          </button>
+        `;
+      }).join("");
+    }
+
+    function renderHexPreviewCard(allowFree) {
+      const card = document.getElementById("hexPreviewCard");
+      if (!card) return;
+      if (!selectedHexKey) {
+        card.classList.add("hidden");
+        return;
+      }
+
+      const cell = G.player.estate.cells.find(c => c.key === selectedHexKey);
+      if (!cell) {
+        card.classList.add("hidden");
+        return;
+      }
+
+      card.classList.remove("hidden");
+      const hInfo = HEX_TYPES[cell.type];
+      const reg = G.player.estate.regions.find(r => r.id === cell.regionId);
+      const filledInReg = reg ? reg.cellKeys.filter(k => G.player.estate.cells.find(x => x.key === k).tile !== null).length : 0;
+
+      document.getElementById("hexPreviewTypeBadge").textContent = `${hInfo.name} 구역 (${filledInReg}/${cell.regionSize}칸)`;
+      const titleEl = document.getElementById("hexPreviewTitle");
+      const descEl = document.getElementById("hexPreviewDesc");
+      const costEl = document.getElementById("hexPreviewCostText");
+      const btnConfirm = document.getElementById("btnConfirmPlaceHex");
+
+      if (cell.tile) {
+        titleEl.textContent = `배치됨: ${cell.tile.name}`;
+        descEl.textContent = cell.tile.desc || hInfo.shortDesc;
+        costEl.textContent = reg && reg.completed ? "이 구역은 완성되었습니다!" : `구역 완성까지 ${cell.regionSize - filledInReg}칸 남음`;
+        btnConfirm.disabled = true;
+        btnConfirm.textContent = "건설 완료된 칸";
+        btnConfirm.className = "px-3.5 py-1.5 rounded-xl bg-stone-800 text-emerald-300 border border-emerald-500/40 font-bold text-xs cursor-not-allowed";
+        return;
+      }
+
+      titleEl.textContent = `영지 [${cell.pip}]번 ${hInfo.fullName} 빈칸`;
+      const stTile = (selectedStorageIdx !== null) ? G.player.storage[selectedStorageIdx] : null;
+
+      if (!stTile) {
+        descEl.textContent = `${hInfo.shortDesc} (보관소에 ${hInfo.name} 타일이 있으면 배치할 수 있습니다)`;
+        costEl.textContent = "보관소에 선택된 타일 없음";
+        btnConfirm.disabled = true;
+        btnConfirm.textContent = "시장에서 타일 영입 필요";
+        btnConfirm.className = "px-3.5 py-1.5 rounded-xl bg-stone-800 text-stone-400 font-bold text-xs cursor-not-allowed";
+        return;
+      }
+
+      const ev = evaluateHexPlacement(G.player, stTile, cell, allowFree);
+      descEl.textContent = `[${stTile.name}] 효과: ${stTile.desc}`;
+      costEl.textContent = ev.reason;
+
+      if (ev.valid) {
+        btnConfirm.disabled = false;
+        btnConfirm.textContent = ev.isFreeBonus
+          ? "보너스 무료 배치 확정!"
+          : (ev.workersNeeded === 0 ? `주사위[${ev.dieVal}]로 배치 확정` : `일꾼 ${ev.workersNeeded}명 보정 배치 확정`);
+        btnConfirm.className = "px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 text-slate-950 font-black text-xs shadow-lg cursor-pointer";
+      } else {
+        btnConfirm.disabled = true;
+        btnConfirm.textContent = "조건 미충족";
+        btnConfirm.className = "px-3.5 py-1.5 rounded-xl bg-rose-950/80 text-rose-300 border border-rose-500/40 font-bold text-xs cursor-not-allowed";
+      }
+    }
+
+    // ---------------------------------------------------------
+    // (K) [탭 2] 중앙 시장 데포(1~6) & 은화 암시장 렌더링
+    // ---------------------------------------------------------
+    function renderMarketView() {
+      document.getElementById("whiteDieDepotBadge").textContent = `이번 라운드 상품 입고: 데포 #${G.whiteDie}`;
+
+      // 1. 중앙 암시장 렌더링
+      const canBuyBM = (!G.player.usedBlackMarketThisRound && G.player.silver >= 2);
+      document.getElementById("blackMarketStatusText").textContent = G.player.usedBlackMarketThisRound
+        ? "이번 라운드 암시장 구매를 이미 완료했습니다."
+        : `은화 2개로 주사위 소모 없이 1개 구매 가능! (현재 보유 은화: ${G.player.silver}개)`;
+
+      const bmGrid = document.getElementById("blackMarketTilesGrid");
+      bmGrid.innerHTML = G.blackMarket.length > 0
+        ? G.blackMarket.map(t => {
+            const hInfo = HEX_TYPES[t.type];
+            return `
+              <div onclick="${canBuyBM ? `onClickBuyBlackMarketTile('${t.uid}')` : ""}"
+                   class="p-2.5 rounded-xl border ${hInfo.borderClass} ${hInfo.bgClass} flex flex-col justify-between gap-1.5 text-xs transition ${
+                     canBuyBM ? "cursor-pointer hover:border-purple-300 hover:scale-[1.02] shadow-lg" : "opacity-75"
+                   }">
+                <div class="flex items-center justify-between">
+                  <span class="font-black ${hInfo.textClass}">${t.name}</span>
+                  <span class="px-1.5 py-0.5 rounded bg-black/60 text-purple-200 font-bold text-[12px]">2은화</span>
+                </div>
+                <p class="text-[12px] text-slate-200 leading-snug">${t.desc}</p>
+              </div>
+            `;
+          }).join("")
+        : `<div class="col-span-2 p-3 rounded-xl bg-black/30 text-center text-xs text-stone-400">이번 시대 암시장 매물이 모두 소진되었습니다.</div>`;
+
+      // 2. 번호 데포 1 ~ 6 렌더링
+      const activeBonus = G.bonusQueue[0];
+      const depotsContainer = document.getElementById("numberedDepotsList");
+
+      depotsContainer.innerHTML = [1, 2, 3, 4, 5, 6].map(dNum => {
+        const depot = G.depots[dNum];
+        const dieOpt = findBestDieOption(dNum, null);
+
+        const goodsBadges = depot.goods.length > 0
+          ? depot.goods.map(gPip => `<span class="px-1.5 py-0.5 rounded ${GOODS_META[gPip].bg} border border-white/20 text-[12px] font-bold text-white">${GOODS_META[gPip].name}</span>`).join("")
+          : `<span class="text-[12px] text-stone-500">쌓인 상품 없음</span>`;
+
+        const tilesHtml = depot.tiles.length > 0
+          ? depot.tiles.map(t => {
+              const hInfo = HEX_TYPES[t.type];
+              const isFreeBonusAllowed = Boolean(
+                activeBonus && (activeBonus.type === "castle_free" || (activeBonus.type === "free_market_take" && activeBonus.allowed.includes(t.type)))
+              );
+              const canTake = isFreeBonusAllowed || (!activeBonus && dieOpt.canAfford);
+
+              let btnLabel = "주사위 없음";
+              if (isFreeBonusAllowed) btnLabel = "보너스 무료 영입!";
+              else if (!activeBonus && dieOpt.canAfford) {
+                btnLabel = dieOpt.workersNeeded === 0
+                  ? `주사위[${dieOpt.dieVal}] 즉시 영입`
+                  : `주사위[${dieOpt.dieVal}]+일꾼${dieOpt.workersNeeded} 영입`;
+              } else if (!activeBonus) {
+                btnLabel = dieOpt.reason;
+              }
+
+              return `
+                <div onclick="${canTake ? `onClickTakeMarketTile(${dNum}, '${t.uid}')` : ""}"
+                     class="p-2.5 rounded-xl border ${hInfo.borderClass} ${hInfo.bgClass} flex flex-col justify-between gap-1.5 text-xs transition ${
+                       canTake ? "cursor-pointer hover:border-amber-300 hover:scale-[1.01] shadow-md" : "opacity-75"
+                     }">
+                  <div class="flex items-center justify-between gap-1">
+                    <strong class="${hInfo.textClass} font-black truncate">${t.name}</strong>
+                    <span class="px-1.5 py-0.5 rounded bg-black/60 text-slate-200 font-bold text-[12px] shrink-0">${hInfo.name}</span>
+                  </div>
+                  <p class="text-[12px] text-slate-200 leading-snug">${t.desc}</p>
+                  <button type="button" ${canTake ? "" : "disabled"}
+                          class="w-full py-1.5 rounded-lg font-black text-[12px] ${
+                            canTake ? "bg-amber-500 hover:bg-amber-400 text-slate-950" : "bg-stone-800/90 text-stone-500 cursor-not-allowed"
+                          }">
+                    ${btnLabel}
+                  </button>
+                </div>
+              `;
+            }).join("")
+          : `<div class="col-span-2 p-2.5 rounded-xl bg-black/30 text-center text-[12px] text-stone-500">이 데포의 타일이 모두 판매되었습니다.</div>`;
+
+        return `
+          <div class="p-3 rounded-2xl bg-[#16110c] border border-white/10 space-y-2">
+            <div class="flex items-center justify-between border-b border-white/10 pb-1.5 gap-2">
+              <div class="flex items-center gap-2">
+                ${dieFaceSvg(dNum, 22, !activeBonus && dieOpt.canAfford && dieOpt.workersNeeded === 0, false)}
+                <strong class="text-sm font-black text-amber-200">시장 데포 #${dNum}</strong>
+              </div>
+              <div class="flex items-center gap-1 flex-wrap justify-end">
+                <span class="text-[12px] text-slate-400 mr-1">선박 상품:</span>
+                ${goodsBadges}
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              ${tilesHtml}
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    // ---------------------------------------------------------
+    // (L) [탭 3] 도감·보너스 뷰 & [탭 4] 샤토마 비교 뷰 렌더링
+    // ---------------------------------------------------------
+    function renderCodexView() {
+      // 6색상 석권 보너스 현황
+      document.getElementById("colorBonusStatusGrid").innerHTML = Object.keys(HEX_TYPES).map(tk => {
+        const hInfo = HEX_TYPES[tk];
+        const b = G.colorBonuses[tk];
+        const firstText = b.first ? (b.first === "player" ? "나(+6점)" : "샤토마") : "미완성(+6점)";
+        const secondText = b.second ? (b.second === "player" ? "나(+3점)" : "샤토마") : "남음(+3점)";
+
+        return `
+          <div class="p-2 rounded-xl border ${hInfo.borderClass} ${hInfo.bgClass} text-[12px] space-y-0.5">
+            <strong class="${hInfo.textClass} font-black block">${hInfo.name} 전체 완성</strong>
+            <div class="text-slate-200">1등: <strong class="text-amber-300">${firstText}</strong></div>
+            <div class="text-slate-400">2등: ${secondText}</div>
+          </div>
+        `;
+      }).join("");
+
+      const regScoreEl = document.getElementById("regionSizeScoreGrid");
+      if (regScoreEl && !regScoreEl.innerHTML) {
+        regScoreEl.innerHTML = [1, 2, 3, 4, 5, 6, 7, 8].map(sz => `
+          <div class="p-1.5 rounded-lg bg-black/45 border border-white/5">
+            <div class="text-slate-400">${sz}칸 구역</div>
+            <strong class="text-emerald-300 font-black">+${REGION_SIZE_POINTS[sz]}점</strong>
+          </div>
+        `).join("");
+      }
+
+      const phScoreEl = document.getElementById("phaseBonusScoreGrid");
+      if (phScoreEl) {
+        const curP = getCurrentPhaseLetter();
+        phScoreEl.innerHTML = PHASE_NAMES.map(p => `
+          <div class="p-1.5 rounded-lg border ${p === curP ? "bg-amber-950 border-amber-400" : "bg-black/40 border-white/5"}">
+            <div class="text-slate-300">시대 ${p}</div>
+            <strong class="text-amber-300 font-black">+${PHASE_BONUS_POINTS[p]}점</strong>
+          </div>
+        `).join("");
+      }
+
+      const bldCodex = document.getElementById("buildingCodexList");
+      if (bldCodex && !bldCodex.innerHTML) {
+        bldCodex.innerHTML = BUILDINGS_DB.map(b => `
+          <div class="p-2 rounded-xl bg-black/40 border border-white/10 flex items-start justify-between gap-2 text-[12px]">
+            <strong class="text-amber-300 font-black shrink-0 w-16">[${b.name}]</strong>
+            <span class="text-slate-200 flex-1">${b.desc}</span>
+          </div>
+        `).join("");
+      }
+
+      const knwCodex = document.getElementById("knowledgeCodexList");
+      if (knwCodex) {
+        knwCodex.innerHTML = KNOWLEDGE_DB.map(k => {
+          const owned = hasKnowledge(G.player, k.kId);
+          return `
+            <div class="p-2 rounded-xl border ${owned ? "bg-yellow-950/60 border-yellow-400" : "bg-black/40 border-white/10"} text-[12px]">
+              <div class="flex items-center justify-between">
+                <strong class="text-yellow-300 font-black">#${String(k.kId).padStart(2, "0")} ${k.name}</strong>
+                ${owned ? `<span class="px-1.5 py-0.5 rounded bg-yellow-400 text-slate-950 font-black text-[12px]">내 보유 중!</span>` : ""}
+              </div>
+              <div class="text-slate-300 mt-0.5">${k.desc}</div>
+            </div>
+          `;
+        }).join("");
+      }
+    }
+
+    function renderRivalView() {
+      const diffNames = { novice: "입문 영주", regular: "숙련 공작", expert: "마스터 샤토마" };
+      document.getElementById("rivalDiffBadge").textContent = diffNames[G.diff] || "숙련 공작";
+
+      document.getElementById("shipTrackCompareBox").innerHTML = [G.player, G.bot].map(lord => {
+        const isFirst = (G.turnOrder[0] === lord.id);
+        return `
+          <div class="p-2.5 rounded-xl bg-black/45 border ${isFirst ? "border-sky-400" : "border-white/10"}">
+            <div class="flex items-center justify-between">
+              <strong class="${lord.isPlayer ? "text-emerald-300" : "text-rose-300"} font-black">${lord.name}</strong>
+              <span class="px-1.5 py-0.5 rounded ${isFirst ? "bg-sky-500 text-slate-950" : "bg-stone-800 text-stone-300"} font-extrabold text-[12px]">${isFirst ? "선공" : "후공"}</span>
+            </div>
+            <div class="text-slate-300 mt-1">선박 전진도: <strong class="text-white">${lord.shipPos}칸</strong></div>
+          </div>
+        `;
+      }).join("");
+
+      document.getElementById("rivalComparisonCards").innerHTML = [G.player, G.bot].map(lord => {
+        const filled = lord.estate.cells.filter(c => c.tile !== null).length;
+        const typeSummary = Object.keys(HEX_TYPES).map(tk => {
+          const tot = lord.estate.cells.filter(c => c.type === tk).length;
+          const cur = lord.estate.cells.filter(c => c.type === tk && c.tile !== null).length;
+          return `${HEX_TYPES[tk].name} ${cur}/${tot}`;
+        }).join(" · ");
+
+        return `
+          <div class="p-3 rounded-xl border ${lord.isPlayer ? "bg-emerald-950/30 border-emerald-500/50" : "bg-rose-950/25 border-rose-500/40"} space-y-1.5">
+            <div class="flex items-center justify-between">
+              <strong class="text-sm font-black ${lord.isPlayer ? "text-emerald-300" : "text-rose-300"}">${lord.name}</strong>
+              <strong class="text-amber-300 font-black text-sm">${lord.score}점</strong>
+            </div>
+            <div class="text-[12px] text-slate-200">영지 개척률: <strong>${filled} / 37칸</strong> (${Math.round((filled / 37) * 100)}%) | 은화 ${lord.silver} · 일꾼 ${lord.workers}</div>
+            <div class="text-[12px] text-slate-400">${typeSummary}</div>
+          </div>
+        `;
+      }).join("");
+
+      const myKnws = G.player.estate.cells.filter(c => c.tile && c.tile.type === "knowledge").map(c => c.tile);
+      document.getElementById("myActiveKnowledgesList").innerHTML = myKnws.length > 0
+        ? myKnws.map(k => `<div class="p-2 rounded-lg bg-black/40 border border-yellow-500/30"><strong class="text-yellow-300">${k.name}</strong>: ${k.desc}</div>`).join("")
+        : `<div class="text-stone-500">아직 영지에 배치한 노란색 수도원 지식 타일이 없습니다.</div>`;
+
+      const logsBox = document.getElementById("gameLogsBox");
+      if (logsBox) {
+        logsBox.innerHTML = G.logs.slice(-30).reverse().map(l => `<div>• ${l}</div>`).join("");
+      }
+    }
+
+    function renderBottomActionBar() {
+      const titleEl = document.getElementById("bottomGuideTitle");
+      const subEl = document.getElementById("bottomGuideSub");
+      const btn = document.getElementById("btnMainBottomAction");
+
+      const unusedCount = G.player.dice.filter(d => !d.used).length;
+
+      if (G.bonusQueue.length > 0) {
+        titleEl.textContent = "연쇄 콤보 보너스 행동 대기 중!";
+        subEl.textContent = "상단 황금 배너에서 무료 보너스를 실행하거나 건너뛰세요.";
+        btn.textContent = "보너스 확인";
+        btn.className = "px-4 py-2 rounded-xl bg-amber-400 text-slate-950 font-black text-xs shadow-lg shrink-0";
+      } else if (unusedCount === 0) {
+        titleEl.textContent = "이번 라운드 주사위 사용 완료!";
+        subEl.textContent = (!G.player.usedBlackMarketThisRound && G.player.silver >= 2)
+          ? "은화 2개로 암시장을 이용하거나 턴을 종료하세요."
+          : "샤토마 턴 진행 및 다음 라운드로 넘어갑니다.";
+        btn.textContent = "턴 종료 → 다음 라운드";
+        btn.className = "px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 text-slate-950 font-black text-xs shadow-lg shrink-0 transition active:scale-95";
+      } else {
+        titleEl.textContent = `남은 주사위 ${unusedCount}개 사용 가능`;
+        subEl.textContent = activeTab === "estate"
+          ? "보관소 타일을 영지에 놓거나 [중앙 시장]에서 타일을 가져오세요."
+          : "데포에서 타일을 영입했으면 [내 영지]로 돌아가 배치하세요.";
+        btn.textContent = activeTab === "estate" ? "중앙 시장 열기 →" : "내 영지 보기 →";
+        btn.className = "px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 text-slate-950 font-black text-xs shadow-lg shrink-0 transition active:scale-95";
+      }
+    }
+
+    function onClickMainBottomAction() {
+      if (G.bonusQueue.length > 0) {
+        pushToast("화면 상단 [연쇄 콤보 발동!] 콘솔에서 보너스를 선택하세요!");
+        return;
+      }
+      const unusedCount = G.player.dice.filter(d => !d.used).length;
+      if (unusedCount === 0) {
+        endPlayerTurnAndAdvanceRound();
+      } else {
+        switchTab(activeTab === "estate" ? "market" : "estate");
+      }
+    }
+
+    // ---------------------------------------------------------
+    // (M) 탭 전환, 가이드 모달, 설정, 줌/팬 & 초기화 바인딩
+    // ---------------------------------------------------------
+    function switchTab(tabKey) {
+      activeTab = tabKey;
+      ["estate", "market", "codex", "rival"].forEach(k => {
+        const v = document.getElementById(`view_${k}`);
+        const b = document.getElementById(`tabBtn_${k}`);
+        const on = (k === tabKey);
+        if (v) v.classList.toggle("hidden", !on);
+        if (b) {
+          b.className = on
+            ? "py-1.5 rounded-lg flex flex-col items-center gap-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/40 font-extrabold transition"
+            : "py-1.5 rounded-lg flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-200 font-bold transition";
+        }
+      });
+      renderAll();
+    }
+
+    function toggleCoach() {
+      coachEnabled = !coachEnabled;
+      const banner = document.getElementById("coachBanner");
+      const btn = document.getElementById("btnCoachToggle");
+      if (banner) banner.classList.toggle("hidden", !coachEnabled);
+      if (btn) {
+        btn.textContent = coachEnabled ? "코치 ON" : "코치 OFF";
+        btn.className = coachEnabled
+          ? "px-2 py-1 rounded-lg bg-amber-900/75 border border-amber-500/50 text-amber-200 font-bold text-[12px] transition"
+          : "px-2 py-1 rounded-lg bg-stone-800 border border-stone-700 text-stone-400 font-bold text-[12px] transition";
+      }
+    }
+
+    function openGuideModal(idx = 0) {
+      currentGuideSlide = Math.max(0, Math.min(GUIDE_SLIDES.length - 1, idx));
+      renderGuideSlide();
+      document.getElementById("modalBeginnerGuide").classList.remove("hidden");
+    }
+
+    function closeGuideModal() {
+      document.getElementById("modalBeginnerGuide").classList.add("hidden");
+    }
+
+    function switchGuideSlide(idx) {
+      currentGuideSlide = Math.max(0, Math.min(GUIDE_SLIDES.length - 1, idx));
+      renderGuideSlide();
+    }
+
+    function prevGuideSlide() {
+      if (currentGuideSlide > 0) {
+        currentGuideSlide -= 1;
+        renderGuideSlide();
+      }
+    }
+
+    function nextGuideSlide() {
+      if (currentGuideSlide < GUIDE_SLIDES.length - 1) {
+        currentGuideSlide += 1;
+        renderGuideSlide();
+      } else {
+        closeGuideModal();
+      }
+    }
+
+    function renderGuideSlide() {
+      const s = GUIDE_SLIDES[currentGuideSlide];
+      document.getElementById("guideModalTitle").textContent = s.title;
+      document.getElementById("guideSlideBody").innerHTML = s.html;
+      document.getElementById("guidePageIndicator").textContent = `${currentGuideSlide + 1} / ${GUIDE_SLIDES.length}`;
+
+      GUIDE_SLIDES.forEach((_, i) => {
+        const btn = document.getElementById(`guideTab_${i}`);
+        if (btn) {
+          btn.className = (i === currentGuideSlide)
+            ? "py-1.5 rounded-lg font-extrabold bg-amber-500 text-slate-950 transition"
+            : "py-1.5 rounded-lg font-bold bg-stone-800 text-stone-300 hover:bg-stone-700 transition";
+        }
+      });
+
+      document.getElementById("btnGuidePrev").disabled = (currentGuideSlide === 0);
+      document.getElementById("btnGuideNext").textContent =
+        (currentGuideSlide === GUIDE_SLIDES.length - 1) ? "가이드 완료 (게임으로)" : "다음 설명 →";
+    }
+
+    function updateEstateTransform() {
+      const g = document.getElementById("estateTransformGroup");
+      if (g) {
+        g.setAttribute("transform", `translate(${estatePan.x}, ${estatePan.y}) scale(${estateZoom})`);
+      }
+    }
+
+    function zoomEstate(factor) {
+      estateZoom = Math.max(0.65, Math.min(2.1, estateZoom * factor));
+      updateEstateTransform();
+    }
+
+    function resetEstatePan() {
+      estateZoom = 1.0;
+      estatePan = { x: 0, y: 0 };
+      updateEstateTransform();
+    }
+
+    function openSettingsModal() {
+      document.getElementById("cfgSelectDuchy").value = cfgDuchyKey;
+      document.getElementById("cfgSelectLength").value = String(cfgMaxPhases);
+      document.getElementById("modalSettings").classList.remove("hidden");
+    }
+
+    function closeSettingsModal() {
+      document.getElementById("modalSettings").classList.add("hidden");
+    }
+
+    function setCfgDiff(d) {
+      cfgDifficulty = d;
+      ["novice", "regular", "expert"].forEach(k => {
+        const btn = document.getElementById(`diffBtn_${k}`);
+        if (btn) {
+          btn.className = (k === d)
+            ? "py-2 rounded-xl border border-amber-500 bg-amber-500/20 text-amber-300 font-bold"
+            : "py-2 rounded-xl border border-stone-700 bg-stone-800 text-stone-300 font-bold";
+        }
+      });
+    }
+
+    function applySettingsAndNewGame() {
+      cfgDuchyKey = document.getElementById("cfgSelectDuchy").value || "duchy1";
+      cfgMaxPhases = parseInt(document.getElementById("cfgSelectLength").value) || 5;
+      closeAllModals();
+      resetEstatePan();
+      initNewBurgundyGame();
+    }
+
+    function closeAllModals() {
+      ["modalBeginnerGuide", "modalStorageFull", "modalPhaseSummary", "modalSettings", "modalGameFinish"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add("hidden");
+      });
+    }
+
+    function log(msg) {
+      if (G && G.logs) G.logs.push(msg);
+    }
+
+    function pushToast(msg, isError = false) {
+      const area = document.getElementById("toastArea");
+      if (!area) return;
+      const el = document.createElement("div");
+      el.className = `px-3.5 py-2 rounded-xl border text-xs font-extrabold shadow-2xl transition-all duration-200 ${
+        isError ? "bg-rose-950/95 border-rose-500 text-rose-200" : "bg-[#1a130c]/95 border-amber-400/70 text-amber-200"
+      }`;
+      el.textContent = msg;
+      area.appendChild(el);
+      setTimeout(() => {
+        el.style.opacity = "0";
+        setTimeout(() => el.remove(), 250);
+      }, 2600);
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("hudIconCrown").innerHTML = iconSvg("crown", 18);
+      document.getElementById("iconBookMini").innerHTML = iconSvg("book", 13);
+      document.getElementById("iconGearMini").innerHTML = iconSvg("gear", 15);
+      document.getElementById("hudIconWorker").innerHTML = iconSvg("worker", 14);
+      document.getElementById("hudIconSilver").innerHTML = iconSvg("silver", 14);
+      document.getElementById("iconCoachBulb").innerHTML = iconSvg("bulb", 16);
+
+      document.getElementById("navIconEstate").innerHTML = iconSvg("castle", 17);
+      document.getElementById("navIconMarket").innerHTML = iconSvg("goods", 17);
+      document.getElementById("navIconCodex").innerHTML = iconSvg("knowledge", 17);
+      document.getElementById("navIconRival").innerHTML = iconSvg("shield", 17);
+
+      const svgEl = document.getElementById("estateSvg");
+      if (svgEl) {
+        svgEl.addEventListener("mousedown", e => {
+          isDraggingEstate = true;
+          estateDragStart = { x: e.clientX - estatePan.x, y: e.clientY - estatePan.y };
+        });
+        window.addEventListener("mousemove", e => {
+          if (!isDraggingEstate) return;
+          estatePan = { x: e.clientX - estateDragStart.x, y: e.clientY - estateDragStart.y };
+          updateEstateTransform();
+        });
+        window.addEventListener("mouseup", () => { isDraggingEstate = false; });
+
+        svgEl.addEventListener("touchstart", e => {
+          if (e.touches.length === 1) {
+            isDraggingEstate = true;
+            estateDragStart = { x: e.touches[0].clientX - estatePan.x, y: e.touches[0].clientY - estatePan.y };
+          }
+        }, { passive: true });
+        svgEl.addEventListener("touchmove", e => {
+          if (isDraggingEstate && e.touches.length === 1) {
+            estatePan = { x: e.touches[0].clientX - estateDragStart.x, y: e.touches[0].clientY - estateDragStart.y };
+            updateEstateTransform();
+          }
+        }, { passive: true });
+        svgEl.addEventListener("touchend", () => { isDraggingEstate = false; });
+      }
+
+      initNewBurgundyGame();
+    });
+  </script>
+</body>
+</html>
