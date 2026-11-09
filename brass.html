@@ -185,28 +185,52 @@
         </div>
       </div>
 
-      <!-- 중앙: 인터랙티브 웨스트미들랜즈 14개 도시 + 5개 상인 시장 + 22개 노선 SVG 지도 -->
+      <!-- 중앙: 인터랙티브 웨스트미들랜즈 14개 도시 + 5개 상인 시장 + 28개 노선 고시인성 SVG 지도 -->
       <div class="flex-1 relative overflow-hidden flex flex-col">
-        <div class="absolute top-2 left-2.5 right-2.5 z-10 flex items-center justify-between pointer-events-none">
-          <div class="px-2.5 py-0.5 rounded-lg bg-black/85 border border-amber-500/40 text-[12px] text-amber-200 font-extrabold pointer-events-auto" id="mapSelectedCardBadge">
-            선택된 카드: 없음
+        <!-- 상단 오버레이: 선택 카드 & 줌 컨트롤 + 6대 산업 컬러 약어 범례 바 -->
+        <div class="absolute top-2 left-2 right-2 z-10 flex flex-col gap-1.5 pointer-events-none">
+          <div class="flex items-center justify-between gap-2">
+            <div class="px-2.5 py-0.5 rounded-lg bg-black/90 border border-amber-500/50 text-[12px] text-amber-200 font-extrabold pointer-events-auto shadow-lg" id="mapSelectedCardBadge">
+              선택된 카드: 없음
+            </div>
+            <div class="flex items-center gap-1 pointer-events-auto shadow-lg">
+              <span class="px-2 py-0.5 rounded-lg bg-black/85 border border-white/15 text-[12px] text-slate-300 font-bold" id="mapZoomLevelBadge">100%</span>
+              <button onclick="zoomMap(1.2)" class="w-7 h-7 rounded-lg bg-black/90 border border-white/25 text-slate-100 hover:bg-stone-800 font-black text-xs">+</button>
+              <button onclick="zoomMap(0.83)" class="w-7 h-7 rounded-lg bg-black/90 border border-white/25 text-slate-100 hover:bg-stone-800 font-black text-xs">-</button>
+              <button onclick="resetMapPan()" class="px-2 h-7 rounded-lg bg-black/90 border border-amber-500/50 text-amber-300 hover:bg-amber-950 font-bold text-[12px]">중앙</button>
+            </div>
           </div>
-          <div class="flex items-center gap-1 pointer-events-auto">
-            <button onclick="zoomMap(1.18)" class="w-7 h-7 rounded-lg bg-black/85 border border-white/20 text-slate-200 font-black text-xs">+</button>
-            <button onclick="zoomMap(0.85)" class="w-7 h-7 rounded-lg bg-black/85 border border-white/20 text-slate-200 font-black text-xs">-</button>
-            <button onclick="resetMapPan()" class="px-2 h-7 rounded-lg bg-black/85 border border-amber-500/40 text-amber-300 font-bold text-[12px]">중앙</button>
+          <!-- 6대 산업 약어·색상 미니 범례 & 두 손가락 핀치 줌 안내 -->
+          <div class="flex items-center justify-between gap-1.5 px-2 py-1 rounded-xl bg-black/85 border border-white/15 backdrop-blur-sm pointer-events-auto overflow-x-auto no-scrollbar">
+            <div class="flex items-center gap-1 shrink-0 text-[12px] font-black">
+              <span class="px-1.5 py-0.5 rounded bg-pink-950/90 border border-pink-400/70 text-pink-200">면:면직</span>
+              <span class="px-1.5 py-0.5 rounded bg-red-950/90 border border-red-400/70 text-red-200">잡:잡화</span>
+              <span class="px-1.5 py-0.5 rounded bg-blue-950/90 border border-blue-400/70 text-blue-200">도:도자기</span>
+              <span class="px-1.5 py-0.5 rounded bg-stone-800 border border-stone-400/70 text-stone-200">석:석탄</span>
+              <span class="px-1.5 py-0.5 rounded bg-orange-950/90 border border-orange-400/70 text-orange-200">제:제철</span>
+              <span class="px-1.5 py-0.5 rounded bg-yellow-950/90 border border-yellow-400/70 text-yellow-200">양:양조</span>
+            </div>
+            <span class="text-[12px] text-amber-300/90 font-bold shrink-0">두 손가락 확대/축소</span>
           </div>
         </div>
 
         <div id="mapSvgContainer" class="flex-1 w-full h-full cursor-grab active:cursor-grabbing touch-none select-none">
-          <svg id="midlandsSvg" class="w-full h-full" viewBox="0 0 540 520" xmlns="http://www.w3.org/2000/svg">
+          <svg id="midlandsSvg" class="w-full h-full" viewBox="0 0 740 700" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
             <defs>
-              <radialGradient id="bgMidlandsGrad" cx="50%" cy="50%" r="60%">
-                <stop offset="0%" stop-color="#1e160f" />
+              <radialGradient id="bgMidlandsGrad" cx="50%" cy="50%" r="62%">
+                <stop offset="0%" stop-color="#271d14" />
+                <stop offset="65%" stop-color="#15100b" />
                 <stop offset="100%" stop-color="#090705" />
               </radialGradient>
+              <pattern id="mapGridPattern" width="40" height="40" patternUnits="userSpaceOnUse">
+                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#ffffff" stroke-opacity="0.035" stroke-width="1" />
+              </pattern>
+              <filter id="nodeDropShadow" x="-15%" y="-15%" width="130%" height="135%">
+                <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.75" />
+              </filter>
             </defs>
-            <rect x="0" y="0" width="540" height="520" fill="url(#bgMidlandsGrad)" />
+            <rect x="0" y="0" width="740" height="700" fill="url(#bgMidlandsGrad)" />
+            <rect x="0" y="0" width="740" height="700" fill="url(#mapGridPattern)" />
             <g id="mapTransformGroup">
               <g id="mapLinksLayer"></g>
               <g id="mapMerchantsLayer"></g>
@@ -663,15 +687,15 @@
     };
 
     // ---------------------------------------------------------
-    // (C) 웨스트미들랜즈 14개 핵심 도시 & 5대 상인 시장 & 22개 노선
+    // (C) 웨스트미들랜즈 14개 핵심 도시 & 5대 상인 시장 & 28개 노선 (740x700 고시인성 와이드 배치)
     // ---------------------------------------------------------
     const CITIES_SPEC = [
       {
         id: "stoke",
         name: "스토크온트렌트",
         short: "스토크",
-        x: 195,
-        y: 68,
+        x: 275,
+        y: 105,
         minPlayers: 4,
         slots: [["cotton", "iron"], ["pottery", "iron"], ["mfg"]]
       },
@@ -679,8 +703,8 @@
         id: "derby",
         name: "더비",
         short: "더비",
-        x: 385,
-        y: 105,
+        x: 505,
+        y: 135,
         minPlayers: 3,
         slots: [["cotton", "brewery"], ["cotton", "mfg"], ["iron"]]
       },
@@ -688,8 +712,8 @@
         id: "stafford",
         name: "스태퍼드",
         short: "스태퍼드",
-        x: 165,
-        y: 160,
+        x: 205,
+        y: 215,
         minPlayers: 2,
         slots: [["mfg", "brewery"], ["pottery"]]
       },
@@ -697,8 +721,8 @@
         id: "burton",
         name: "버턴어폰트렌트",
         short: "버턴",
-        x: 325,
-        y: 175,
+        x: 455,
+        y: 235,
         minPlayers: 2,
         slots: [["mfg", "brewery"], ["brewery"]]
       },
@@ -706,8 +730,8 @@
         id: "cannock",
         name: "캐넉 탄광·양조",
         short: "캐넉",
-        x: 230,
-        y: 222,
+        x: 315,
+        y: 290,
         minPlayers: 2,
         slots: [["coal"], ["coal", "brewery"]]
       },
@@ -715,8 +739,8 @@
         id: "wolverhampton",
         name: "울버햄프턴",
         short: "울버햄프턴",
-        x: 135,
-        y: 255,
+        x: 175,
+        y: 350,
         minPlayers: 2,
         slots: [["mfg"], ["coal", "mfg"]]
       },
@@ -724,8 +748,8 @@
         id: "walsall",
         name: "월솔",
         short: "월솔",
-        x: 245,
-        y: 278,
+        x: 335,
+        y: 375,
         minPlayers: 2,
         slots: [["iron", "mfg"], ["mfg", "brewery"]]
       },
@@ -733,8 +757,8 @@
         id: "tamworth",
         name: "탐워스",
         short: "탐워스",
-        x: 365,
-        y: 255,
+        x: 515,
+        y: 350,
         minPlayers: 2,
         slots: [["cotton", "coal"], ["cotton", "coal"]]
       },
@@ -742,8 +766,8 @@
         id: "dudley",
         name: "더들리",
         short: "더들리",
-        x: 165,
-        y: 332,
+        x: 205,
+        y: 450,
         minPlayers: 2,
         slots: [["coal"], ["iron"]]
       },
@@ -751,8 +775,8 @@
         id: "birmingham",
         name: "버밍엄",
         short: "버밍엄",
-        x: 280,
-        y: 345,
+        x: 380,
+        y: 468,
         minPlayers: 2,
         slots: [["cotton", "iron"], ["mfg", "iron"], ["mfg", "brewery"], ["iron"]]
       },
@@ -760,8 +784,8 @@
         id: "coventry",
         name: "코번트리",
         short: "코번트리",
-        x: 420,
-        y: 345,
+        x: 585,
+        y: 468,
         minPlayers: 2,
         slots: [["pottery"], ["coal", "iron"], ["iron", "mfg"]]
       },
@@ -769,8 +793,8 @@
         id: "kidderminster",
         name: "키더민스터",
         short: "키더민스터",
-        x: 120,
-        y: 398,
+        x: 145,
+        y: 545,
         minPlayers: 2,
         slots: [["cotton", "coal"], ["cotton"]]
       },
@@ -778,8 +802,8 @@
         id: "redditch",
         name: "레디치",
         short: "레디치",
-        x: 285,
-        y: 422,
+        x: 385,
+        y: 568,
         minPlayers: 2,
         slots: [["mfg", "coal"]]
       },
@@ -787,8 +811,8 @@
         id: "worcester",
         name: "우스터",
         short: "우스터",
-        x: 165,
-        y: 468,
+        x: 215,
+        y: 632,
         minPlayers: 2,
         slots: [["cotton"], ["cotton"]]
       }
@@ -800,8 +824,8 @@
         id: "m_warrington",
         name: "워링턴 상인항",
         short: "워링턴(상인)",
-        x: 75,
-        y: 55,
+        x: 95,
+        y: 95,
         minPlayers: 4,
         demands: ["cotton", "mfg"],
         beerMax: 2,
@@ -813,8 +837,8 @@
         id: "m_nottingham",
         name: "노팅엄 상인항",
         short: "노팅엄(상인)",
-        x: 470,
-        y: 55,
+        x: 645,
+        y: 95,
         minPlayers: 3,
         demands: ["cotton", "pottery", "mfg"],
         beerMax: 2,
@@ -826,8 +850,8 @@
         id: "m_shrewsbury",
         name: "슈루즈베리 상인항",
         short: "슈루즈베리(상인)",
-        x: 48,
-        y: 295,
+        x: 68,
+        y: 375,
         minPlayers: 2,
         demands: ["cotton", "mfg", "pottery"],
         beerMax: 1,
@@ -839,8 +863,8 @@
         id: "m_oxford",
         name: "옥스퍼드 상인항",
         short: "옥스퍼드(상인)",
-        x: 460,
-        y: 455,
+        x: 635,
+        y: 605,
         minPlayers: 2,
         demands: ["cotton", "mfg"],
         beerMax: 2,
@@ -852,8 +876,8 @@
         id: "m_gloucester",
         name: "글로스터 상인항",
         short: "글로스터(상인)",
-        x: 280,
-        y: 492,
+        x: 390,
+        y: 655,
         minPlayers: 2,
         demands: ["cotton", "pottery"],
         beerMax: 2,
@@ -2624,8 +2648,17 @@
     }
 
     // ---------------------------------------------------------
-    // 탭 1: 웨스트미들랜즈 SVG 인터랙티브 지도 렌더링
+    // 탭 1: 웨스트미들랜즈 SVG 인터랙티브 지도 렌더링 (고시인성 카드·개별 슬롯 칩)
     // ---------------------------------------------------------
+    const IND_SLOT_PALETTE = {
+      cotton:  { bg: "#4c0519", border: "#f472b6", text: "#fce7f3" },
+      coal:    { bg: "#292524", border: "#a8a29e", text: "#f5f5f4" },
+      iron:    { bg: "#431407", border: "#fb923c", text: "#ffedd5" },
+      mfg:     { bg: "#450a0a", border: "#f87171", text: "#fee2e2" },
+      pottery: { bg: "#172554", border: "#60a5fa", text: "#dbeafe" },
+      brewery: { bg: "#422006", border: "#facc15", text: "#fef9c3" }
+    };
+
     function renderMapView() {
       const coalPrice = getCheapestMarketBuyPrice(G.coalMarket);
       const ironPrice = getCheapestMarketBuyPrice(G.ironMarket);
@@ -2637,7 +2670,7 @@
         ? `선택 카드: ${card.title} (${card.sub})`
         : "선택된 카드 없음";
 
-      // 1) 28개 운하/철도 연결 노선(Links) 렌더링
+      // 1) 28개 운하/철도 연결 노선(Links) 고대비 이중 선 렌더링
       const linksLayer = document.getElementById("mapLinksLayer");
       let linksHtml = "";
       Object.values(G.links).forEach(lk => {
@@ -2653,49 +2686,65 @@
         const canBuildLink = !isOwned && evaluateLinkBuild(G.player, lk.id).valid;
         const isSel = selectedMapEntity && selectedMapEntity.kind === "link" && selectedMapEntity.id === lk.id;
 
-        let strokeCol = "#44403c";
-        let strokeW = 4;
-        let dash = lk.eraType === "rail" ? "6,3" : "";
+        let strokeCol = G.era === 1 ? "#334155" : "#44403c";
+        let strokeW = 5.5;
+        let dash = "7,5";
 
         if (isOwned) {
           strokeCol = owner.color;
-          strokeW = 6.5;
+          strokeW = 8.5;
+          dash = "";
         } else if (canBuildLink && (mapFocusMode === "links" || mapFocusMode === "all")) {
           strokeCol = G.era === 1 ? "#38bdf8" : "#f59e0b";
-          strokeW = 4.5;
-          dash = "5,4";
+          strokeW = 6.5;
+          dash = "7,4";
         }
 
         if (isSel) {
           strokeCol = "#ffffff";
-          strokeW = 7.5;
+          strokeW = 10;
+          dash = "";
         }
 
         linksHtml += `<g class="map-node" onclick="onSelectMapLink('${lk.id}')">`;
-        linksHtml += `<line x1="${n1.x}" y1="${n1.y}" x2="${n2.x}" y2="${n2.y}" stroke="${strokeCol}" stroke-width="${strokeW}" stroke-dasharray="${dash}" stroke-linecap="round" />`;
-        // 노선 중앙 클릭 배지
-        linksHtml += `<circle cx="${mx}" cy="${my}" r="9" fill="${isOwned ? owner.color : "#1c1917"}" stroke="${canBuildLink ? "#facc15" : "#78716c"}" stroke-width="1.6" />`;
-        linksHtml += `<text x="${mx}" y="${my + 4}" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="900">${isOwned ? owner.shortName.slice(0, 1) : (G.era === 1 ? "운" : "철")}</text>`;
+        // 어두운 배경에서 선이 확실히 부각되도록 외곽 암갈색 가이드선 먼저 배치
+        linksHtml += `<line x1="${n1.x}" y1="${n1.y}" x2="${n2.x}" y2="${n2.y}" stroke="#090705" stroke-width="${strokeW + 4.5}" stroke-linecap="round" />`;
+        linksHtml += `<line x1="${n1.x}" y1="${n1.y}" x2="${n2.x}" y2="${n2.y}" stroke="${strokeCol}" stroke-width="${strokeW}" ${dash ? `stroke-dasharray="${dash}"` : ""} stroke-linecap="round" />`;
+        // 개통된 노선은 중앙에 밝은 코어 하이라이트 선 추가
+        if (isOwned) {
+          linksHtml += `<line x1="${n1.x}" y1="${n1.y}" x2="${n2.x}" y2="${n2.y}" stroke="#ffffff" stroke-opacity="0.38" stroke-width="2.2" ${lk.eraType === "rail" ? 'stroke-dasharray="4,4"' : ""} stroke-linecap="round" />`;
+        }
+        // 노선 중앙 클릭 배지 (반지름 12.5로 확대)
+        const badgeFill = isOwned ? owner.color : (canBuildLink ? "#0c4a6e" : "#1c1917");
+        const badgeStroke = isSel ? "#ffffff" : (canBuildLink ? "#fde047" : (isOwned ? "#ffffff" : "#78716c"));
+        linksHtml += `<circle cx="${mx}" cy="${my}" r="12.5" fill="${badgeFill}" stroke="${badgeStroke}" stroke-width="${canBuildLink || isSel ? 2.5 : 1.8}" />`;
+        linksHtml += `<text x="${mx}" y="${my + 4.5}" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="900">${isOwned ? owner.shortName.slice(0, 1) : (G.era === 1 ? "운" : "철")}</text>`;
         linksHtml += `</g>`;
       });
       linksLayer.innerHTML = linksHtml;
 
-      // 2) 5대 외곽 상인 항구(Merchant Markets) 렌더링
+      // 2) 5대 외곽 상인 항구(Merchant Markets) 고시인성 배너 렌더링
       const merchantsLayer = document.getElementById("mapMerchantsLayer");
       let merchHtml = "";
       Object.values(G.merchants).forEach(m => {
         if (!m.active) return;
+        const isSel = selectedMapEntity && selectedMapEntity.kind === "merchant" && selectedMapEntity.id === m.id;
         const demandLabels = m.demands.map(d => INDUSTRY_META[d].short.slice(0, 2)).join("·");
-        merchHtml += `<g class="map-node" onclick="onSelectMapMerchant('${m.id}')">`;
-        merchHtml += `<rect x="${m.x - 42}" y="${m.y - 22}" width="84" height="44" rx="9" fill="#064e3b" stroke="#34d399" stroke-width="2.2" />`;
-        merchHtml += `<text x="${m.x}" y="${m.y - 6}" text-anchor="middle" fill="#a7f3d0" font-size="12" font-weight="900">${m.short}</text>`;
-        merchHtml += `<text x="${m.x}" y="${m.y + 8}" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="800">${demandLabels}</text>`;
-        merchHtml += `<text x="${m.x}" y="${m.y + 19}" text-anchor="middle" fill="#fde047" font-size="12" font-weight="900">맥주${m.beerLeft} (${m.bonusLabel})</text>`;
+        const mW = 114;
+        const mH = 56;
+        const mx0 = m.x - mW / 2;
+        const my0 = m.y - mH / 2;
+        merchHtml += `<g class="map-node" filter="url(#nodeDropShadow)" onclick="onSelectMapMerchant('${m.id}')">`;
+        merchHtml += `<rect x="${mx0}" y="${my0}" width="${mW}" height="${mH}" rx="11" fill="#042f2e" stroke="${isSel ? "#ffffff" : "#34d399"}" stroke-width="${isSel ? 3.2 : 2.4}" />`;
+        merchHtml += `<rect x="${mx0 + 2}" y="${my0 + 2}" width="${mW - 4}" height="19" rx="9" fill="#065f46" />`;
+        merchHtml += `<text x="${m.x}" y="${my0 + 15.5}" text-anchor="middle" fill="#ecfdf5" font-size="12" font-weight="900">${m.short}</text>`;
+        merchHtml += `<text x="${m.x}" y="${my0 + 34}" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="900">수요: ${demandLabels}</text>`;
+        merchHtml += `<text x="${m.x}" y="${my0 + 49}" text-anchor="middle" fill="${m.beerLeft > 0 ? "#fde047" : "#94a3b8"}" font-size="12" font-weight="900">맥주${m.beerLeft} (${m.bonusLabel})</text>`;
         merchHtml += `</g>`;
       });
       merchantsLayer.innerHTML = merchHtml;
 
-      // 3) 14개 핵심 도시(Cities) 렌더링
+      // 3) 14개 핵심 도시(Cities) — 상단 도시 헤더 + 하단 개별 산업 슬롯 컬러 타일칩 분리 렌더링
       const citiesLayer = document.getElementById("mapCitiesLayer");
       let citiesHtml = "";
       Object.values(G.cities).forEach(c => {
@@ -2705,26 +2754,52 @@
           s.building === null && s.allowedTypes.some(indId => evaluateBuildOnSlot(G.player, card, c.id, s.slotIdx, indId).valid)
         );
 
-        const boxW = c.slotsState.length >= 3 ? 92 : 78;
-        const boxH = 46;
-        const strokeCol = isSel ? "#ffffff" : (canBuildAnyHere ? "#facc15" : "#a8a29e");
-        const strokeW = (isSel || canBuildAnyHere) ? 3 : 1.6;
+        const slotCount = c.slotsState.length;
+        const chipW = slotCount >= 4 ? 32 : 36;
+        const chipH = 26;
+        const chipGap = 4;
+        const totalSlotsW = slotCount * chipW + (slotCount - 1) * chipGap;
+        const boxW = Math.max(96, totalSlotsW + 14);
+        const boxH = 58;
+        const bx = c.x - boxW / 2;
+        const by = c.y - boxH / 2;
 
-        citiesHtml += `<g class="map-node" onclick="onSelectMapCity('${c.id}')">`;
-        citiesHtml += `<rect x="${c.x - boxW / 2}" y="${c.y - boxH / 2}" width="${boxW}" height="${boxH}" rx="10" fill="#1c1917" stroke="${strokeCol}" stroke-width="${strokeW}" class="${canBuildAnyHere ? "valid-highlight" : ""}" />`;
-        citiesHtml += `<text x="${c.x}" y="${c.y - 7}" text-anchor="middle" fill="${canBuildAnyHere ? "#fde047" : "#f5f5f4"}" font-size="12" font-weight="900">${c.short}</text>`;
+        const strokeCol = isSel ? "#ffffff" : (canBuildAnyHere ? "#facc15" : "#d6d3d1");
+        const strokeW = (isSel || canBuildAnyHere) ? 3.2 : 2.0;
+        const headerFill = canBuildAnyHere ? "#78350f" : "#292524";
 
-        // 도시 슬롯 미니 표시
-        const slotSummary = c.slotsState.map(s => {
+        citiesHtml += `<g class="map-node" filter="url(#nodeDropShadow)" onclick="onSelectMapCity('${c.id}')">`;
+        // 도시 메인 카드 프레임
+        citiesHtml += `<rect x="${bx}" y="${by}" width="${boxW}" height="${boxH}" rx="11" fill="#14110f" stroke="${strokeCol}" stroke-width="${strokeW}" class="${canBuildAnyHere ? "valid-highlight" : ""}" />`;
+        // 도시 이름 상단 헤더 바
+        citiesHtml += `<rect x="${bx + 2}" y="${by + 2}" width="${boxW - 4}" height="21" rx="9" fill="${headerFill}" />`;
+        citiesHtml += `<text x="${c.x}" y="${by + 16.5}" text-anchor="middle" fill="${canBuildAnyHere ? "#fef08a" : "#ffffff"}" font-size="12.5" font-weight="900">${c.short}</text>`;
+
+        // 하단: 슬롯별 개별 미니 타일 칩 렌더링
+        const startSlotX = c.x - totalSlotsW / 2;
+        const slotY = by + 26;
+
+        c.slotsState.forEach((s, idx) => {
+          const sx = startSlotX + idx * (chipW + chipGap);
           if (s.building) {
-            const meta = INDUSTRY_META[s.building.indId];
-            const cubeTag = s.building.cubes > 0 ? `(${s.building.cubes})` : (s.building.flipped ? "★" : "");
-            return `${meta.short.slice(0, 1)}${cubeTag}`;
+            const b = s.building;
+            const owner = getLordById(b.ownerId);
+            const meta = INDUSTRY_META[b.indId];
+            const statusMark = b.flipped ? "★" : (b.cubes > 0 ? `${b.cubes}` : `L${b.level}`);
+            const labelTxt = `${meta.short.slice(0, 1)}${statusMark}`;
+            const subStroke = b.flipped ? "#fde047" : "#ffffff";
+            citiesHtml += `<rect x="${sx}" y="${slotY}" width="${chipW}" height="${chipH}" rx="6" fill="${owner.color}" stroke="${subStroke}" stroke-width="${b.flipped ? 2.4 : 1.5}" />`;
+            citiesHtml += `<text x="${sx + chipW / 2}" y="${slotY + 17.5}" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="900">${labelTxt}</text>`;
+          } else {
+            const firstType = s.allowedTypes[0];
+            const pal = IND_SLOT_PALETTE[firstType] || { bg: "#292524", border: "#a8a29e", text: "#f5f5f4" };
+            const canBuildSlot = card && s.allowedTypes.some(indId => evaluateBuildOnSlot(G.player, card, c.id, s.slotIdx, indId).valid);
+            const slotLabel = s.allowedTypes.map(t => INDUSTRY_META[t].short.slice(0, 1)).join("/");
+            citiesHtml += `<rect x="${sx}" y="${slotY}" width="${chipW}" height="${chipH}" rx="6" fill="${pal.bg}" stroke="${canBuildSlot ? "#fde047" : pal.border}" stroke-width="${canBuildSlot ? 2.3 : 1.5}" />`;
+            citiesHtml += `<text x="${sx + chipW / 2}" y="${slotY + 17.5}" text-anchor="middle" fill="${canBuildSlot ? "#fef08a" : pal.text}" font-size="12" font-weight="900">${slotLabel}</text>`;
           }
-          return s.allowedTypes.map(t => INDUSTRY_META[t].short.slice(0, 1)).join("/");
-        }).join(" ");
+        });
 
-        citiesHtml += `<text x="${c.x}" y="${c.y + 11}" text-anchor="middle" fill="#fbbf24" font-size="12" font-weight="800">${slotSummary}</text>`;
         citiesHtml += `</g>`;
       });
       citiesLayer.innerHTML = citiesHtml;
@@ -3080,16 +3155,35 @@
       document.getElementById("modalSell").classList.add("hidden");
     }
 
+    function clampMapPan() {
+      const limit = Math.max(240, Math.round(380 * mapZoom));
+      mapPan.x = Math.max(-limit, Math.min(limit, mapPan.x));
+      mapPan.y = Math.max(-limit, Math.min(limit, mapPan.y));
+    }
+
     function applyMapTransform() {
+      clampMapPan();
       const g = document.getElementById("mapTransformGroup");
       if (g) {
-        g.setAttribute("transform", `translate(${mapPan.x.toFixed(1)}, ${mapPan.y.toFixed(1)}) scale(${mapZoom.toFixed(2)})`);
+        g.setAttribute("transform", `translate(${mapPan.x.toFixed(1)}, ${mapPan.y.toFixed(1)}) scale(${mapZoom.toFixed(3)})`);
+      }
+      const zoomBadge = document.getElementById("mapZoomLevelBadge");
+      if (zoomBadge) {
+        zoomBadge.textContent = `${Math.round(mapZoom * 100)}%`;
       }
     }
 
-    function zoomMap(factor) {
-      mapZoom = Math.max(0.75, Math.min(2.2, mapZoom * factor));
+    function setMapZoomAtSvgPoint(newZoom, focalX = 370, focalY = 350) {
+      const clampedZoom = Math.max(0.65, Math.min(2.8, newZoom));
+      const ratio = clampedZoom / mapZoom;
+      mapPan.x = focalX - (focalX - mapPan.x) * ratio;
+      mapPan.y = focalY - (focalY - mapPan.y) * ratio;
+      mapZoom = clampedZoom;
       applyMapTransform();
+    }
+
+    function zoomMap(factor) {
+      setMapZoomAtSvgPoint(mapZoom * factor, 370, 350);
     }
 
     function resetMapPan() {
@@ -3098,21 +3192,126 @@
       applyMapTransform();
     }
 
+    function clientToSvgCoords(clientX, clientY) {
+      const svg = document.getElementById("midlandsSvg");
+      if (!svg) return { x: 370, y: 350, scaleX: 1, scaleY: 1 };
+      const rect = svg.getBoundingClientRect();
+      if (!rect.width || !rect.height) return { x: 370, y: 350, scaleX: 1, scaleY: 1 };
+      const scaleX = 740 / rect.width;
+      const scaleY = 700 / rect.height;
+      return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY,
+        scaleX,
+        scaleY
+      };
+    }
+
     function bindMapPanGesture() {
       const container = document.getElementById("mapSvgContainer");
       if (!container) return;
+
+      // 1) 모바일/태블릿 손가락 1개 드래그 패닝 & 손가락 2개 핀치 줌(Pinch-to-Zoom)
+      let touchMode = "none"; // 'none' | 'pan' | 'pinch'
+      let startTouchPan = { x: 0, y: 0, panX: 0, panY: 0 };
+      let pinchStartDist = 0;
+      let pinchStartZoom = 1.0;
+      let pinchStartPan = { x: 0, y: 0 };
+      let pinchStartMidSvg = { x: 370, y: 350 };
+
+      function getTouchDistance(t1, t2) {
+        return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+      }
+
+      container.addEventListener("touchstart", (e) => {
+        if (e.touches.length === 2) {
+          e.preventDefault();
+          touchMode = "pinch";
+          isDraggingMap = false;
+          pinchStartDist = Math.max(10, getTouchDistance(e.touches[0], e.touches[1]));
+          pinchStartZoom = mapZoom;
+          pinchStartPan = { x: mapPan.x, y: mapPan.y };
+          const midClientX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+          const midClientY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+          pinchStartMidSvg = clientToSvgCoords(midClientX, midClientY);
+        } else if (e.touches.length === 1 && touchMode !== "pinch") {
+          startTouchPan = {
+            x: e.touches[0].clientX,
+            y: e.touches[0].clientY,
+            panX: mapPan.x,
+            panY: mapPan.y
+          };
+          touchMode = "pan";
+        }
+      }, { passive: false });
+
+      container.addEventListener("touchmove", (e) => {
+        if (e.touches.length === 2) {
+          e.preventDefault();
+          const curDist = Math.max(10, getTouchDistance(e.touches[0], e.touches[1]));
+          const newZoom = Math.max(0.65, Math.min(2.8, pinchStartZoom * (curDist / pinchStartDist)));
+          const midClientX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+          const midClientY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+          const curMidSvg = clientToSvgCoords(midClientX, midClientY);
+
+          const zoomRatio = newZoom / pinchStartZoom;
+          mapZoom = newZoom;
+          // 두 손가락 중심점(Midpoint)을 기준으로 확대/축소 + 두 손가락 이동(패닝) 동시 반영
+          mapPan.x = curMidSvg.x - (pinchStartMidSvg.x - pinchStartPan.x) * zoomRatio;
+          mapPan.y = curMidSvg.y - (pinchStartMidSvg.y - pinchStartPan.y) * zoomRatio;
+          applyMapTransform();
+        } else if (e.touches.length === 1 && touchMode === "pan") {
+          const dxClient = e.touches[0].clientX - startTouchPan.x;
+          const dyClient = e.touches[0].clientY - startTouchPan.y;
+          if (Math.hypot(dxClient, dyClient) > 4) {
+            e.preventDefault();
+          }
+          const scaleInfo = clientToSvgCoords(e.touches[0].clientX, e.touches[0].clientY);
+          mapPan.x = startTouchPan.panX + dxClient * scaleInfo.scaleX;
+          mapPan.y = startTouchPan.panY + dyClient * scaleInfo.scaleY;
+          applyMapTransform();
+        }
+      }, { passive: false });
+
+      container.addEventListener("touchend", (e) => {
+        if (e.touches.length === 0) {
+          touchMode = "none";
+        } else if (e.touches.length === 1) {
+          // 핀치 줌 후 한 손가락만 남았을 때 1손가락 패닝으로 부드럽게 이어지도록 기준점 갱신
+          touchMode = "pan";
+          startTouchPan = {
+            x: e.touches[0].clientX,
+            y: e.touches[0].clientY,
+            panX: mapPan.x,
+            panY: mapPan.y
+          };
+        }
+      });
+
+      // 2) 데스크톱 마우스 드래그 패닝 & 마우스 휠 줌(Wheel Zoom)
       container.addEventListener("pointerdown", (e) => {
+        if (e.pointerType === "touch") return; // 터치는 위 멀티터치 핸들러가 전담
         if (e.target.closest && e.target.closest("button")) return;
         isDraggingMap = true;
-        mapDragStart = { x: e.clientX - mapPan.x, y: e.clientY - mapPan.y };
+        mapDragStart = { x: e.clientX, y: e.clientY, panX: mapPan.x, panY: mapPan.y };
       });
       window.addEventListener("pointermove", (e) => {
-        if (!isDraggingMap) return;
-        mapPan.x = Math.max(-180, Math.min(180, e.clientX - mapDragStart.x));
-        mapPan.y = Math.max(-180, Math.min(180, e.clientY - mapDragStart.y));
+        if (!isDraggingMap || e.pointerType === "touch") return;
+        const scaleInfo = clientToSvgCoords(e.clientX, e.clientY);
+        mapPan.x = mapDragStart.panX + (e.clientX - mapDragStart.x) * scaleInfo.scaleX;
+        mapPan.y = mapDragStart.panY + (e.clientY - mapDragStart.y) * scaleInfo.scaleY;
         applyMapTransform();
       });
-      window.addEventListener("pointerup", () => { isDraggingMap = false; });
+      window.addEventListener("pointerup", (e) => {
+        if (e.pointerType !== "touch") isDraggingMap = false;
+      });
+
+      container.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const focal = clientToSvgCoords(e.clientX, e.clientY);
+        const factor = e.deltaY < 0 ? 1.14 : 0.88;
+        setMapZoomAtSvgPoint(mapZoom * factor, focal.x, focal.y);
+      }, { passive: false });
     }
 
     function openGuideModal(idx = 0) {
