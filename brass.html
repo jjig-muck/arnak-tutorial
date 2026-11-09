@@ -275,10 +275,10 @@
       <!-- 6대 행동 원터치 실행 콘솔 -->
       <div class="p-3 rounded-2xl bg-[#18120c] border border-amber-500/35 space-y-2">
         <div class="flex items-center justify-between">
-          <strong class="text-sm font-black text-amber-300">브라스 6대 산업 행동 센터 (카드 1장 소모)</strong>
+          <strong class="text-sm font-black text-amber-300">브라스 6대 정식 행동 센터 (1행동 · 카드 1장 소모)</strong>
           <span class="text-[12px] text-amber-200 font-bold" id="matSelectedCardText">선택 카드: #1</span>
         </div>
-        <p class="text-[12px] text-slate-300">상단 손패에서 사용할 카드를 고른 뒤 아래 행동을 바로 실행할 수 있습니다.</p>
+        <p class="text-[12px] text-slate-300">브라스에는 프리 액션이 없습니다! 아래 6대 행동 모두 <strong>선택한 손패 카드 1장을 버리고 행동 기회 1회를 소모</strong>합니다.</p>
         <div class="grid grid-cols-2 gap-2 pt-1">
           <button onclick="switchTab('map')" class="p-2.5 rounded-xl bg-amber-950/60 border border-amber-500/50 text-left hover:bg-amber-900/60 transition">
             <div class="font-black text-amber-200 text-xs">1. 건물 건설 (Build)</div>
@@ -288,12 +288,20 @@
             <div class="font-black text-sky-200 text-xs">2. 노선 부설 (Network)</div>
             <div class="text-[12px] text-slate-300 mt-0.5">운하(£3) 또는 철도(석탄+£5/£15) 연결</div>
           </button>
+          <button onclick="openDevelopModal()" class="p-2.5 rounded-xl bg-orange-950/70 border border-orange-500/60 text-left hover:bg-orange-900/70 transition">
+            <div class="font-black text-orange-200 text-xs">3. 연구 개발 (Develop)</div>
+            <div class="text-[12px] text-slate-300 mt-0.5">카드 1장 버리고 저레벨 타일 최대 2개(타 산업 교차 가능!) 제거</div>
+          </button>
           <button onclick="openSellModal()" class="p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-500/50 text-left hover:bg-emerald-900/60 transition">
-            <div class="font-black text-emerald-200 text-xs">3. 상품 판매 (Sell)</div>
+            <div class="font-black text-emerald-200 text-xs">4. 상품 판매 (Sell)</div>
             <div class="text-[12px] text-slate-300 mt-0.5">면직물·잡화·도자기를 맥주와 함께 팔아 뒤집기(Flip)!</div>
           </button>
+          <button onclick="onClickTakeLoan()" class="p-2.5 rounded-xl bg-yellow-950/60 border border-yellow-500/50 text-left hover:bg-yellow-900/60 transition">
+            <div class="font-black text-yellow-200 text-xs">5. 은행 대출 (Loan +£30)</div>
+            <div class="text-[12px] text-slate-300 mt-0.5">카드 1장 버리고 즉시 £30 획득 (수입 레벨 -3단계)</div>
+          </button>
           <button onclick="onClickScoutWildCards()" class="p-2.5 rounded-xl bg-purple-950/60 border border-purple-500/50 text-left hover:bg-purple-900/60 transition">
-            <div class="font-black text-purple-200 text-xs">4. 만능 정찰 (Scout)</div>
+            <div class="font-black text-purple-200 text-xs">6. 만능 정찰 (Scout)</div>
             <div class="text-[12px] text-slate-300 mt-0.5">손패 3장을 버리고 [만능 도시] + [만능 산업] 획득</div>
           </button>
         </div>
@@ -301,12 +309,18 @@
 
       <!-- 내 개인 산업 매트 (6대 산업 타일 스택 & 즉시 개발 Develop 버튼) -->
       <div class="p-3 rounded-2xl bg-[#16110c] border border-white/10 space-y-2.5">
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between gap-2">
           <div>
             <strong class="text-sm font-black text-amber-200">내 개인 산업 보드 (Industry Mat)</strong>
-            <p class="text-[12px] text-slate-400">철(Iron) 1개씩을 소비해 저레벨 타일을 제거(개발)하면 고득점 상위 타일이 열립니다!</p>
+            <p class="text-[12px] text-slate-300">개발(1행동·카드1장 소모) 시 타일 1개당 철 1개를 써서 <strong>최대 2개(서로 다른 산업도 가능!)</strong>까지 제거합니다.</p>
           </div>
-          <span class="px-2 py-1 rounded-lg bg-orange-950 border border-orange-500/40 text-orange-200 font-black text-[12px]" id="matIronCostBadge">개발 철 비용</span>
+          <button onclick="openDevelopModal()" class="px-2.5 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-stone-950 font-black text-[12px] shrink-0 shadow">
+            1~2장 교차 개발 모달 →
+          </button>
+        </div>
+        <div class="flex items-center justify-between text-[12px] bg-black/40 px-2.5 py-1 rounded-lg border border-orange-500/30">
+          <span class="text-orange-200 font-bold" id="matIronCostBadge">개발 철 비용</span>
+          <span class="text-slate-400">아래 버튼 클릭 시에도 1행동·카드1장 소모</span>
         </div>
         <div class="grid grid-cols-1 gap-2" id="playerIndustryMatGrid"></div>
       </div>
@@ -452,6 +466,30 @@
         <button onclick="closeSellModal()" class="px-2 py-0.5 rounded bg-stone-800 text-stone-300 font-bold text-xs">닫기</button>
       </div>
       <div id="sellCandidatesList" class="flex-1 overflow-y-auto space-y-2 text-xs pr-1"></div>
+    </div>
+  </div>
+
+  <!-- [모달 2-B] 연구 개발 (Develop Action — 1행동·카드1장 소모, 1~2개 타일 선택 제거) 모달 -->
+  <div id="modalDevelop" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="bg-[#16110c] border-2 border-orange-500/60 rounded-2xl w-full max-w-md p-4 space-y-3 shadow-2xl max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between border-b border-white/10 pb-2">
+        <div>
+          <div class="flex items-center gap-1.5">
+            <span class="px-2 py-0.5 rounded bg-orange-500 text-stone-950 font-black text-[12px]">정식 1행동 · 카드 1장 소모</span>
+            <h3 class="text-sm font-black text-orange-300">연구 개발 (Develop · 최대 2개 제거)</h3>
+          </div>
+          <p class="text-[12px] text-slate-300 mt-0.5">철을 1개씩 소비해 최저 레벨 타일을 <strong>1개 또는 2개(서로 다른 산업 조합 가능!)</strong> 영구 제거합니다.</p>
+        </div>
+        <button onclick="closeDevelopModal()" class="px-2 py-0.5 rounded bg-stone-800 text-stone-300 font-bold text-xs shrink-0">닫기</button>
+      </div>
+      <div id="developModalQueueBox" class="p-2.5 rounded-xl bg-black/50 border border-orange-500/35 text-xs space-y-1.5"></div>
+      <div id="developIndustriesPickList" class="flex-1 overflow-y-auto space-y-1.5 text-xs pr-1"></div>
+      <div class="flex items-center gap-2 pt-2 border-t border-white/10">
+        <button onclick="clearDevelopQueue()" class="px-3 py-2.5 rounded-xl bg-stone-800 text-slate-300 font-bold text-xs">선택 초기화</button>
+        <button onclick="confirmExecuteDevelopQueue()" id="btnConfirmDevelopQueue" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-stone-950 font-black text-xs shadow-lg">
+          개발 확정 (카드 1장 + 1행동 소모)
+        </button>
+      </div>
     </div>
   </div>
 
@@ -1962,38 +2000,156 @@
       renderAll();
     }
 
-    // [행동 3: 연구 개발 Develop] 철 1개(또는 2개)를 소비해 개인 매트의 최저 레벨 타일 영구 제거!
-    function onClickDevelopIndustry(indId, tilesCount = 1) {
-      if (G.ended || G.player.actionsLeft <= 0) return;
-      const lowSlot = getLowestRemainingSlotInMat(G.player, indId);
-      if (!lowSlot) {
-        pushToast("해당 산업은 이미 모든 타일이 소진되었습니다.", true);
-        return;
-      }
-      if (lowSlot.noDevelop) {
-        pushToast("전구 아이콘이 있는 도자기 타일은 개발(Develop) 행동으로 제거할 수 없습니다!", true);
-        return;
-      }
+    // [행동 3: 연구 개발 Develop] 카드 1장 버리고(정식 1행동) 철 1~2개를 소비해 개인 매트의 최저 레벨 타일 1~2개 영구 제거!
+    let developModalQueue = []; // 예: ['iron', 'cotton'] 또는 ['cotton', 'cotton']
 
-      const actualCount = Math.min(tilesCount, lowSlot.remaining);
-      const ironPlan = planIronConsumption(actualCount);
+    function simulateDevelopPick(indList) {
+      // 가상으로 개인 매트 복제 후 indList 순서대로 최저 레벨 타일 1장씩 제거 가능한지 시뮬레이션
+      const simMat = {};
+      Object.keys(G.player.mat).forEach(k => {
+        simMat[k] = G.player.mat[k].map(s => ({ ...s }));
+      });
+      const steps = [];
+      for (const indId of indList) {
+        const slot = simMat[indId].find(s => s.remaining > 0);
+        if (!slot) {
+          return { valid: false, reason: `${INDUSTRY_META[indId].name}에 제거할 타일이 없습니다.` };
+        }
+        if (slot.noDevelop) {
+          return { valid: false, reason: `${INDUSTRY_META[indId].name} Lv.${slot.level} 타일은 전구 아이콘이 있어 개발 제거가 불가능합니다!` };
+        }
+        slot.remaining -= 1;
+        steps.push({ indId, level: slot.level });
+      }
+      return { valid: true, steps, simMat };
+    }
+
+    function executeDevelopList(indList) {
+      if (G.ended || G.player.actionsLeft <= 0) return false;
+      if (!indList || indList.length === 0 || indList.length > 2) {
+        pushToast("개발할 타일을 1개 또는 2개 선택해 주세요.", true);
+        return false;
+      }
+      const sim = simulateDevelopPick(indList);
+      if (!sim.valid) {
+        pushToast(sim.reason, true);
+        return false;
+      }
+      const ironCount = sim.steps.length;
+      const ironPlan = planIronConsumption(ironCount);
       if (G.player.money < ironPlan.marketCost) {
-        pushToast(`철 구매 자금이 부족합니다! (필요 £${ironPlan.marketCost})`, true);
-        return;
+        pushToast(`철 ${ironCount}개 조달 자금이 부족합니다! (필요 £${ironPlan.marketCost})`, true);
+        return false;
       }
 
       saveUndoSnapshot();
       G.player.money -= ironPlan.marketCost;
       G.player.spentThisRound += ironPlan.marketCost;
       executeIronConsumption(ironPlan);
-      lowSlot.remaining -= actualCount;
 
-      const meta = INDUSTRY_META[indId];
-      log(`[연구 개발 Develop] 내 기업: 철 ${actualCount}개 소비(£${ironPlan.marketCost}) -> [${meta.name} Lv.${lowSlot.level}] ${actualCount}장 제거 및 상위 기술 해금!`);
-      pushToast(`[개발 완료!] ${meta.name} Lv.${lowSlot.level} 제거 (상위 레벨 해금!)`);
+      sim.steps.forEach(st => {
+        const realSlot = getLowestRemainingSlotInMat(G.player, st.indId);
+        if (realSlot) realSlot.remaining -= 1;
+      });
 
+      const summaryTxt = sim.steps.map(st => `${INDUSTRY_META[st.indId].short} Lv.${st.level}`).join(" + ");
+      log(`[연구 개발 Develop] 내 기업(카드 1장·1행동 소모): 철 ${ironCount}개 소비(£${ironPlan.marketCost}) -> [${summaryTxt}] 총 ${ironCount}개 타일 영구 제거!`);
+      pushToast(`[개발 완료!] ${summaryTxt} 제거 (1행동 소모)`);
+
+      closeDevelopModal();
       consumeSelectedHandCardAndAction();
       renderAll();
+      return true;
+    }
+
+    function onClickDevelopIndustry(indId, tilesCount = 1) {
+      const list = tilesCount === 2 ? [indId, indId] : [indId];
+      executeDevelopList(list);
+    }
+
+    function openDevelopModal() {
+      developModalQueue = [];
+      renderDevelopModal();
+      document.getElementById("modalDevelop").classList.remove("hidden");
+    }
+
+    function closeDevelopModal() {
+      const m = document.getElementById("modalDevelop");
+      if (m) m.classList.add("hidden");
+    }
+
+    function addIndustryToDevelopQueue(indId) {
+      if (developModalQueue.length >= 2) {
+        pushToast("1회 개발 행동으로는 최대 2개까지만 타일을 제거할 수 있습니다.", true);
+        return;
+      }
+      const testQueue = [...developModalQueue, indId];
+      const sim = simulateDevelopPick(testQueue);
+      if (!sim.valid) {
+        pushToast(sim.reason, true);
+        return;
+      }
+      developModalQueue.push(indId);
+      renderDevelopModal();
+    }
+
+    function clearDevelopQueue() {
+      developModalQueue = [];
+      renderDevelopModal();
+    }
+
+    function confirmExecuteDevelopQueue() {
+      executeDevelopList(developModalQueue);
+    }
+
+    function renderDevelopModal() {
+      const qBox = document.getElementById("developModalQueueBox");
+      const pickList = document.getElementById("developIndustriesPickList");
+      const btnConfirm = document.getElementById("btnConfirmDevelopQueue");
+      if (!qBox || !pickList || !btnConfirm) return;
+
+      const sim = simulateDevelopPick(developModalQueue);
+      const ironPlan = planIronConsumption(developModalQueue.length);
+
+      if (developModalQueue.length === 0) {
+        qBox.innerHTML = `<div class="text-slate-300 font-bold">아래 산업 목록에서 제거할 타일을 <strong>1개 또는 2개</strong> 골라주세요. (같은 산업 2개 또는 서로 다른 산업 1개씩 교차 선택 가능!)</div>`;
+        btnConfirm.disabled = true;
+        btnConfirm.className = "flex-1 py-2.5 rounded-xl bg-stone-800 text-slate-500 font-black text-xs";
+        btnConfirm.textContent = "제거할 타일을 1~2개 선택하세요";
+      } else {
+        const stepBadges = sim.steps.map((st, idx) =>
+          `<span class="px-2 py-0.5 rounded bg-orange-950 border border-orange-400 text-orange-200 font-black">#${idx + 1} ${INDUSTRY_META[st.indId].name} Lv.${st.level}</span>`
+        ).join(" + ");
+        qBox.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-orange-300 font-black">선택된 제거 타일 (${developModalQueue.length} / 2개)</span>
+            <span class="text-amber-300 font-extrabold">필요 철 ${developModalQueue.length}개 · 비용 £${ironPlan.marketCost}</span>
+          </div>
+          <div class="flex flex-wrap items-center gap-1.5 pt-1">${stepBadges}</div>
+        `;
+        btnConfirm.disabled = false;
+        btnConfirm.className = "flex-1 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 text-stone-950 font-black text-xs shadow-lg";
+        btnConfirm.textContent = `선택한 ${developModalQueue.length}개 타일 개발 확정 (£${ironPlan.marketCost} · 1행동 소모)`;
+      }
+
+      pickList.innerHTML = Object.keys(INDUSTRY_META).map(indId => {
+        const meta = INDUSTRY_META[indId];
+        const nextSlot = sim.simMat[indId].find(s => s.remaining > 0);
+        const canAdd = developModalQueue.length < 2 && nextSlot && !nextSlot.noDevelop;
+        return `
+          <div class="p-2.5 rounded-xl border ${meta.borderClass} ${meta.bgClass} flex items-center justify-between gap-2">
+            <div>
+              <strong class="font-black ${meta.textClass}">${meta.name}</strong>
+              <div class="text-[12px] text-slate-200">
+                ${!nextSlot ? "모든 타일 소진됨" : (nextSlot.noDevelop ? `현재 Lv.${nextSlot.level} (전구 아이콘: 개발 제거 불가)` : `다음 제거 대상: Lv.${nextSlot.level} (잔여 ${nextSlot.remaining}장)`)}
+              </div>
+            </div>
+            <button onclick="addIndustryToDevelopQueue('${indId}')" ${canAdd ? "" : "disabled"} class="px-3 py-1.5 rounded-xl font-black text-[12px] shrink-0 ${canAdd ? "bg-orange-500 hover:bg-orange-400 text-stone-950" : "bg-stone-800 text-slate-500"}">
+              ${canAdd ? "+ 1개 담기" : (nextSlot && nextSlot.noDevelop ? "전구 불가" : "선택 완료")}
+            </button>
+          </div>
+        `;
+      }).join("");
     }
 
     // [행동 4: 상품 판매 Sell] 연결된 상인 시장에 면직물·잡화·도자기를 맥주와 함께 팔아 뒤집기(Flip)!
