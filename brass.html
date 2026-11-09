@@ -487,9 +487,46 @@
       <div class="flex items-center gap-2 pt-2 border-t border-white/10">
         <button onclick="clearDevelopQueue()" class="px-3 py-2.5 rounded-xl bg-stone-800 text-slate-300 font-bold text-xs">선택 초기화</button>
         <button onclick="confirmExecuteDevelopQueue()" id="btnConfirmDevelopQueue" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-stone-950 font-black text-xs shadow-lg">
-          개발 확정 (카드 1장 + 1행동 소모)
+          다음: 버릴 손패 카드 1장 고르기 →
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- [모달 2-C] 행동 확정용 [버릴 손패 카드 직접 선택] 모달 (건설/노선/개발/판매/대출/정찰 공통) -->
+  <div id="modalCardDiscard" class="hidden fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="bg-[#16110c] border-2 border-amber-400 rounded-2xl w-full max-w-md p-4 space-y-3 shadow-2xl max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between border-b border-white/10 pb-2">
+        <div>
+          <span id="discardModalActionBadge" class="px-2 py-0.5 rounded bg-amber-400 text-stone-950 font-black text-[12px]">정식 1행동 · 카드 소모</span>
+          <h3 id="discardModalTitle" class="text-sm font-black text-amber-200 mt-1">이 행동에 버릴 손패 카드를 선택하세요!</h3>
+        </div>
+        <button onclick="closeCardDiscardModal()" class="px-2.5 py-1 rounded bg-stone-800 text-stone-300 hover:text-white font-bold text-xs shrink-0">취소</button>
+      </div>
+      <div id="discardModalSummaryBox" class="p-2.5 rounded-xl bg-stone-900/90 border border-amber-500/35 text-[12px] text-slate-200 space-y-1"></div>
+      <div class="text-[12px] text-amber-300 font-extrabold" id="discardModalInstruction">
+        내 손패 목록 (사용/버릴 카드를 터치하세요):
+      </div>
+      <div id="discardModalCardList" class="flex-1 overflow-y-auto space-y-1.5 text-xs pr-1"></div>
+      <div id="discardModalScoutFooter" class="hidden pt-2 border-t border-white/10">
+        <button onclick="confirmScoutThreeCards()" id="btnConfirmScoutThree" class="w-full py-2.5 rounded-xl bg-purple-500 hover:bg-purple-400 text-stone-950 font-black text-xs shadow-lg">
+          선택한 3장 버리고 만능 카드 2장 받기 (1행동 소모)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- [모달 2-D] 내 턴 종료 -> 오토마 행동 요약 & 새 라운드 개막 알림 모달 -->
+  <div id="modalRoundRecap" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="bg-[#16110c] border-2 border-sky-400 rounded-2xl w-full max-w-md p-4 space-y-3 shadow-2xl max-h-[88vh] flex flex-col">
+      <div class="text-center space-y-1 border-b border-white/10 pb-2">
+        <span id="roundRecapBadge" class="px-2.5 py-0.5 rounded-full bg-sky-950 border border-sky-400/50 text-sky-300 font-black text-[12px]">내 턴 종료 & 라운드 전환</span>
+        <h3 id="roundRecapTitle" class="text-base font-black text-white">제1막 2라운드 개막! (내 행동 2회 충전)</h3>
+      </div>
+      <div id="roundRecapBody" class="flex-1 overflow-y-auto space-y-2 text-xs text-slate-200"></div>
+      <button onclick="closeRoundRecapModal()" class="w-full py-3 rounded-xl bg-gradient-to-r from-sky-400 to-amber-400 text-stone-950 font-black text-xs shadow-lg">
+        확인 · 내 차례 시작하기 (행동 2/2) →
+      </button>
     </div>
   </div>
 
@@ -1746,22 +1783,193 @@
     }
 
     // ---------------------------------------------------------
-    // (F) 플레이어 6대 주 행동 판정 및 실행 엔진
+    // (F) 플레이어 6대 주 행동 판정 및 [버릴 손패 카드 직접 선택 모달] 실행 엔진
     // ---------------------------------------------------------
+    let pendingActionContext = null;
+    let scoutSelectedIndices = [];
+
     function getSelectedHandCard() {
       if (!G || !G.player.hand.length) return null;
       const idx = Math.max(0, Math.min(G.player.hand.length - 1, selectedCardIdx));
       return G.player.hand[idx];
     }
 
-    function consumeSelectedHandCardAndAction() {
-      const idx = Math.max(0, Math.min(G.player.hand.length - 1, selectedCardIdx));
-      G.player.hand.splice(idx, 1);
+    // 특정 인덱스의 손패 카드를 명시적으로 버리고 행동 횟수 1회를 차감하는 핵심 함수
+    function consumeHandCardAtIndexAndAction(cardIdx, actionLabel = "행동") {
+      const idx = Math.max(0, Math.min(G.player.hand.length - 1, cardIdx !== undefined ? cardIdx : selectedCardIdx));
+      const discardedCard = G.player.hand.splice(idx, 1)[0];
       selectedCardIdx = 0;
       G.player.actionsLeft = Math.max(0, G.player.actionsLeft - 1);
 
-      if (G.player.actionsLeft === 0) {
-        advanceAfterPlayerTurnFinished();
+      const cardTitle = discardedCard ? discardedCard.title : "카드";
+      if (G.player.actionsLeft > 0) {
+        log(`-> [카드 소모] '${cardTitle}' 카드를 버렸습니다. (이번 라운드 내 남은 행동: ${G.player.actionsLeft}회)`);
+        pushToast(`['${cardTitle}' 버림] ${actionLabel} 완료! (남은 행동 ${G.player.actionsLeft}회)`);
+      } else {
+        log(`-> [카드 소모 & 내 턴 종료] '${cardTitle}' 카드를 버리고 이번 라운드 행동을 모두 마쳤습니다!`);
+        advanceAfterPlayerTurnFinished(cardTitle, actionLabel);
+      }
+    }
+
+    function consumeSelectedHandCardAndAction(actionLabel = "행동") {
+      consumeHandCardAtIndexAndAction(selectedCardIdx, actionLabel);
+    }
+
+    // [버릴 손패 카드 직접 선택] 모달 열기
+    function openCardDiscardModal(ctx) {
+      if (G.ended || G.player.actionsLeft <= 0) return;
+      pendingActionContext = ctx;
+      scoutSelectedIndices = [];
+      renderCardDiscardModal();
+      const modal = document.getElementById("modalCardDiscard");
+      if (modal) modal.classList.remove("hidden");
+    }
+
+    function closeCardDiscardModal() {
+      pendingActionContext = null;
+      scoutSelectedIndices = [];
+      const modal = document.getElementById("modalCardDiscard");
+      if (modal) modal.classList.add("hidden");
+    }
+
+    function renderCardDiscardModal() {
+      const ctx = pendingActionContext;
+      if (!ctx) return;
+
+      const badgeEl = document.getElementById("discardModalActionBadge");
+      const titleEl = document.getElementById("discardModalTitle");
+      const sumBox = document.getElementById("discardModalSummaryBox");
+      const instEl = document.getElementById("discardModalInstruction");
+      const listEl = document.getElementById("discardModalCardList");
+      const scoutFooter = document.getElementById("discardModalScoutFooter");
+
+      const nextLeft = Math.max(0, G.player.actionsLeft - 1);
+      badgeEl.textContent = `정식 1행동 소모 (실행 후 남은 행동: ${nextLeft}회)`;
+      titleEl.textContent = ctx.title || "이 행동에 사용할(버릴) 손패 카드를 선택하세요!";
+      sumBox.innerHTML = ctx.summaryHtml || "";
+
+      if (ctx.type === "scout") {
+        instEl.textContent = `버릴 손패 카드 3장을 터치해 선택하세요 (${scoutSelectedIndices.length} / 3장 선택됨):`;
+        scoutFooter.classList.remove("hidden");
+        const btnScout = document.getElementById("btnConfirmScoutThree");
+        if (btnScout) {
+          btnScout.disabled = (scoutSelectedIndices.length !== 3);
+          btnScout.className = scoutSelectedIndices.length === 3
+            ? "w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-amber-500 text-stone-950 font-black text-xs shadow-lg"
+            : "w-full py-2.5 rounded-xl bg-stone-800 text-slate-500 font-black text-xs";
+          btnScout.textContent = scoutSelectedIndices.length === 3
+            ? "선택한 3장 버리고 [만능 도시 + 만능 산업] 받기 (1행동 소모)"
+            : `버릴 카드 3장을 선택해 주세요 (${scoutSelectedIndices.length}/3)`;
+        }
+
+        listEl.innerHTML = G.player.hand.map((c, idx) => {
+          const pickedOrder = scoutSelectedIndices.indexOf(idx);
+          const isPicked = pickedOrder !== -1;
+          return `
+            <button onclick="onPickCardInDiscardModal(${idx})" class="w-full p-2.5 rounded-xl border ${isPicked ? "bg-purple-950/80 border-purple-400 ring-2 ring-purple-300" : "bg-stone-900 border-white/15 hover:border-amber-400/60"} flex items-center justify-between text-left transition">
+              <div>
+                <div class="font-black text-xs text-white">[손패 #${idx + 1}] ${c.title}</div>
+                <div class="text-[12px] text-slate-300">${c.sub}</div>
+              </div>
+              <span class="px-2.5 py-1 rounded-lg ${isPicked ? "bg-purple-400 text-stone-950" : "bg-stone-800 text-slate-300"} font-black text-[12px] shrink-0">
+                ${isPicked ? `선택됨 (#${pickedOrder + 1})` : "선택하기"}
+              </span>
+            </button>
+          `;
+        }).join("");
+        return;
+      }
+
+      scoutFooter.classList.add("hidden");
+      instEl.textContent = ctx.type === "build"
+        ? "내 손패 목록 (이 도시/산업 건설 조건에 맞는 카드를 선택해 버리세요):"
+        : "내 손패 목록 (아무 카드나 1장 선택해 버리면 즉시 실행됩니다):";
+
+      listEl.innerHTML = G.player.hand.map((c, idx) => {
+        let canUse = true;
+        let reasonTxt = "이 카드를 버리고 즉시 행동 실행";
+        if (ctx.type === "build") {
+          const chk = evaluateBuildOnSlot(G.player, c, ctx.cityId, ctx.slotIdx, ctx.indId);
+          canUse = chk.valid;
+          reasonTxt = chk.valid ? "조건 일치! 이 카드를 사용하여 건설 가능" : chk.reason;
+        }
+        return `
+          <button onclick="onPickCardInDiscardModal(${idx})" ${canUse ? "" : "disabled"} class="w-full p-2.5 rounded-xl border ${canUse ? "bg-amber-950/45 border-amber-400/70 hover:bg-amber-900/60 text-white" : "bg-stone-900/50 border-white/10 text-slate-500 opacity-65"} flex items-center justify-between gap-2 text-left transition">
+            <div class="min-w-0">
+              <div class="flex items-center gap-1.5">
+                <span class="px-1.5 py-0.5 rounded text-[12px] font-black ${c.badgeColor || "bg-stone-800 text-slate-200"}">#${idx + 1}</span>
+                <strong class="font-black text-xs ${canUse ? "text-amber-200" : "text-slate-400"}">${c.title}</strong>
+                <span class="text-[12px] text-slate-300 truncate">(${c.sub})</span>
+              </div>
+              <div class="text-[12px] ${canUse ? "text-emerald-300" : "text-rose-300/90"} mt-0.5">${reasonTxt}</div>
+            </div>
+            <span class="px-2.5 py-1.5 rounded-xl ${canUse ? "bg-gradient-to-r from-amber-400 to-orange-400 text-stone-950" : "bg-stone-800 text-slate-500"} font-black text-[12px] shrink-0 shadow">
+              ${canUse ? "이 카드 버리고 실행 →" : "사용 불가"}
+            </span>
+          </button>
+        `;
+      }).join("");
+    }
+
+    function onPickCardInDiscardModal(cardIdx) {
+      const ctx = pendingActionContext;
+      if (!ctx) return;
+
+      if (ctx.type === "scout") {
+        const pos = scoutSelectedIndices.indexOf(cardIdx);
+        if (pos !== -1) {
+          scoutSelectedIndices.splice(pos, 1);
+        } else if (scoutSelectedIndices.length < 3) {
+          scoutSelectedIndices.push(cardIdx);
+        }
+        renderCardDiscardModal();
+        return;
+      }
+
+      const pickedCard = G.player.hand[cardIdx];
+      if (!pickedCard) return;
+
+      if (ctx.type === "build") {
+        const check = evaluateBuildOnSlot(G.player, pickedCard, ctx.cityId, ctx.slotIdx, ctx.indId);
+        if (!check.valid) {
+          pushToast(check.reason, true);
+          return;
+        }
+        closeCardDiscardModal();
+        saveUndoSnapshot();
+        executeBuildForLord(G.player, ctx.cityId, ctx.slotIdx, ctx.indId, check);
+        selectedMapEntity = null;
+        consumeHandCardAtIndexAndAction(cardIdx, `${G.cities[ctx.cityId].short} 건설`);
+        renderAll();
+      } else if (ctx.type === "link") {
+        const check = evaluateLinkBuild(G.player, ctx.linkId);
+        if (!check.valid) {
+          pushToast(check.reason, true);
+          return;
+        }
+        closeCardDiscardModal();
+        saveUndoSnapshot();
+        const lk = G.links[ctx.linkId];
+        G.player.money -= check.totalMoneyCost;
+        G.player.spentThisRound += check.totalMoneyCost;
+        executeCoalConsumption(check.coalPlan);
+        lk.ownerId = G.player.id;
+        lk.eraType = check.eraType;
+        const fromName = (G.cities[lk.from] || G.merchants[lk.from]).short;
+        const toName = (G.cities[lk.to] || G.merchants[lk.to]).short;
+        log(`[노선 부설 Network] 내 기업: [${fromName} - ${toName}] ${G.era === 1 ? "운하" : "철도"} 개통! (£${check.totalMoneyCost} 지출)`);
+        selectedMapEntity = null;
+        consumeHandCardAtIndexAndAction(cardIdx, `${fromName}-${toName} 노선 부설`);
+        renderAll();
+      } else if (ctx.type === "develop") {
+        closeCardDiscardModal();
+        executeDevelopListWithCard(ctx.indList, cardIdx);
+      } else if (ctx.type === "sell") {
+        closeCardDiscardModal();
+        executeSellFactoryWithCard(ctx.cityId, ctx.slotIdx, cardIdx);
+      } else if (ctx.type === "loan") {
+        closeCardDiscardModal();
+        executeLoanWithCard(cardIdx);
       }
     }
 
@@ -1790,11 +1998,11 @@
         const hasBoardPresence = netNodes.size > 0;
         if (card.kind === "city") {
           if (card.cityId !== cityId) {
-            return { valid: false, reason: `선택한 [${card.title}] 도시 카드로는 [${city.short}]에 건설할 수 없습니다.` };
+            return { valid: false, reason: `[${card.title}] 도시 카드로는 [${city.short}]에 건설할 수 없습니다.` };
           }
         } else if (card.kind === "industry") {
           if (card.indId !== indId) {
-            return { valid: false, reason: `선택한 [${card.title}] 카드로는 [${INDUSTRY_META[indId].name}]만 건설할 수 있습니다.` };
+            return { valid: false, reason: `[${card.title}] 카드로는 [${INDUSTRY_META[indId].name}]만 건설할 수 있습니다.` };
           }
           if (hasBoardPresence && !netNodes.has(cityId)) {
             return { valid: false, reason: `산업 카드로 건설하려면 내 네트워크(내 건물 또는 내 도로가 닿은 도시) 안이어야 합니다.` };
@@ -1843,20 +2051,61 @@
       };
     }
 
-    function onClickBuildIndustry(cityId, slotIdx, indId) {
+    // 손패 중 해당 도시/슬롯/산업에 건설 가능한 카드가 하나라도 있는지 평가
+    function evaluateAnyHandCardForBuild(cityId, slotIdx, indId) {
+      const validCards = [];
+      G.player.hand.forEach((c, idx) => {
+        const chk = evaluateBuildOnSlot(G.player, c, cityId, slotIdx, indId);
+        if (chk.valid) validCards.push({ card: c, idx, check: chk });
+      });
+      if (validCards.length > 0) {
+        return {
+          valid: true,
+          validCards,
+          totalMoneyCost: validCards[0].check.totalMoneyCost,
+          spec: validCards[0].check.spec,
+          reason: `내 손패 카드 ${validCards.length}장 사용 가능! (총 £${validCards[0].check.totalMoneyCost} · Lv.${validCards[0].check.spec.level})`
+        };
+      }
+      const fallback = evaluateBuildOnSlot(G.player, getSelectedHandCard(), cityId, slotIdx, indId);
+      return { valid: false, validCards: [], reason: fallback.reason };
+    }
+
+    function onClickBuildIndustry(cityId, slotIdx, indId, directCardIdx = null) {
       if (G.ended || G.player.actionsLeft <= 0) return;
-      const card = getSelectedHandCard();
-      const check = evaluateBuildOnSlot(G.player, card, cityId, slotIdx, indId);
-      if (!check.valid) {
-        pushToast(check.reason, true);
+      if (directCardIdx !== null) {
+        const c = G.player.hand[directCardIdx] || getSelectedHandCard();
+        const check = evaluateBuildOnSlot(G.player, c, cityId, slotIdx, indId);
+        if (!check.valid) {
+          pushToast(check.reason, true);
+          return;
+        }
+        saveUndoSnapshot();
+        executeBuildForLord(G.player, cityId, slotIdx, indId, check);
+        selectedMapEntity = null;
+        consumeHandCardAtIndexAndAction(directCardIdx, `${G.cities[cityId].short} 건설`);
+        renderAll();
         return;
       }
 
-      saveUndoSnapshot();
-      executeBuildForLord(G.player, cityId, slotIdx, indId, check);
-      selectedMapEntity = null;
-      consumeSelectedHandCardAndAction();
-      renderAll();
+      const anyCheck = evaluateAnyHandCardForBuild(cityId, slotIdx, indId);
+      if (!anyCheck.valid) {
+        pushToast(anyCheck.reason, true);
+        return;
+      }
+      const city = G.cities[cityId];
+      const meta = INDUSTRY_META[indId];
+      openCardDiscardModal({
+        type: "build",
+        cityId,
+        slotIdx,
+        indId,
+        title: `[건물 건설] ${city.name}에 사용할 카드를 선택하세요!`,
+        summaryHtml: `
+          <div>건설 대상: <strong class="text-amber-300">${city.name} 슬롯 #${slotIdx + 1} · ${meta.name} Lv.${anyCheck.spec.level}</strong></div>
+          <div>총 지출 비용: <strong class="text-emerald-300">£${anyCheck.totalMoneyCost}</strong> (뒤집히면 +${anyCheck.spec.vp}점 / 수입+${anyCheck.spec.incomeUp}칸)</div>
+        `
+      });
     }
 
     function executeBuildForLord(lord, cityId, slotIdx, indId, check) {
@@ -1921,10 +2170,6 @@
           }
         }
       }
-
-      if (lord.isPlayer) {
-        pushToast(`${city.short}에 [${meta.name} Lv.${spec.level}] 건설 완료!`);
-      }
     }
 
     // [행동 2: 운하/철도 노선 부설 Network] 평가 및 실행
@@ -1974,7 +2219,7 @@
       }
     }
 
-    function onClickBuildLink(linkId) {
+    function onClickBuildLink(linkId, directCardIdx = null) {
       if (G.ended || G.player.actionsLeft <= 0) return;
       const check = evaluateLinkBuild(G.player, linkId);
       if (!check.valid) {
@@ -1982,29 +2227,39 @@
         return;
       }
 
-      saveUndoSnapshot();
       const lk = G.links[linkId];
-      G.player.money -= check.totalMoneyCost;
-      G.player.spentThisRound += check.totalMoneyCost;
-      executeCoalConsumption(check.coalPlan);
-      lk.ownerId = G.player.id;
-      lk.eraType = check.eraType;
-
       const fromName = (G.cities[lk.from] || G.merchants[lk.from]).short;
       const toName = (G.cities[lk.to] || G.merchants[lk.to]).short;
-      log(`[노선 부설 Network] 내 기업: [${fromName} - ${toName}] ${G.era === 1 ? "운하" : "철도"} 개통! (£${check.totalMoneyCost} 지출)`);
-      pushToast(`[${fromName} - ${toName}] ${G.era === 1 ? "운하" : "철도"} 연결 완료!`);
 
-      selectedMapEntity = null;
-      consumeSelectedHandCardAndAction();
-      renderAll();
+      if (directCardIdx !== null) {
+        saveUndoSnapshot();
+        G.player.money -= check.totalMoneyCost;
+        G.player.spentThisRound += check.totalMoneyCost;
+        executeCoalConsumption(check.coalPlan);
+        lk.ownerId = G.player.id;
+        lk.eraType = check.eraType;
+        log(`[노선 부설 Network] 내 기업: [${fromName} - ${toName}] ${G.era === 1 ? "운하" : "철도"} 개통! (£${check.totalMoneyCost} 지출)`);
+        selectedMapEntity = null;
+        consumeHandCardAtIndexAndAction(directCardIdx, `${fromName}-${toName} 노선 부설`);
+        renderAll();
+        return;
+      }
+
+      openCardDiscardModal({
+        type: "link",
+        linkId,
+        title: `[노선 부설] ${fromName} - ${toName} 연결에 버릴 카드를 고르세요!`,
+        summaryHtml: `
+          <div>노선 구간: <strong class="text-sky-300">[${fromName} - ${toName}] ${G.era === 1 ? "운하" : "철도"}</strong></div>
+          <div>총 지출 비용: <strong class="text-amber-300">£${check.totalMoneyCost}</strong> (노선 부설은 손패의 아무 카드나 1장 버려서 수행합니다)</div>
+        `
+      });
     }
 
     // [행동 3: 연구 개발 Develop] 카드 1장 버리고(정식 1행동) 철 1~2개를 소비해 개인 매트의 최저 레벨 타일 1~2개 영구 제거!
     let developModalQueue = []; // 예: ['iron', 'cotton'] 또는 ['cotton', 'cotton']
 
     function simulateDevelopPick(indList) {
-      // 가상으로 개인 매트 복제 후 indList 순서대로 최저 레벨 타일 1장씩 제거 가능한지 시뮬레이션
       const simMat = {};
       Object.keys(G.player.mat).forEach(k => {
         simMat[k] = G.player.mat[k].map(s => ({ ...s }));
@@ -2024,7 +2279,7 @@
       return { valid: true, steps, simMat };
     }
 
-    function executeDevelopList(indList) {
+    function executeDevelopListWithCard(indList, cardIdx = 0) {
       if (G.ended || G.player.actionsLeft <= 0) return false;
       if (!indList || indList.length === 0 || indList.length > 2) {
         pushToast("개발할 타일을 1개 또는 2개 선택해 주세요.", true);
@@ -2053,18 +2308,58 @@
       });
 
       const summaryTxt = sim.steps.map(st => `${INDUSTRY_META[st.indId].short} Lv.${st.level}`).join(" + ");
-      log(`[연구 개발 Develop] 내 기업(카드 1장·1행동 소모): 철 ${ironCount}개 소비(£${ironPlan.marketCost}) -> [${summaryTxt}] 총 ${ironCount}개 타일 영구 제거!`);
-      pushToast(`[개발 완료!] ${summaryTxt} 제거 (1행동 소모)`);
+      log(`[연구 개발 Develop] 내 기업: 철 ${ironCount}개 소비(£${ironPlan.marketCost}) -> [${summaryTxt}] 총 ${ironCount}개 타일 영구 제거!`);
 
       closeDevelopModal();
-      consumeSelectedHandCardAndAction();
+      consumeHandCardAtIndexAndAction(cardIdx, `연구 개발(${summaryTxt})`);
       renderAll();
       return true;
     }
 
-    function onClickDevelopIndustry(indId, tilesCount = 1) {
+    // 개발할 타일 검증 후 [버릴 손패 카드 선택 모달]을 띄우는 함수
+    function promptDevelopWithCardSelection(indList) {
+      if (G.ended || G.player.actionsLeft <= 0) return false;
+      if (!indList || indList.length === 0 || indList.length > 2) {
+        pushToast("개발할 타일을 1개 또는 2개 선택해 주세요.", true);
+        return false;
+      }
+      const sim = simulateDevelopPick(indList);
+      if (!sim.valid) {
+        pushToast(sim.reason, true);
+        return false;
+      }
+      const ironCount = sim.steps.length;
+      const ironPlan = planIronConsumption(ironCount);
+      if (G.player.money < ironPlan.marketCost) {
+        pushToast(`철 ${ironCount}개 조달 자금이 부족합니다! (필요 £${ironPlan.marketCost})`, true);
+        return false;
+      }
+
+      const summaryTxt = sim.steps.map(st => `${INDUSTRY_META[st.indId].name} Lv.${st.level}`).join(" + ");
+      closeDevelopModal();
+      openCardDiscardModal({
+        type: "develop",
+        indList: [...indList],
+        title: `[연구 개발] 타일 ${ironCount}개 제거에 버릴 카드를 선택하세요!`,
+        summaryHtml: `
+          <div>제거할 타일: <strong class="text-orange-300">${summaryTxt} (총 ${ironCount}장 영구 제거)</strong></div>
+          <div>철 조달 비용: <strong class="text-amber-300">철 ${ironCount}개 소비 (£${ironPlan.marketCost} 지출)</strong> · 아무 카드 1장 버림</div>
+        `
+      });
+      return true;
+    }
+
+    function executeDevelopList(indList) {
+      return executeDevelopListWithCard(indList, selectedCardIdx);
+    }
+
+    function onClickDevelopIndustry(indId, tilesCount = 1, directCardIdx = null) {
       const list = tilesCount === 2 ? [indId, indId] : [indId];
-      executeDevelopList(list);
+      if (directCardIdx !== null) {
+        executeDevelopListWithCard(list, directCardIdx);
+        return;
+      }
+      promptDevelopWithCardSelection(list);
     }
 
     function openDevelopModal() {
@@ -2098,8 +2393,12 @@
       renderDevelopModal();
     }
 
-    function confirmExecuteDevelopQueue() {
-      executeDevelopList(developModalQueue);
+    function confirmExecuteDevelopQueue(directCardIdx = null) {
+      if (directCardIdx !== null) {
+        executeDevelopListWithCard(developModalQueue, directCardIdx);
+        return;
+      }
+      promptDevelopWithCardSelection(developModalQueue);
     }
 
     function renderDevelopModal() {
@@ -2129,7 +2428,7 @@
         `;
         btnConfirm.disabled = false;
         btnConfirm.className = "flex-1 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 text-stone-950 font-black text-xs shadow-lg";
-        btnConfirm.textContent = `선택한 ${developModalQueue.length}개 타일 개발 확정 (£${ironPlan.marketCost} · 1행동 소모)`;
+        btnConfirm.textContent = `다음: 버릴 손패 카드 고르기 (£${ironPlan.marketCost} · 1행동 소모) →`;
       }
 
       pickList.innerHTML = Object.keys(INDUSTRY_META).map(indId => {
@@ -2165,7 +2464,6 @@
           if (!b || b.ownerId !== lord.id || b.flipped) return;
           if (!["cotton", "mfg", "pottery"].includes(b.indId)) return;
 
-          // 해당 품목을 수요(demands)하는 연결된 상인 시장 찾기
           const matchingMerchants = connMerchants.filter(m => m.demands.includes(b.indId));
           if (matchingMerchants.length === 0) {
             list.push({
@@ -2178,7 +2476,6 @@
             return;
           }
 
-          // 상인 맥주가 남아있는 상인을 우선 선택
           matchingMerchants.sort((a, b2) => b2.beerLeft - a.beerLeft);
           const chosenMerchant = matchingMerchants[0];
           const beerPlan = planBeerConsumption(lord.id, [city.id], b.beerReq || 0, chosenMerchant.id);
@@ -2199,7 +2496,7 @@
       return list;
     }
 
-    function executeSellSingleFactory(cityId, slotIdx) {
+    function executeSellFactoryWithCard(cityId, slotIdx, cardIdx = 0) {
       if (G.ended || G.player.actionsLeft <= 0) return;
       const candidates = findSellableFactoriesForLord(G.player);
       const target = candidates.find(x => x.city.id === cityId && x.slot.slotIdx === slotIdx && x.canSell);
@@ -2212,7 +2509,6 @@
       executeBeerConsumption(G.player, target.beerPlan);
       flipBuildingTile(target.city, target.slot);
 
-      // 만약 추가로 한꺼번에 팔 수 있는 다른 공장이 있으면 공식 규칙대로 1장의 카드로 연쇄 판매 처리!
       let extraCount = 0;
       while (true) {
         const nextCands = findSellableFactoriesForLord(G.player).filter(x => x.canSell);
@@ -2226,44 +2522,85 @@
       log(`[상품 판매 Sell] 내 기업: 총 ${1 + extraCount}동의 공장 상품을 상인 시장에 수출하여 타일 뒤집기 성공!`);
       closeSellModal();
       selectedMapEntity = null;
-      consumeSelectedHandCardAndAction();
+      consumeHandCardAtIndexAndAction(cardIdx, "상품 판매(타일 뒤집기)");
       renderAll();
     }
 
+    function executeSellSingleFactory(cityId, slotIdx, directCardIdx = null) {
+      if (G.ended || G.player.actionsLeft <= 0) return;
+      const candidates = findSellableFactoriesForLord(G.player);
+      const target = candidates.find(x => x.city.id === cityId && x.slot.slotIdx === slotIdx && x.canSell);
+      if (!target) {
+        pushToast("판매 조건(상인 도로 연결 또는 가용 맥주)이 충족되지 않았습니다.", true);
+        return;
+      }
+      if (directCardIdx !== null) {
+        executeSellFactoryWithCard(cityId, slotIdx, directCardIdx);
+        return;
+      }
+      closeSellModal();
+      const meta = INDUSTRY_META[target.building.indId];
+      openCardDiscardModal({
+        type: "sell",
+        cityId,
+        slotIdx,
+        title: `[상품 판매] ${target.city.name} 공장 판매에 버릴 카드를 고르세요!`,
+        summaryHtml: `
+          <div>판매 공장: <strong class="text-emerald-300">${target.city.name} · ${meta.name} Lv.${target.building.level}</strong></div>
+          <div>판매 보상: <strong class="text-amber-300">즉시 타일 뒤집기 (+${target.building.vp}점 확정, 수입+${target.building.incomeUp}칸)</strong></div>
+        `
+      });
+    }
+
     // [행동 5: 대출 Loan] 카드 1장 버리고 즉시 +£30 획득 & 수입 레벨 3칸 하락
-    function onClickTakeLoan() {
+    function executeLoanWithCard(cardIdx = 0) {
       if (G.ended || G.player.actionsLeft <= 0) return;
       if (G.player.incomeLevel < 3) {
         pushToast("수입 레벨이 너무 낮아 더 이상 대출을 받을 수 없습니다.", true);
         return;
       }
-
       saveUndoSnapshot();
       G.player.money += 30;
       G.player.incomeLevel = Math.max(0, G.player.incomeLevel - 3);
       log(`[은행 대출 Loan] 내 기업: +£30 자금 확보 (수입 레벨 3칸 하락 -> 현재 수입 £${calcIncomeFromLevel(G.player.incomeLevel)})`);
-      pushToast(`은행 대출 +£30 입금 완료! (보유 £${G.player.money})`);
-
-      consumeSelectedHandCardAndAction();
+      consumeHandCardAtIndexAndAction(cardIdx, "은행 대출(+£30)");
       renderAll();
     }
 
-    // [행동 6: 만능 카드 정찰 Scout] 손패 3장을 버리고 [만능 도시 카드] + [만능 산업 카드] 획득!
-    function onClickScoutWildCards() {
+    function onClickTakeLoan(directCardIdx = null) {
       if (G.ended || G.player.actionsLeft <= 0) return;
-      const hasWildAlready = G.player.hand.some(c => c.kind === "wild_city" || c.kind === "wild_industry");
-      if (hasWildAlready) {
-        pushToast("손패에 이미 만능(Wild) 카드가 있을 때는 정찰(Scout)을 수행할 수 없습니다.", true);
+      if (G.player.incomeLevel < 3) {
+        pushToast("수입 레벨이 너무 낮아 더 이상 대출을 받을 수 없습니다.", true);
         return;
       }
-      if (G.player.hand.length < 3) {
-        pushToast("정찰(Scout)을 하려면 손패에 최소 3장의 카드가 있어야 합니다.", true);
+      if (directCardIdx !== null) {
+        executeLoanWithCard(directCardIdx);
         return;
       }
+      openCardDiscardModal({
+        type: "loan",
+        title: "[은행 대출 +£30] 버릴 손패 카드 1장을 선택하세요!",
+        summaryHtml: `
+          <div>대출 효과: <strong class="text-amber-300">즉시 현금 +£30 입금</strong> (보유 £${G.player.money} -> £${G.player.money + 30})</div>
+          <div>이자 페널티: <strong class="text-rose-300">수입 레벨 3단계 하락</strong> (정식 1행동 및 카드 1장 소모)</div>
+        `
+      });
+    }
 
+    // [행동 6: 만능 카드 정찰 Scout] 손패 3장을 직접 골라 버리고 [만능 도시 카드] + [만능 산업 카드] 획득!
+    function confirmScoutThreeCards() {
+      if (G.ended || G.player.actionsLeft <= 0) return;
+      if (scoutSelectedIndices.length !== 3) {
+        pushToast("버릴 카드 3장을 선택해 주세요.", true);
+        return;
+      }
       saveUndoSnapshot();
-      // 현재 선택된 카드를 포함해 3장 버리고 만능 2장 추가
-      G.player.hand.splice(0, 3);
+      const sortedDesc = [...scoutSelectedIndices].sort((a, b) => b - a);
+      const discardedNames = [];
+      sortedDesc.forEach(idx => {
+        const removed = G.player.hand.splice(idx, 1)[0];
+        if (removed) discardedNames.push(removed.title);
+      });
       G.player.hand.unshift(
         {
           uid: nextUid("wild_c"),
@@ -2281,20 +2618,56 @@
         }
       );
       selectedCardIdx = 0;
+      closeCardDiscardModal();
       G.player.actionsLeft = Math.max(0, G.player.actionsLeft - 1);
-      log(`[만능 정찰 Scout] 내 기업: 카드 3장을 버리고 [만능 도시 카드] + [만능 산업 카드] 확보!`);
-      pushToast("[정찰 완료!] 만능 도시 & 만능 산업 카드를 손패에 획득했습니다!");
+      log(`[만능 정찰 Scout] 내 기업: 카드 3장(${discardedNames.join(", ")})을 버리고 [만능 도시] + [만능 산업] 확보!`);
 
       if (G.player.actionsLeft === 0) {
-        advanceAfterPlayerTurnFinished();
+        advanceAfterPlayerTurnFinished(discardedNames.join(", "), "만능 정찰(Scout)");
+      } else {
+        pushToast(`[정찰 완료!] 만능 카드 2장 획득 (남은 행동 ${G.player.actionsLeft}회)`);
       }
       renderAll();
+    }
+
+    function onClickScoutWildCards(directMode = false) {
+      if (G.ended || G.player.actionsLeft <= 0) return;
+      const hasWildAlready = G.player.hand.some(c => c.kind === "wild_city" || c.kind === "wild_industry");
+      if (hasWildAlready) {
+        pushToast("손패에 이미 만능(Wild) 카드가 있을 때는 정찰(Scout)을 수행할 수 없습니다.", true);
+        return;
+      }
+      if (G.player.hand.length < 3) {
+        pushToast("정찰(Scout)을 하려면 손패에 최소 3장의 카드가 있어야 합니다.", true);
+        return;
+      }
+      if (directMode) {
+        scoutSelectedIndices = [0, 1, 2];
+        confirmScoutThreeCards();
+        return;
+      }
+      openCardDiscardModal({
+        type: "scout",
+        title: "[만능 정찰 Scout] 버릴 손패 카드 3장을 선택하세요!",
+        summaryHtml: `
+          <div>정찰 효과: <strong class="text-purple-300">손패 3장을 버리고 [만능 도시 카드] + [만능 산업 카드] 획득!</strong></div>
+          <div>소모 비용: <strong class="text-amber-300">정식 1행동 소모</strong> (자금 지출 £0)</div>
+        `
+      });
     }
 
     // ---------------------------------------------------------
     // (G) 엘라이자(Eliza) 다인전 오토마 AI 턴 실행 & 라운드/시대 결산 엔진
     // ---------------------------------------------------------
-    function advanceAfterPlayerTurnFinished() {
+    function closeRoundRecapModal() {
+      const m = document.getElementById("modalRoundRecap");
+      if (m) m.classList.add("hidden");
+    }
+
+    function advanceAfterPlayerTurnFinished(lastDiscardedCardTitle = "", lastActionLabel = "") {
+      const finishedEra = G.era;
+      const finishedRound = G.round;
+      const playerSpent = G.player.spentThisRound;
       const playerOrderIdx = G.turnOrder.indexOf("player");
       const botMsgs = [];
 
@@ -2303,7 +2676,7 @@
         const bot = getLordById(G.turnOrder[i]);
         if (bot && !bot.isPlayer) {
           const msg = executeSingleBotTurn(bot);
-          if (msg) botMsgs.push(msg);
+          if (msg) botMsgs.push(`[${ finishedRound }R 후공] ${msg}`);
         }
       }
 
@@ -2320,6 +2693,7 @@
       });
 
       // 2) 모든 플레이어 손패 8장까지 보충 & 수입(Income) 지급 & 지출액 초기화
+      const myIncomeEarned = calcIncomeFromLevel(G.player.incomeLevel);
       G.lords.forEach(ld => {
         const inc = calcIncomeFromLevel(ld.incomeLevel);
         ld.money = Math.max(0, ld.money + inc);
@@ -2350,7 +2724,7 @@
         const bot = getLordById(G.turnOrder[i]);
         if (bot && !bot.isPlayer) {
           const msg = executeSingleBotTurn(bot);
-          if (msg) botMsgs.push(msg);
+          if (msg) botMsgs.push(`[${G.round}R 선공] ${msg}`);
         }
       }
 
@@ -2361,6 +2735,35 @@
       undoStack = [];
       saveUndoSnapshot();
       log(`--- [제${G.era}막 · ${G.round}/${G.maxRounds}라운드] 개막! 내 턴 순서: ${newPlayerOrderIdx + 1}번 ---`);
+
+      // 내 턴 종료 -> 오토마 진행 요약 & 새 라운드 개막 팝업 표시!
+      const recapModal = document.getElementById("modalRoundRecap");
+      if (recapModal) {
+        document.getElementById("roundRecapBadge").textContent = `${finishedEra === 1 ? "운하 시대" : "철도 시대"} ${finishedRound}라운드 종료 -> ${G.round}라운드 개막`;
+        document.getElementById("roundRecapTitle").textContent = `내 턴 종료 후 ${G.round}라운드 내 차례가 돌아왔습니다!`;
+        const orderNames = G.turnOrder.map((id, idx) => {
+          const ld = getLordById(id);
+          return `<span class="px-2 py-0.5 rounded ${ld.isPlayer ? "bg-amber-400 text-stone-950 font-black" : "bg-stone-800 text-slate-300 font-bold"}">${idx + 1}번 ${ld.shortName}</span>`;
+        }).join(" ");
+
+        document.getElementById("roundRecapBody").innerHTML = `
+          <div class="p-2.5 rounded-xl bg-amber-950/50 border border-amber-500/40 space-y-1">
+            <div class="font-black text-amber-300">방금 완료한 내 마지막 행동</div>
+            <div>• 실행 행동: <strong class="text-white">${lastActionLabel || "주 행동 완료"}</strong> (버린 카드: <strong class="text-amber-200">${lastDiscardedCardTitle || "손패 1장"}</strong>)</div>
+            <div>• 지난 라운드 내 지출액: <strong>£${playerSpent}</strong> / 라운드 수입 정산: <strong class="text-emerald-300">${myIncomeEarned >= 0 ? `+£${myIncomeEarned}` : `-£${Math.abs(myIncomeEarned)}`}</strong> (현재 보유 £${G.player.money})</div>
+            <div>• 손패 보충 완료: <strong>8장</strong>으로 다시 채워졌습니다!</div>
+          </div>
+          <div class="p-2.5 rounded-xl bg-purple-950/40 border border-purple-500/40 space-y-1.5">
+            <div class="font-black text-purple-300">${G.round}라운드 새 턴 순서 (적게 지출한 순)</div>
+            <div class="flex flex-wrap gap-1">${orderNames}</div>
+          </div>
+          <div class="p-2.5 rounded-xl bg-rose-950/40 border border-rose-500/40 space-y-1">
+            <div class="font-black text-rose-300">오토마 기업가 턴 진행 요약</div>
+            ${botMsgs.length > 0 ? botMsgs.map(m => `<div class="text-slate-200">• ${m}</div>`).join("") : `<div>• 내가 1번 선공이어서 오토마 대기 중입니다!</div>`}
+          </div>
+        `;
+        recapModal.classList.remove("hidden");
+      }
     }
 
     // 엘라이자(Eliza) / 조지 스티븐슨 / 아크라이트 공작 다인전 AI 의사결정 엔진
@@ -2906,8 +3309,8 @@
       Object.values(G.cities).forEach(c => {
         if (!c.active) return;
         const isSel = selectedMapEntity && selectedMapEntity.kind === "city" && selectedMapEntity.id === c.id;
-        const canBuildAnyHere = card && c.slotsState.some(s =>
-          s.building === null && s.allowedTypes.some(indId => evaluateBuildOnSlot(G.player, card, c.id, s.slotIdx, indId).valid)
+        const canBuildAnyHere = c.slotsState.some(s =>
+          s.building === null && s.allowedTypes.some(indId => evaluateAnyHandCardForBuild(c.id, s.slotIdx, indId).valid)
         );
 
         const slotCount = c.slotsState.length;
@@ -2949,7 +3352,7 @@
           } else {
             const firstType = s.allowedTypes[0];
             const pal = IND_SLOT_PALETTE[firstType] || { bg: "#292524", border: "#a8a29e", text: "#f5f5f4" };
-            const canBuildSlot = card && s.allowedTypes.some(indId => evaluateBuildOnSlot(G.player, card, c.id, s.slotIdx, indId).valid);
+            const canBuildSlot = s.allowedTypes.some(indId => evaluateAnyHandCardForBuild(c.id, s.slotIdx, indId).valid);
             const slotLabel = s.allowedTypes.map(t => INDUSTRY_META[t].short.slice(0, 1)).join("/");
             citiesHtml += `<rect x="${sx}" y="${slotY}" width="${chipW}" height="${chipH}" rx="6" fill="${pal.bg}" stroke="${canBuildSlot ? "#fde047" : pal.border}" stroke-width="${canBuildSlot ? 2.3 : 1.5}" />`;
             citiesHtml += `<text x="${sx + chipW / 2}" y="${slotY + 17.5}" text-anchor="middle" fill="${canBuildSlot ? "#fef08a" : pal.text}" font-size="12" font-weight="900">${slotLabel}</text>`;
@@ -3037,15 +3440,15 @@
 
           const buttonsHtml = s.allowedTypes.map(indId => {
             const meta = INDUSTRY_META[indId];
-            const check = evaluateBuildOnSlot(G.player, card, city.id, s.slotIdx, indId);
+            const anyCheck = evaluateAnyHandCardForBuild(city.id, s.slotIdx, indId);
             return `
-              <button onclick="onClickBuildIndustry('${city.id}', ${s.slotIdx}, '${indId}')" class="w-full p-2 rounded-xl border ${check.valid ? "bg-amber-950/70 border-amber-400 text-amber-100 hover:bg-amber-900" : "bg-stone-900/60 border-white/10 text-slate-400"} flex items-center justify-between text-left transition">
+              <button onclick="onClickBuildIndustry('${city.id}', ${s.slotIdx}, '${indId}')" class="w-full p-2 rounded-xl border ${anyCheck.valid ? "bg-amber-950/70 border-amber-400 text-amber-100 hover:bg-amber-900" : "bg-stone-900/60 border-white/10 text-slate-400"} flex items-center justify-between text-left transition">
                 <div>
                   <div class="font-black text-xs ${meta.textClass}">[슬롯 #${s.slotIdx + 1}] ${meta.name} 건설</div>
-                  <div class="text-[12px] text-slate-300">${check.reason}</div>
+                  <div class="text-[12px] text-slate-300">${anyCheck.reason}</div>
                 </div>
-                <span class="px-2 py-1 rounded ${check.valid ? "bg-amber-400 text-stone-950" : "bg-stone-800 text-slate-500"} font-black text-[12px] shrink-0">
-                  ${check.valid ? `£${check.totalMoneyCost} 건설` : "불가"}
+                <span class="px-2 py-1 rounded ${anyCheck.valid ? "bg-amber-400 text-stone-950" : "bg-stone-800 text-slate-500"} font-black text-[12px] shrink-0">
+                  ${anyCheck.valid ? `£${anyCheck.totalMoneyCost} · 카드선택 →` : "불가"}
                 </span>
               </button>
             `;
@@ -3077,7 +3480,7 @@
               <div>예상 시대 종료 링크 승점: <strong class="text-emerald-300">+${expectedPts}점</strong> (양 끝 도시 타일이 뒤집힐수록 점수 상승!)</div>
               <div class="text-amber-200 font-bold">${check.reason}</div>
               <button onclick="onClickBuildLink('${lk.id}')" class="w-full py-2 rounded-xl ${check.valid ? "bg-gradient-to-r from-sky-500 to-cyan-400 text-stone-950" : "bg-stone-800 text-slate-500"} font-black text-xs">
-                ${check.valid ? `이 구간에 ${G.era === 1 ? "운하(£3)" : `철도(£${check.totalMoneyCost})`} 부설 확정` : "부설 조건 미충족"}
+                ${check.valid ? `이 구간에 ${G.era === 1 ? "운하(£3)" : `철도(£${check.totalMoneyCost})`} 부설 (버릴 카드 선택 →)` : "부설 조건 미충족"}
               </button>
             </div>
           `;
