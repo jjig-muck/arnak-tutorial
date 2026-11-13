@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>브라스: 버밍엄 (Brass: Birmingham) — 완전판 인터랙티브 전략 시뮬레이터 v2.0</title>
+  <title>브라스: 버밍엄 (Brass: Birmingham) — 완전판 인터랙티브 전략 시뮬레이터 v3.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
@@ -68,7 +68,7 @@
         <div class="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-400/60 flex items-center justify-center text-amber-300 shrink-0" id="iconHeaderBrass"></div>
         <div class="truncate">
           <div class="flex items-center gap-1">
-            <h1 class="text-xs font-black tracking-tight text-amber-300 truncate">브라스: 버밍엄 v2.0</h1>
+            <h1 class="text-xs font-black tracking-tight text-amber-300 truncate">브라스: 버밍엄 v3.0</h1>
             <span id="hudEraRoundBadge" class="px-1.5 py-0.5 rounded bg-sky-950 text-sky-300 border border-sky-400/50 text-[12px] font-extrabold shrink-0">운하 1/8R</span>
             <span id="hudPlayerCountBadge" class="px-1.5 py-0.5 rounded bg-purple-950 text-purple-200 border border-purple-500/40 text-[12px] font-extrabold shrink-0">4인</span>
           </div>
@@ -147,9 +147,10 @@
 
     <!-- [탭 1] 웨스트미들랜즈 산업 네트워크 지도 (Map & Network) -->
     <section id="view_map" class="flex-1 relative flex flex-col overflow-hidden bg-[#0a0806]">
-      <!-- 상단 오버레이: 6대 산업 약어·색상 범례 + 줌 배율/중앙 정렬 컨트롤 -->
+      <!-- 상단 오버레이: 듀얼 뷰 전환(지도/스마트 일람표) + 6대 산업 범례 + 줌 컨트롤 -->
       <div class="bg-[#16110b]/95 border-b border-amber-500/25 px-2 py-1 shrink-0 flex items-center justify-between gap-1.5 z-10 text-[12px]">
         <div class="flex items-center gap-1 overflow-x-auto no-scrollbar font-black">
+          <button onclick="toggleMapViewMode()" id="btnMapViewMode" class="px-2 py-0.5 rounded bg-amber-500 text-stone-950 border border-amber-300 font-black shrink-0">스마트 일람표</button>
           <span class="px-1.5 py-0.5 rounded bg-pink-950 border border-pink-400/70 text-pink-200 shrink-0">면:면직</span>
           <span class="px-1.5 py-0.5 rounded bg-red-950 border border-red-400/70 text-red-200 shrink-0">잡:잡화</span>
           <span class="px-1.5 py-0.5 rounded bg-blue-950 border border-blue-400/70 text-blue-200 shrink-0">도:도자기</span>
@@ -157,7 +158,7 @@
           <span class="px-1.5 py-0.5 rounded bg-orange-950 border border-orange-400/70 text-orange-200 shrink-0">제:제철</span>
           <span class="px-1.5 py-0.5 rounded bg-yellow-950 border border-yellow-400/70 text-yellow-200 shrink-0">양:양조</span>
         </div>
-        <div class="flex items-center gap-1 shrink-0">
+        <div id="mapZoomControlsBox" class="flex items-center gap-1 shrink-0">
           <span class="px-1.5 py-0.5 rounded bg-black/80 border border-white/15 text-slate-300 font-bold" id="mapZoomLevelBadge">100%</span>
           <button onclick="zoomMap(1.2)" class="w-6 h-6 rounded bg-stone-800 border border-white/25 text-white font-black text-xs">+</button>
           <button onclick="zoomMap(0.83)" class="w-6 h-6 rounded bg-stone-800 border border-white/25 text-white font-black text-xs">-</button>
@@ -165,7 +166,17 @@
         </div>
       </div>
 
-      <!-- 중앙: 인터랙티브 웨스트미들랜즈 SVG 지도 (두 손가락 핀치 줌 + 넓은 터치 히트박스) -->
+      <!-- 상단 손패 선택 연동 미니 액션 바 (카드 필터 활성화 시 표시) -->
+      <div id="selectedCardActionBar" class="hidden bg-amber-950/90 border-b border-amber-400/45 px-2.5 py-1.5 flex items-center justify-between gap-2 text-[12px] shrink-0 z-10">
+        <div id="selectedCardBarLabel" class="font-extrabold text-amber-200 truncate">선택 카드 필터</div>
+        <div class="flex items-center gap-1 shrink-0">
+          <button onclick="openWizardWithFilteredCard('build')" class="px-2 py-0.5 rounded bg-amber-400 text-stone-950 font-black">건설 열기</button>
+          <button onclick="openWizardWithFilteredCard('link')" class="px-2 py-0.5 rounded bg-sky-700 text-white font-black">노선/기타</button>
+          <button onclick="clearHudCardFilter()" class="px-2 py-0.5 rounded bg-stone-800 text-slate-200 border border-white/20 font-bold">해제</button>
+        </div>
+      </div>
+
+      <!-- 중앙: 인터랙티브 웨스트미들랜즈 SVG 지도 vs 스마트 일람표 듀얼 뷰 -->
       <div class="flex-1 relative overflow-hidden flex flex-col">
         <div id="mapSvgContainer" class="flex-1 w-full h-full cursor-grab active:cursor-grabbing touch-none select-none">
           <svg id="midlandsSvg" class="w-full h-full" viewBox="0 0 740 700" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
@@ -191,6 +202,9 @@
             </g>
           </svg>
         </div>
+
+        <!-- 모바일 스마트 일람표 컨테이너 (듀얼 뷰 전환 시 표시) -->
+        <div id="mapSmartListContainer" class="hidden flex-1 overflow-y-auto p-2.5 space-y-2.5 bg-[#0c0907] text-xs"></div>
 
         <!-- 지도 하단 내 네트워크 요약 미니 상태줄 -->
         <div class="bg-[#140f0a]/95 border-t border-white/10 px-2.5 py-1 flex items-center justify-between text-[12px] shrink-0">
@@ -748,6 +762,8 @@
     let currentGuideSlide = 0;
 
     let selectedCardIdx = 0;
+    let mapCardFilterIdx = null;
+    let mapViewMode = "svg"; // 'svg' | 'list'
     let selectedMapEntity = null;
     let undoStack = [];
 
@@ -1016,6 +1032,7 @@
       };
 
       selectedCardIdx = 0;
+      mapCardFilterIdx = null;
       selectedMapEntity = null;
       undoStack = [];
       saveUndoSnapshot();
@@ -1096,6 +1113,7 @@
       G.rivalLastMsg = prev.rivalLastMsg;
       selectedMapEntity = null;
       selectedCardIdx = 0;
+      mapCardFilterIdx = null;
       closeActionWizard();
       pushToast("직전 행동을 되돌렸습니다.");
       renderAll();
@@ -1499,6 +1517,7 @@
       const idx = Math.max(0, Math.min(G.player.hand.length - 1, cardIdx !== undefined ? cardIdx : 0));
       const discardedCard = G.player.hand.splice(idx, 1)[0];
       selectedCardIdx = 0;
+      mapCardFilterIdx = null;
       G.player.actionsLeft = Math.max(0, G.player.actionsLeft - 1);
 
       const cardTitle = discardedCard ? discardedCard.title : "손패 카드";
@@ -1598,6 +1617,8 @@
           validCards,
           totalMoneyCost: validCards[0].check.totalMoneyCost,
           spec: validCards[0].check.spec,
+          coalPlan: validCards[0].check.coalPlan,
+          ironPlan: validCards[0].check.ironPlan,
           reason: `내 손패 카드 ${validCards.length}장 사용 가능! (총 £${validCards[0].check.totalMoneyCost} · Lv.${validCards[0].check.spec.level})`
         };
       }
@@ -1706,6 +1727,74 @@
       }
     }
 
+    // [2-B. 철도 시대 2노선 연속 부설 평가 (£15 + 석탄 2개 + 맥주 1통)]
+    function evaluateDoubleRailBuild(lord, linkId1, linkId2) {
+      if (G.era !== 2) {
+        return { valid: false, reason: "2노선 연속 부설은 철도 시대(2막) 전용 행동입니다." };
+      }
+      if (!linkId1 || !linkId2) {
+        return { valid: false, reason: "연속으로 부설할 1번째와 2번째 철도 구간을 모두 선택하세요." };
+      }
+      if (linkId1 === linkId2) {
+        return { valid: false, reason: "서로 다른 2개 철도 구간을 선택해야 합니다." };
+      }
+      const lk1 = G.links[linkId1];
+      const lk2 = G.links[linkId2];
+      if (!lk1 || !lk1.active || !lk2 || !lk2.active) {
+        return { valid: false, reason: "현재 인원수에서는 비활성화된 구간이 포함되어 있습니다." };
+      }
+      if (lk1.ownerId !== null || lk2.ownerId !== null) {
+        return { valid: false, reason: "이미 개통된 노선이 포함되어 있습니다." };
+      }
+      if (!lk1.rail || !lk2.rail) {
+        return { valid: false, reason: "철도(선로) 부설이 가능한 구간만 선택할 수 있습니다." };
+      }
+
+      const netNodes = getLordNetworkNodes(lord.id);
+      const extNodes = new Set(netNodes);
+      if (netNodes.size > 0 && !netNodes.has(lk1.from) && !netNodes.has(lk1.to)) {
+        return { valid: false, reason: "1번째 철도 구간이 내 네트워크와 이어져 있어야 합니다." };
+      }
+      extNodes.add(lk1.from);
+      extNodes.add(lk1.to);
+      if (netNodes.size > 0 && !extNodes.has(lk2.from) && !extNodes.has(lk2.to)) {
+        return { valid: false, reason: "2번째 철도 구간이 내 네트워크 또는 1번째 철도 구간과 이어져 있어야 합니다." };
+      }
+
+      const coalPlan1 = planCoalConsumption([lk1.from, lk1.to], 1);
+      if (!coalPlan1.possible) {
+        return { valid: false, reason: `1번째 철도 석탄 조달 불가: ${coalPlan1.reason}` };
+      }
+      const combinedNodes = [lk1.from, lk1.to, lk2.from, lk2.to];
+      const coalPlan = planCoalConsumption(combinedNodes, 2);
+      if (!coalPlan.possible) {
+        return { valid: false, reason: `석탄 2개 조달 불가: ${coalPlan.reason}` };
+      }
+
+      const beerPlan = planBeerConsumption(lord.id, combinedNodes, 1, null);
+      if (!beerPlan.possible) {
+        return { valid: false, reason: `철도 2개 부설용 맥주 1통 부족: ${beerPlan.reason}` };
+      }
+
+      const totalMoneyCost = 15 + coalPlan.marketCost;
+      if (lord.money < totalMoneyCost) {
+        return {
+          valid: false,
+          reason: `자금 부족 (2노선 £15 + 석탄 £${coalPlan.marketCost} = £${totalMoneyCost} / 보유 £${lord.money})`
+        };
+      }
+
+      return {
+        valid: true,
+        eraType: "rail",
+        isDouble: true,
+        totalMoneyCost,
+        coalPlan,
+        beerPlan,
+        reason: `2노선 철도 부설 가능! (총 £${totalMoneyCost} · 석탄 2개 · 맥주 1통)`
+      };
+    }
+
     // [3. 연구 개발 Develop] 1~2개 타일 제거 시뮬레이션
     function simulateDevelopPick(indList) {
       const simMat = {};
@@ -1785,7 +1874,8 @@
         slotIdx: opts.slotIdx !== undefined ? opts.slotIdx : null,
         indId: opts.indId || null,
         linkId: opts.linkId || null,
-        secondLinkId: null,
+        secondLinkId: opts.secondLinkId || null,
+        linkMode: opts.linkMode || "single",
         devQueue: opts.devQueue ? [...opts.devQueue] : [],
         sellTarget: opts.sellTarget || null,
         scoutCards: []
@@ -1882,6 +1972,22 @@
 
     function selectWizLinkTarget(linkId) {
       wizState.linkId = linkId;
+      if (wizState.secondLinkId === linkId) {
+        wizState.secondLinkId = null;
+      }
+      renderActionWizard();
+    }
+
+    function selectWizLinkMode(modeKey) {
+      wizState.linkMode = (G.era === 2 && modeKey === "double") ? "double" : "single";
+      if (wizState.linkMode === "single") {
+        wizState.secondLinkId = null;
+      }
+      renderActionWizard();
+    }
+
+    function selectWizSecondLinkTarget(linkId) {
+      wizState.secondLinkId = linkId;
       renderActionWizard();
     }
 
@@ -1950,7 +2056,7 @@
                 ? "bg-amber-950/70 text-amber-200 border-amber-400/60"
                 : "bg-stone-900 text-slate-400 border-white/10"
             }">
-              ${c.short}${hasBuildable ? " ●" : ""}
+              ${c.short}${hasBuildable ? " [가능]" : ""}
             </button>
           `;
         }).join("");
@@ -1964,7 +2070,7 @@
             return `
               <div class="p-2 rounded-xl bg-stone-900 border border-white/15 flex items-center justify-between">
                 <span class="font-bold text-slate-300">[슬롯 #${s.slotIdx + 1}] 이미 건설됨: <strong class="text-amber-200">${owner.shortName} · ${meta.name} Lv.${b.level}</strong></span>
-                <span class="text-emerald-300 font-black">${b.flipped ? "★뒤집힘" : `자원${b.cubes}`}</span>
+                <span class="text-emerald-300 font-black">${b.flipped ? "[완료] 뒤집힘" : `자원${b.cubes}`}</span>
               </div>
             `;
           }
@@ -1987,19 +2093,29 @@
                 <span class="px-2.5 py-1 rounded-lg font-black text-[12px] shrink-0 ${
                   isPicked ? "bg-amber-400 text-stone-950" : (anyChk.valid ? "bg-amber-950 text-amber-200 border border-amber-400/50" : "bg-stone-800 text-slate-500")
                 }">
-                  ${isPicked ? "선택됨 ✓" : (anyChk.valid ? `£${anyChk.totalMoneyCost}` : "불가")}
+                  ${isPicked ? "선택됨" : (anyChk.valid ? `£${anyChk.totalMoneyCost}` : "불가")}
                 </span>
               </button>
             `;
           }).join("");
         }).join("");
 
+        const pickedSlotChk = evaluateAnyHandCardForBuild(curCity.id, wizState.slotIdx, wizState.indId);
+        const buildBriefingHtml = pickedSlotChk.valid
+          ? `<div class="p-2 rounded-xl bg-black/55 border border-amber-500/35 text-[12px] space-y-0.5">
+              <div class="font-black text-amber-300">자원 조달 실시간 브리핑</div>
+              <div class="text-slate-200">• 기본 건설비 £${pickedSlotChk.spec.cost} | 예상 총지출 <strong class="text-amber-300">£${pickedSlotChk.totalMoneyCost}</strong></div>
+              <div class="text-cyan-300">• 석탄: ${pickedSlotChk.coalPlan.summary} | 철: ${pickedSlotChk.ironPlan.summary}</div>
+            </div>`
+          : "";
+
         step1Box.innerHTML = `
           <div class="space-y-1.5">
-            <div class="text-[12px] text-amber-200 font-extrabold">STEP 1-A. 건설할 도시 선택 (● 표시는 현재 건설 가능한 도시):</div>
+            <div class="text-[12px] text-amber-200 font-extrabold">STEP 1-A. 건설할 도시 선택 ([가능] 표시는 현재 건설 가능한 도시):</div>
             <div class="flex items-center gap-1 overflow-x-auto no-scrollbar pb-1">${cityPillsHtml}</div>
             <div class="text-[12px] text-amber-200 font-extrabold pt-1">STEP 1-B. [${curCity.name}] 슬롯 및 건물 선택:</div>
             <div class="space-y-1.5">${slotsHtml}</div>
+            ${buildBriefingHtml}
           </div>
         `;
 
@@ -2012,11 +2128,13 @@
       }
 
       // -------------------------------------------------------
-      // 모드 2: 수로/철도 노선 부설 (Network Link)
+      // 모드 2: 수로/철도 노선 부설 (Network Link — 철도 2노선 연속 부설 지원)
       // -------------------------------------------------------
       if (wizState.mode === "link") {
-        const eraLinkName = G.era === 1 ? "운하(수로 £3)" : "철도(석탄1 + £5)";
-        titleEl.textContent = `2. ${eraLinkName} 노선 부설 — 구간 선택 후 아무 카드 1장 버리기`;
+        if (G.era === 1) wizState.linkMode = "single";
+        const isDoubleMode = (G.era === 2 && wizState.linkMode === "double");
+        const eraLinkName = G.era === 1 ? "운하(수로 £3)" : (isDoubleMode ? "철도 2노선 연속(£15+석탄2+맥주1)" : "철도 1노선(£5+석탄1)");
+        titleEl.textContent = `2. ${eraLinkName} 부설 — 구간 선택 후 카드 1장 버리기`;
 
         const activeLinks = Object.values(G.links).filter(lk => lk.active && lk.ownerId === null);
         const sortedLinks = [...activeLinks].sort((a, b) => {
@@ -2029,6 +2147,17 @@
           const firstV = sortedLinks.find(lk => evaluateLinkBuild(G.player, lk.id).valid) || sortedLinks[0];
           wizState.linkId = firstV ? firstV.id : null;
         }
+
+        const modeToggleHtml = G.era === 2 ? `
+          <div class="grid grid-cols-2 gap-1.5 pb-1">
+            <button onclick="selectWizLinkMode('single')" class="py-1.5 px-2 rounded-xl border font-black text-[12px] ${!isDoubleMode ? "bg-sky-400 text-stone-950 border-white" : "bg-stone-900 text-slate-300 border-white/15"}">
+              1노선 부설 (£5 + 석탄1)
+            </button>
+            <button onclick="selectWizLinkMode('double')" class="py-1.5 px-2 rounded-xl border font-black text-[12px] ${isDoubleMode ? "bg-amber-400 text-stone-950 border-white" : "bg-stone-900 text-amber-200 border-amber-500/40"}">
+              2노선 연속 (£15 + 석탄2 + 맥주1)
+            </button>
+          </div>
+        ` : "";
 
         const linksListHtml = sortedLinks.map(lk => {
           const n1 = G.cities[lk.from] || G.merchants[lk.from];
@@ -2051,24 +2180,87 @@
               <span class="px-2.5 py-1 rounded-lg font-black text-[12px] shrink-0 ${
                 isPicked ? "bg-sky-400 text-stone-950" : (chk.valid ? "bg-sky-950 text-sky-200 border border-sky-400/50" : "bg-stone-800 text-slate-500")
               }">
-                ${isPicked ? "선택됨 ✓" : (chk.valid ? `£${chk.totalMoneyCost}` : "불가")}
+                ${isPicked ? "선택됨" : (chk.valid ? `£${chk.totalMoneyCost}` : "불가")}
               </span>
             </button>
           `;
         }).join("");
 
+        let doubleSectionHtml = "";
+        let curLkChk = null;
+        let curLkLabel = "노선";
+
+        if (isDoubleMode) {
+          const sortedSecond = [...activeLinks].filter(lk => lk.id !== wizState.linkId && lk.rail).sort((a, b) => {
+            const vA = evaluateDoubleRailBuild(G.player, wizState.linkId, a.id).valid ? 1 : 0;
+            const vB = evaluateDoubleRailBuild(G.player, wizState.linkId, b.id).valid ? 1 : 0;
+            return vB - vA;
+          });
+          if (!wizState.secondLinkId || wizState.secondLinkId === wizState.linkId || !G.links[wizState.secondLinkId] || G.links[wizState.secondLinkId].ownerId !== null) {
+            const firstV2 = sortedSecond.find(lk => evaluateDoubleRailBuild(G.player, wizState.linkId, lk.id).valid) || sortedSecond[0];
+            wizState.secondLinkId = firstV2 ? firstV2.id : null;
+          }
+          const secondListHtml = sortedSecond.map(lk => {
+            const n1 = G.cities[lk.from] || G.merchants[lk.from];
+            const n2 = G.cities[lk.to] || G.merchants[lk.to];
+            const chk2 = evaluateDoubleRailBuild(G.player, wizState.linkId, lk.id);
+            const pts = getNodeLinkPointValue(lk.from) + getNodeLinkPointValue(lk.to);
+            const isPicked2 = (wizState.secondLinkId === lk.id);
+            return `
+              <button onclick="selectWizSecondLinkTarget('${lk.id}')" class="w-full p-2 rounded-xl border text-left flex items-center justify-between gap-2 transition ${
+                isPicked2
+                  ? "bg-amber-900/75 border-amber-300 ring-2 ring-amber-300"
+                  : chk2.valid
+                  ? "bg-stone-900/90 border-amber-500/40 hover:bg-stone-800"
+                  : "bg-stone-950 border-white/10 opacity-60"
+              }">
+                <div>
+                  <div class="font-black text-xs text-amber-200">[${n1.short} - ${n2.short}] 2번째 철도 (+${pts}점)</div>
+                  <div class="text-[12px] text-slate-200 mt-0.5">${chk2.reason}</div>
+                </div>
+                <span class="px-2 py-1 rounded-lg font-black text-[12px] shrink-0 ${
+                  isPicked2 ? "bg-amber-400 text-stone-950" : (chk2.valid ? "bg-amber-950 text-amber-200 border border-amber-400/50" : "bg-stone-800 text-slate-500")
+                }">
+                  ${isPicked2 ? "선택됨" : (chk2.valid ? `합산 £${chk2.totalMoneyCost}` : "불가")}
+                </span>
+              </button>
+            `;
+          }).join("");
+
+          curLkChk = evaluateDoubleRailBuild(G.player, wizState.linkId, wizState.secondLinkId);
+          const l1 = wizState.linkId ? G.links[wizState.linkId] : null;
+          const l2 = wizState.secondLinkId ? G.links[wizState.secondLinkId] : null;
+          const lbl1 = l1 ? `${(G.cities[l1.from] || G.merchants[l1.from]).short}-${(G.cities[l1.to] || G.merchants[l1.to]).short}` : "1구간";
+          const lbl2 = l2 ? `${(G.cities[l2.from] || G.merchants[l2.from]).short}-${(G.cities[l2.to] || G.merchants[l2.to]).short}` : "2구간";
+          curLkLabel = `${lbl1} + ${lbl2}`;
+          doubleSectionHtml = `
+            <div class="text-[12px] text-amber-300 font-extrabold pt-1">STEP 1-B. 2번째 철도 구간 선택:</div>
+            <div class="space-y-1.5 max-h-36 overflow-y-auto pr-0.5">${secondListHtml}</div>
+          `;
+        } else {
+          const curLk = wizState.linkId ? G.links[wizState.linkId] : null;
+          curLkChk = curLk ? evaluateLinkBuild(G.player, curLk.id) : { valid: false, reason: "선택된 노선 없음" };
+          curLkLabel = curLk
+            ? `${(G.cities[curLk.from] || G.merchants[curLk.from]).short}-${(G.cities[curLk.to] || G.merchants[curLk.to]).short}`
+            : "노선";
+        }
+
+        const linkBriefingHtml = curLkChk && curLkChk.valid && G.era === 2
+          ? `<div class="p-2 rounded-xl bg-black/55 border border-sky-500/35 text-[12px] space-y-0.5">
+              <div class="font-black text-sky-300">철도 자원 조달 브리핑</div>
+              <div class="text-cyan-300">• 석탄: ${curLkChk.coalPlan.summary}${curLkChk.beerPlan ? ` | 맥주: ${curLkChk.beerPlan.summary}` : ""}</div>
+            </div>`
+          : "";
+
         step1Box.innerHTML = `
           <div class="space-y-1.5">
-            <div class="text-[12px] text-sky-300 font-extrabold">STEP 1. 연결할 ${eraLinkName} 구간을 선택하세요 (내 네트워크에 인접한 구간이 상단에 표시됩니다):</div>
-            <div class="space-y-1.5 max-h-48 overflow-y-auto pr-0.5">${linksListHtml}</div>
+            ${modeToggleHtml}
+            <div class="text-[12px] text-sky-300 font-extrabold">STEP 1${isDoubleMode ? "-A" : ""}. 연결할 ${isDoubleMode ? "1번째 철도" : eraLinkName} 구간을 선택하세요:</div>
+            <div class="space-y-1.5 ${isDoubleMode ? "max-h-32" : "max-h-48"} overflow-y-auto pr-0.5">${linksListHtml}</div>
+            ${doubleSectionHtml}
+            ${linkBriefingHtml}
           </div>
         `;
-
-        const curLk = wizState.linkId ? G.links[wizState.linkId] : null;
-        const curLkChk = curLk ? evaluateLinkBuild(G.player, curLk.id) : { valid: false, reason: "선택된 노선 없음" };
-        const curLkLabel = curLk
-          ? `${(G.cities[curLk.from] || G.merchants[curLk.from]).short}-${(G.cities[curLk.to] || G.merchants[curLk.to]).short}`
-          : "노선";
 
         cardPickTitle.textContent = `STEP 2. [${curLkLabel}] 부설에 버릴 손패 카드 1장을 터치하세요 (아무 카드나 가능!):`;
         cardListEl.innerHTML = G.player.hand.map((c, idx) =>
@@ -2121,7 +2313,7 @@
             <div class="text-[12px] text-slate-200">
               ${wizState.devQueue.length === 0
                 ? "아래 산업에서 제거할 타일을 <strong>1개 또는 2개</strong> 담으세요. (같은 산업 2개 또는 서로 다른 산업 1개씩 교차 선택 가능!)"
-                : `<div class="flex flex-wrap items-center gap-1.5 pt-0.5">${queueBadges} <span class="text-amber-300 font-black ml-1">(철 ${wizState.devQueue.length}개 · £${ironPlan.marketCost})</span></div>`
+                : `<div class="flex flex-wrap items-center gap-1.5 pt-0.5">${queueBadges} <span class="text-amber-300 font-black ml-1">(철 ${wizState.devQueue.length}개 · £${ironPlan.marketCost} · ${ironPlan.summary})</span></div>`
               }
             </div>
           </div>
@@ -2175,11 +2367,12 @@
                   ? "bg-emerald-950/45 border-emerald-500/50"
                   : "bg-stone-900 border-white/10 opacity-65"
               }">
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between gap-1">
                   <strong class="text-amber-200 font-black">${c.city.name} · ${meta.name} Lv.${c.building.level}</strong>
                   <span class="px-2 py-0.5 rounded bg-black/50 text-emerald-300 font-black text-[12px]">+${c.building.vp}점 / 수입+${c.building.incomeUp}칸</span>
                 </div>
                 <div class="text-[12px] text-slate-200">${c.reason}</div>
+                ${c.merchant ? `<div class="text-[12px] text-amber-300 font-bold">상인 보너스(${c.merchant.short}): ${c.merchant.beerLeft > 0 ? `맥주 소모 시 즉시 ${c.merchant.bonusLabel}` : "맥주 소진됨 (기본 판매만 가능)"}</div>` : ""}
               </button>
             `;
           }).join("");
@@ -2302,7 +2495,8 @@
       if (mode === "build") {
         onClickBuildIndustry(wizState.cityId, wizState.slotIdx, wizState.indId, cardIdx);
       } else if (mode === "link") {
-        onClickBuildLink(wizState.linkId, cardIdx);
+        const secondId = (G.era === 2 && wizState.linkMode === "double") ? wizState.secondLinkId : null;
+        onClickBuildLink(wizState.linkId, cardIdx, secondId);
       } else if (mode === "develop") {
         executeDevelopListWithCard(wizState.devQueue, cardIdx);
       } else if (mode === "sell") {
@@ -2334,8 +2528,38 @@
       return true;
     }
 
-    function onClickBuildLink(linkId, directCardIdx = 0) {
+    function onClickBuildLink(linkId, directCardIdx = 0, secondLinkId = null) {
       if (G.ended || G.player.actionsLeft <= 0) return false;
+      if (secondLinkId) {
+        const check2 = evaluateDoubleRailBuild(G.player, linkId, secondLinkId);
+        if (!check2.valid) {
+          pushToast(check2.reason, true);
+          return false;
+        }
+        saveUndoSnapshot();
+        closeActionWizard();
+        const lk1 = G.links[linkId];
+        const lk2 = G.links[secondLinkId];
+        G.player.money -= check2.totalMoneyCost;
+        G.player.spentThisRound += check2.totalMoneyCost;
+        executeCoalConsumption(check2.coalPlan);
+        executeBeerConsumption(G.player, check2.beerPlan);
+        lk1.ownerId = G.player.id;
+        lk1.eraType = "rail";
+        lk2.ownerId = G.player.id;
+        lk2.eraType = "rail";
+
+        const n1a = (G.cities[lk1.from] || G.merchants[lk1.from]).short;
+        const n1b = (G.cities[lk1.to] || G.merchants[lk1.to]).short;
+        const n2a = (G.cities[lk2.from] || G.merchants[lk2.from]).short;
+        const n2b = (G.cities[lk2.to] || G.merchants[lk2.to]).short;
+        log(`[2노선 철도 연속] 내 기업: [${n1a}-${n1b}] + [${n2a}-${n2b}] 철도 2개 동시 개통! (£${check2.totalMoneyCost} · 석탄2 · 맥주1)`);
+        selectedMapEntity = null;
+        consumeHandCardAtIndexAndAction(directCardIdx, `${n1a}-${n1b} 외 2노선 철도 개통`);
+        renderAll();
+        return true;
+      }
+
       const check = evaluateLinkBuild(G.player, linkId);
       if (!check.valid) {
         pushToast(check.reason, true);
@@ -2957,23 +3181,73 @@
       document.getElementById("hudActionsLeft").textContent = `행동 ${G.player.actionsLeft}/${G.player.maxActionsThisRound}`;
       document.getElementById("hudHandCountLabel").textContent = `내 손패 ${G.player.hand.length}장`;
 
+      if (mapCardFilterIdx !== null && !G.player.hand[mapCardFilterIdx]) {
+        mapCardFilterIdx = null;
+      }
+
       const handTray = document.getElementById("hudHandTray");
-      handTray.innerHTML = G.player.hand.map((c, idx) => `
-        <button onclick="onClickHudHandCard(${idx})" class="px-2 py-0.5 rounded-lg border ${c.badgeColor || "bg-stone-900 border-white/20 text-slate-200"} shrink-0 text-left">
-          <span class="text-[12px] font-black">#${idx + 1} ${c.title}</span>
-        </button>
-      `).join("");
+      handTray.innerHTML = G.player.hand.map((c, idx) => {
+        const isFiltered = (mapCardFilterIdx === idx);
+        return `
+          <button onclick="onClickHudHandCard(${idx})" class="px-2 py-0.5 rounded-lg border ${c.badgeColor || "bg-stone-900 border-white/20 text-slate-200"} ${isFiltered ? "ring-2 ring-amber-300 brightness-125" : ""} shrink-0 text-left transition">
+            <span class="text-[12px] font-black">#${idx + 1} ${c.title}</span>
+          </button>
+        `;
+      }).join("");
+
+      const cardBar = document.getElementById("selectedCardActionBar");
+      const cardBarLabel = document.getElementById("selectedCardBarLabel");
+      if (cardBar && cardBarLabel) {
+        if (mapCardFilterIdx !== null && G.player.hand[mapCardFilterIdx]) {
+          const fc = G.player.hand[mapCardFilterIdx];
+          cardBar.classList.remove("hidden");
+          cardBarLabel.textContent = `선택 카드 [#${mapCardFilterIdx + 1} ${fc.title}] · 건설 가능 대상 강조 중`;
+        } else {
+          cardBar.classList.add("hidden");
+        }
+      }
     }
 
     function onClickHudHandCard(idx) {
-      selectedCardIdx = idx;
       const c = G.player.hand[idx];
       if (!c) return;
-      if (c.kind === "city" && G.cities[c.cityId] && G.cities[c.cityId].active) {
+      selectedCardIdx = idx;
+      mapCardFilterIdx = (mapCardFilterIdx === idx) ? null : idx;
+      renderAll();
+    }
+
+    function clearHudCardFilter() {
+      mapCardFilterIdx = null;
+      renderAll();
+    }
+
+    function openWizardWithFilteredCard(mode) {
+      const idx = mapCardFilterIdx !== null ? mapCardFilterIdx : selectedCardIdx;
+      const c = G.player.hand[idx];
+      if (mode === "build" && c && c.kind === "city" && G.cities[c.cityId] && G.cities[c.cityId].active) {
         onSelectMapCity(c.cityId);
-      } else {
-        openActionWizard("build");
+        return;
       }
+      if (mode === "build" && c && c.kind === "industry") {
+        for (const city of Object.values(G.cities)) {
+          if (!city.active) continue;
+          for (const s of city.slotsState) {
+            if (s.building !== null) continue;
+            for (const indId of s.allowedTypes) {
+              if (evaluateBuildOnSlot(G.player, c, city.id, s.slotIdx, indId).valid) {
+                openActionWizard("build", { cityId: city.id, slotIdx: s.slotIdx, indId });
+                return;
+              }
+            }
+          }
+        }
+      }
+      openActionWizard(mode);
+    }
+
+    function toggleMapViewMode() {
+      mapViewMode = (mapViewMode === "svg") ? "list" : "svg";
+      renderMapView();
     }
 
     function renderDockBar() {
@@ -3060,8 +3334,8 @@
         }
 
         linksHtml += `<g class="map-node" onclick="onSelectMapLink('${lk.id}')">`;
-        // 손가락으로 쉽게 터치할 수 있는 넓은 투명 히트박스
-        linksHtml += `<line x1="${n1.x}" y1="${n1.y}" x2="${n2.x}" y2="${n2.y}" stroke="transparent" stroke-width="26" stroke-linecap="round" />`;
+        // 손가락으로 쉽게 터치할 수 있는 넓은 투명 히트박스 (28px)
+        linksHtml += `<line x1="${n1.x}" y1="${n1.y}" x2="${n2.x}" y2="${n2.y}" stroke="transparent" stroke-width="28" stroke-linecap="round" />`;
         linksHtml += `<line x1="${n1.x}" y1="${n1.y}" x2="${n2.x}" y2="${n2.y}" stroke="#090705" stroke-width="${strokeW + 4.5}" stroke-linecap="round" />`;
         linksHtml += `<line x1="${n1.x}" y1="${n1.y}" x2="${n2.x}" y2="${n2.y}" stroke="${strokeCol}" stroke-width="${strokeW}" ${dash ? `stroke-dasharray="${dash}"` : ""} stroke-linecap="round" />`;
         if (isOwned) {
@@ -3095,13 +3369,20 @@
       });
       merchantsLayer.innerHTML = merchHtml;
 
-      // 3) 14개 핵심 도시(Cities) — 상단 도시 헤더 + 하단 슬롯별 개별 컬러 타일 칩
+      // 3) 14개 핵심 도시(Cities) — 상단 도시 헤더 + 하단 슬롯별 개별 컬러 타일 칩 (손패 필터 연동)
+      const filteredCard = (mapCardFilterIdx !== null && G.player.hand[mapCardFilterIdx])
+        ? G.player.hand[mapCardFilterIdx]
+        : null;
+      const canUseSlotCheck = (cityId, slotIdx, indId) => filteredCard
+        ? evaluateBuildOnSlot(G.player, filteredCard, cityId, slotIdx, indId).valid
+        : evaluateAnyHandCardForBuild(cityId, slotIdx, indId).valid;
+
       const citiesLayer = document.getElementById("mapCitiesLayer");
       let citiesHtml = "";
       Object.values(G.cities).forEach(c => {
         if (!c.active) return;
         const canBuildAnyHere = c.slotsState.some(s =>
-          s.building === null && s.allowedTypes.some(indId => evaluateAnyHandCardForBuild(c.id, s.slotIdx, indId).valid)
+          s.building === null && s.allowedTypes.some(indId => canUseSlotCheck(c.id, s.slotIdx, indId))
         );
 
         const slotCount = c.slotsState.length;
@@ -3114,7 +3395,7 @@
         const bx = c.x - boxW / 2;
         const by = c.y - boxH / 2;
 
-        const strokeCol = canBuildAnyHere ? "#facc15" : "#d6d3d1";
+        const strokeCol = canBuildAnyHere ? "#facc15" : (filteredCard ? "#57534e" : "#d6d3d1");
         const strokeW = canBuildAnyHere ? 3.2 : 2.0;
         const headerFill = canBuildAnyHere ? "#78350f" : "#292524";
 
@@ -3132,7 +3413,7 @@
             const b = s.building;
             const owner = getLordById(b.ownerId);
             const meta = INDUSTRY_META[b.indId];
-            const statusMark = b.flipped ? "★" : (b.cubes > 0 ? `${b.cubes}` : `L${b.level}`);
+            const statusMark = b.flipped ? "완" : (b.cubes > 0 ? `${b.cubes}` : `L${b.level}`);
             const labelTxt = `${meta.short.slice(0, 1)}${statusMark}`;
             const subStroke = b.flipped ? "#fde047" : "#ffffff";
             citiesHtml += `<rect x="${sx}" y="${slotY}" width="${chipW}" height="${chipH}" rx="6" fill="${owner.color}" stroke="${subStroke}" stroke-width="${b.flipped ? 2.4 : 1.5}" />`;
@@ -3140,7 +3421,7 @@
           } else {
             const firstType = s.allowedTypes[0];
             const pal = IND_SLOT_PALETTE[firstType] || { bg: "#292524", border: "#a8a29e", text: "#f5f5f4" };
-            const canBuildSlot = s.allowedTypes.some(indId => evaluateAnyHandCardForBuild(c.id, s.slotIdx, indId).valid);
+            const canBuildSlot = s.allowedTypes.some(indId => canUseSlotCheck(c.id, s.slotIdx, indId));
             const slotLabel = s.allowedTypes.map(t => INDUSTRY_META[t].short.slice(0, 1)).join("/");
             citiesHtml += `<rect x="${sx}" y="${slotY}" width="${chipW}" height="${chipH}" rx="6" fill="${pal.bg}" stroke="${canBuildSlot ? "#fde047" : pal.border}" stroke-width="${canBuildSlot ? 2.3 : 1.5}" />`;
             citiesHtml += `<text x="${sx + chipW / 2}" y="${slotY + 17.5}" text-anchor="middle" fill="${canBuildSlot ? "#fef08a" : pal.text}" font-size="12" font-weight="900">${slotLabel}</text>`;
@@ -3150,6 +3431,20 @@
         citiesHtml += `</g>`;
       });
       citiesLayer.innerHTML = citiesHtml;
+
+      // 듀얼 뷰 토글 상태 및 스마트 일람표 갱신
+      const svgBox = document.getElementById("mapSvgContainer");
+      const smartBox = document.getElementById("mapSmartListContainer");
+      const toggleBtn = document.getElementById("btnMapViewMode");
+      const zoomBox = document.getElementById("mapZoomControlsBox");
+      if (svgBox && smartBox && toggleBtn) {
+        const isList = (mapViewMode === "list");
+        svgBox.classList.toggle("hidden", isList);
+        smartBox.classList.toggle("hidden", !isList);
+        if (zoomBox) zoomBox.classList.toggle("hidden", isList);
+        toggleBtn.textContent = isList ? "그래픽 지도" : "스마트 일람표";
+        renderSmartMapList(filteredCard);
+      }
 
       const myLinksCnt = Object.values(G.links).filter(l => l.ownerId === "player").length;
       let myBldsCnt = 0;
@@ -3167,6 +3462,84 @@
       document.getElementById("bottomMyNetworkStat").textContent =
         `내 노선: ${myLinksCnt}개 · 건물: ${myBldsCnt}동(뒤집힘 ${myFlippedCnt})`;
       document.getElementById("bottomMyBeerStat").textContent = `내 양조장 맥주: ${myBreweryCubes}통`;
+    }
+
+    // 모바일 카드 기반 [스마트 일람표] 렌더링 — 현재 손패로 건설/개통 가능한 모든 지점 요약
+    function renderSmartMapList(filteredCard = null) {
+      const box = document.getElementById("mapSmartListContainer");
+      if (!box) return;
+
+      const buildCards = [];
+      Object.values(G.cities).forEach(c => {
+        if (!c.active) return;
+        const validSlots = [];
+        c.slotsState.forEach(s => {
+          if (s.building !== null) return;
+          s.allowedTypes.forEach(indId => {
+            const chk = filteredCard
+              ? evaluateBuildOnSlot(G.player, filteredCard, c.id, s.slotIdx, indId)
+              : evaluateAnyHandCardForBuild(c.id, s.slotIdx, indId);
+            if (chk.valid) {
+              validSlots.push({ slotIdx: s.slotIdx, indId, chk });
+            }
+          });
+        });
+        if (validSlots.length > 0) {
+          buildCards.push({ city: c, validSlots });
+        }
+      });
+
+      const validLinks = Object.values(G.links).filter(lk => lk.active && lk.ownerId === null && evaluateLinkBuild(G.player, lk.id).valid);
+
+      const cityHtml = buildCards.length === 0
+        ? `<div class="p-3 rounded-xl bg-stone-900 border border-white/10 text-slate-300">현재 조건(${filteredCard ? filteredCard.title : "전체 손패"})으로 즉시 건설 가능한 빈 슬롯이 없습니다.</div>`
+        : buildCards.map(item => `
+            <div class="p-2.5 rounded-xl bg-stone-900/90 border border-amber-500/40 space-y-1.5">
+              <div class="flex items-center justify-between">
+                <strong class="text-amber-200 font-black text-xs">${item.city.name} (${item.validSlots.length}개 가능)</strong>
+                <button onclick="onSelectMapCity('${item.city.id}')" class="px-2 py-0.5 rounded bg-amber-400 text-stone-950 font-black text-[12px]">도시 선택</button>
+              </div>
+              <div class="space-y-1">
+                ${item.validSlots.map(v => `
+                  <button onclick="openActionWizard('build', { cityId: '${item.city.id}', slotIdx: ${v.slotIdx}, indId: '${v.indId}' })" class="w-full p-2 rounded-lg bg-black/50 border border-white/10 flex items-center justify-between text-left hover:border-amber-400/60">
+                    <div>
+                      <span class="font-black ${INDUSTRY_META[v.indId].textClass}">[슬롯 #${v.slotIdx + 1}] ${INDUSTRY_META[v.indId].name} Lv.${v.chk.spec.level}</span>
+                      <div class="text-[12px] text-slate-300">${v.chk.coalPlan.summary} · ${v.chk.ironPlan.summary}</div>
+                    </div>
+                    <span class="px-2 py-0.5 rounded bg-amber-950 text-amber-200 border border-amber-400/50 font-black text-[12px] shrink-0">£${v.chk.totalMoneyCost}</span>
+                  </button>
+                `).join("")}
+              </div>
+            </div>
+          `).join("");
+
+      const linkHtml = validLinks.length === 0
+        ? `<div class="p-3 rounded-xl bg-stone-900 border border-white/10 text-slate-300">현재 즉시 개통 가능한 ${G.era === 1 ? "운하" : "철도"} 구간이 없습니다.</div>`
+        : validLinks.map(lk => {
+            const n1 = G.cities[lk.from] || G.merchants[lk.from];
+            const n2 = G.cities[lk.to] || G.merchants[lk.to];
+            const chk = evaluateLinkBuild(G.player, lk.id);
+            return `
+              <button onclick="onSelectMapLink('${lk.id}')" class="w-full p-2.5 rounded-xl bg-sky-950/50 border border-sky-400/45 flex items-center justify-between text-left hover:bg-sky-900/50">
+                <div>
+                  <strong class="text-sky-200 font-black text-xs">[${n1.short} - ${n2.short}] ${G.era === 1 ? "운하" : "철도"}</strong>
+                  <div class="text-[12px] text-slate-200">${chk.reason}</div>
+                </div>
+                <span class="px-2 py-0.5 rounded bg-sky-400 text-stone-950 font-black text-[12px] shrink-0">£${chk.totalMoneyCost}</span>
+              </button>
+            `;
+          }).join("");
+
+      box.innerHTML = `
+        <div class="space-y-1.5">
+          <div class="font-black text-amber-300 text-xs">1) 즉시 건설 가능한 도시 & 슬롯 (${buildCards.length}곳)</div>
+          <div class="space-y-1.5">${cityHtml}</div>
+        </div>
+        <div class="space-y-1.5 pt-1">
+          <div class="font-black text-sky-300 text-xs">2) 즉시 개통 가능한 ${G.era === 1 ? "운하" : "철도"} 구간 (${validLinks.length}곳)</div>
+          <div class="space-y-1.5">${linkHtml}</div>
+        </div>
+      `;
     }
 
     // ---------------------------------------------------------
