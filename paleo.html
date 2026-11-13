@@ -1,0 +1,2123 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>팔레오 (Paleo) — 구석기 협동 생존 보드게임 시뮬레이터</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background-color: #120d09;
+      color: #f5ede0;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* 석판 및 동굴 질감 카드 스타일 */
+    .stone-panel {
+      background: linear-gradient(180deg, #241b14 0%, #18110c 100%);
+      border: 1px solid rgba(217, 155, 82, 0.25);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 224, 178, 0.08);
+    }
+
+    .card-back-tile {
+      transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.16s ease, border-color 0.16s ease;
+    }
+    .card-back-tile:active {
+      transform: scale(0.96);
+    }
+    @media (hover: hover) {
+      .card-back-tile:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.65);
+      }
+    }
+
+    .btn-tactile {
+      transition: transform 0.12s ease, opacity 0.15s ease;
+    }
+    .btn-tactile:active:not(:disabled) {
+      transform: scale(0.97);
+    }
+
+    @keyframes flamePulse {
+      0%, 100% { filter: drop-shadow(0 0 6px rgba(249, 115, 22, 0.55)); }
+      50% { filter: drop-shadow(0 0 14px rgba(251, 191, 36, 0.9)); }
+    }
+    .campfire-glow {
+      animation: flamePulse 2.2s infinite ease-in-out;
+    }
+
+    @keyframes slideUpFade {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-in {
+      animation: slideUpFade 0.22s ease-out forwards;
+    }
+  </style>
+</head>
+<body class="h-[100dvh] w-full max-w-[500px] mx-auto flex flex-col bg-[#16100b] border-x border-amber-900/40 shadow-2xl relative overflow-hidden">
+
+  <!-- ========================================================= -->
+  <!-- 1. 상단 고정 HUD: 일차/시나리오, 벽화/해골, 자원, 능력치·덱 -->
+  <!-- ========================================================= -->
+  <header class="bg-gradient-to-b from-[#261b12] to-[#19120c] border-b border-amber-700/40 px-2.5 py-2 shrink-0 z-20 space-y-1.5 shadow-lg">
+    <!-- 1번째 줄: 타이틀 & 일차 배지 & 되돌리기/가이드/설정 -->
+    <div class="flex items-center justify-between gap-1">
+      <div class="flex items-center gap-1.5 min-w-0">
+        <div id="hudLogoBox" class="w-7 h-7 rounded-lg bg-amber-600/20 border border-amber-500/50 flex items-center justify-center shrink-0"></div>
+        <div class="min-w-0">
+          <div class="flex items-center gap-1">
+            <h1 class="text-sm font-black tracking-tight text-amber-200 truncate">팔레오</h1>
+            <span id="hudDayPhaseBadge" class="px-1.5 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-500/40 text-xs font-extrabold shrink-0">1일차 낮</span>
+            <span id="hudScenarioBadge" class="px-1.5 py-0.5 rounded bg-stone-800 text-stone-200 border border-stone-600 text-xs font-bold shrink-0">Lv.1 A+B</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1 shrink-0 text-xs">
+        <button onclick="undoLastAction()" id="btnUndo" class="px-2 py-1 rounded-lg bg-stone-800 hover:bg-stone-700 disabled:opacity-40 border border-stone-600 text-stone-200 font-bold btn-tactile">
+          되돌리기
+        </button>
+        <button onclick="openGuideModal(0)" class="px-2 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-stone-950 font-black shadow btn-tactile">
+          가이드
+        </button>
+        <button onclick="openSettingsModal()" aria-label="게임 설정" class="p-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 border border-stone-600 text-stone-200 btn-tactile">
+          <span id="hudGearIcon"></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 2번째 줄: 벽화 조각(승리) / 해골 토큰(패배) / 보유 자원 5종 -->
+    <div class="flex items-center justify-between gap-1 pt-1 border-t border-amber-800/30 text-xs overflow-x-auto no-scrollbar">
+      <div class="flex items-center gap-1 shrink-0">
+        <button onclick="switchTab('painting')" class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-950/90 border border-amber-500/60 text-amber-200 font-black">
+          <span id="hudIconPainting"></span>
+          <span>벽화 <strong id="hudPaintings">0/5</strong></span>
+        </button>
+        <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-rose-950/90 border border-rose-500/60 text-rose-200 font-black">
+          <span id="hudIconSkull"></span>
+          <span>해골 <strong id="hudSkulls">0/5</strong></span>
+        </div>
+      </div>
+
+      <div id="hudResourcesRow" class="flex items-center gap-1 shrink-0"></div>
+    </div>
+
+    <!-- 3번째 줄: 부족 합산 능력치(창/도끼/관찰) & 덱/버림/제거 현황 -->
+    <div class="flex items-center justify-between gap-1.5 pt-1 border-t border-white/10 text-xs">
+      <div id="hudSkillsRow" class="flex items-center gap-1 shrink-0"></div>
+      <div id="hudDeckSummary" class="flex items-center gap-1.5 text-stone-300 font-bold shrink-0"></div>
+    </div>
+  </header>
+
+  <!-- ========================================================= -->
+  <!-- 2. 중앙 메인 영역: 부족 상태 스트립 + 동적 4대 탭 보드      -->
+  <!-- ========================================================= -->
+  <main class="flex-1 overflow-y-auto no-scrollbar px-2.5 py-2.5 space-y-2.5">
+    <!-- 상시 노출: 우리 부족민 + 동료 부족 그룹 협동 배너 -->
+    <section class="stone-panel rounded-xl p-2 space-y-1.5">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-black text-amber-300">우리 부족민 (<span id="tribeCountText">2</span>명 생존)</span>
+        <span class="text-xs text-stone-400">터치하여 부상 우선 대상 지정</span>
+      </div>
+      <div id="tribeStrip" class="flex items-stretch gap-1.5 overflow-x-auto no-scrollbar pb-0.5"></div>
+      <div id="partnerBanner" class="rounded-lg px-2.5 py-1.5 border text-xs flex items-center justify-between gap-2"></div>
+    </section>
+
+    <!-- 동적 토스트 알림 배너 -->
+    <div id="toastBanner" class="hidden rounded-xl px-3 py-2 text-xs font-bold border shadow-md animate-in"></div>
+
+    <!-- 탭 컨테이너 (1: 탐험 보드 / 2: 작업대 / 3: 동굴 벽화 / 4: 부족 & 통계) -->
+    <section id="tabContent" class="space-y-2.5 pb-4"></section>
+  </main>
+
+  <!-- ========================================================= -->
+  <!-- 3. 하단 고정 네비게이션 독 (4대 핵심 탭)                  -->
+  <!-- ========================================================= -->
+  <footer class="bg-[#1c140d] border-t border-amber-700/40 px-2 py-1.5 shrink-0 z-20 grid grid-cols-4 gap-1.5">
+    <button onclick="switchTab('explore')" id="nav-explore" class="min-h-[54px] rounded-xl flex flex-col items-center justify-center gap-0.5 text-xs font-black border btn-tactile">
+      <span id="navIconExplore"></span>
+      <span>탐험 보드</span>
+    </button>
+    <button onclick="switchTab('workbench')" id="nav-workbench" class="min-h-[54px] rounded-xl flex flex-col items-center justify-center gap-0.5 text-xs font-black border btn-tactile">
+      <span id="navIconWorkbench"></span>
+      <span>작업대</span>
+    </button>
+    <button onclick="switchTab('painting')" id="nav-painting" class="min-h-[54px] rounded-xl flex flex-col items-center justify-center gap-0.5 text-xs font-black border btn-tactile">
+      <span id="navIconPainting"></span>
+      <span>동굴 벽화</span>
+    </button>
+    <button onclick="switchTab('camp')" id="nav-camp" class="min-h-[54px] rounded-xl flex flex-col items-center justify-center gap-0.5 text-xs font-black border btn-tactile">
+      <span id="navIconCamp"></span>
+      <span>부족/통계</span>
+    </button>
+  </footer>
+
+  <!-- ========================================================= -->
+  <!-- 4. 모달 오버레이 (5단계 튜토리얼 / 설정 / 게임 종료)        -->
+  <!-- ========================================================= -->
+  <div id="modalBackdrop" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-3">
+    <div id="modalDialog" class="w-full max-w-[460px] max-h-[88dvh] bg-[#1e150f] border border-amber-600/50 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in"></div>
+  </div>
+
+  <script>
+    /* ============================================================================
+       팔레오 (Paleo) 완전판 모바일 시뮬레이터 엔진
+       모든 주석, 데이터, UI 텍스트는 한국어로 작성되며 이모지를 절대 사용하지 않습니다.
+       ============================================================================ */
+
+    // ----------------------------------------------------------------------------
+    // 1. 커스텀 SVG 아이콘 라이브러리 (유니코드 이모지 대체, 선명한 벡터 그래픽)
+    // ----------------------------------------------------------------------------
+    const ICONS = {
+      logo: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c2 4 5 6 5 10a5 5 0 1 1-10 0c0-2.5 1.5-5 3-7 .5 2 1.5 3 2 3 0-2 0-4 0-6z" fill="rgba(245,158,11,0.28)"/></svg>`,
+      gear: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.82 1 1.51 1H21a2 2 0 0 1 0 4h-.09c-.69 0-1.25.4-1.51 1z"/></svg>`,
+      painting: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2" fill="rgba(245,158,11,0.18)"/><path d="M7 15c2-4 5-5 8-3 2 1.3 2.5 3 2.5 3M9 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/></svg>`,
+      skull: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fb7185" stroke-width="2" stroke-linecap="round"><path d="M12 3a7 7 0 0 0-7 7c0 2.6 1.4 4.8 3.5 6v3h7v-3C17.6 14.8 19 12.6 19 10a7 7 0 0 0-7-7z" fill="rgba(244,63,94,0.2)"/><circle cx="9.5" cy="10.5" r="1.2" fill="#fb7185"/><circle cx="14.5" cy="10.5" r="1.2" fill="#fb7185"/><path d="M10 19v-2M12 19v-2M14 19v-2"/></svg>`,
+      food: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2"><ellipse cx="11" cy="12" rx="7" ry="5" fill="rgba(249,115,22,0.25)"/><path d="M18 12l3-2v4l-3-2z"/></svg>`,
+      wood: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a3e635" stroke-width="2"><rect x="4" y="8" width="16" height="8" rx="3" fill="rgba(132,204,22,0.2)"/><circle cx="8" cy="12" r="1.5"/></svg>`,
+      stone: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2"><polygon points="6,18 4,11 10,6 18,7 20,15 14,19" fill="rgba(148,163,184,0.28)"/></svg>`,
+      fur: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2"><path d="M7 5l5 2 5-2 2 5-3 9H8L5 10z" fill="rgba(217,119,6,0.28)"/></svg>`,
+      bone: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f8fafc" stroke-width="2"><path d="M6 9a2 2 0 1 1 2-3l8 8a2 2 0 1 1-3 2L5 8a2 2 0 0 1 1 1z" fill="rgba(248,250,252,0.2)"/></svg>`,
+      spear: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2.2" stroke-linecap="round"><line x1="4" y1="20" x2="17" y2="7"/><polygon points="20,4 14,6 18,10" fill="#f87171"/></svg>`,
+      axe: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="20" x2="17" y2="6"/><path d="M13 5c3 0 6 2 6 5-3 1-5 0-6-5z" fill="#60a5fa"/></svg>`,
+      eye: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#facc15" stroke-width="2.2" stroke-linecap="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="2.5" fill="#facc15"/></svg>`,
+      heartFull: `<svg width="13" height="13" viewBox="0 0 24 24" fill="#ef4444" stroke="#fca5a5" stroke-width="1.5"><path d="M12 21s-7-4.5-9-9a5.2 5.2 0 0 1 9-4.5A5.2 5.2 0 0 1 21 12c-2 4.5-9 9-9 9z"/></svg>`,
+      heartEmpty: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#78716c" stroke-width="2"><path d="M12 21s-7-4.5-9-9a5.2 5.2 0 0 1 9-4.5A5.2 5.2 0 0 1 21 12c-2 4.5-9 9-9 9z"/></svg>`,
+      explore: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polygon points="15,9 13,14 9,15 11,10" fill="currentColor"/></svg>`,
+      workbench: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 7l3 3-9 9H5v-3z"/><path d="M16 5l3 3"/></svg>`,
+      camp: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M21 21v-2a3 3 0 0 0-2-2.8"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg>`
+    };
+
+    // 자원 명칭 및 메타데이터
+    const RESOURCE_META = {
+      food:  { label: '식량', icon: ICONS.food,  color: 'text-orange-300', bg: 'bg-orange-950/80 border-orange-600/40' },
+      wood:  { label: '나무', icon: ICONS.wood,  color: 'text-lime-300',   bg: 'bg-lime-950/80 border-lime-600/40' },
+      stone: { label: '돌',   icon: ICONS.stone, color: 'text-slate-200',  bg: 'bg-slate-800/90 border-slate-500/40' },
+      fur:   { label: '모피', icon: ICONS.fur,   color: 'text-amber-300',  bg: 'bg-amber-950/80 border-amber-600/40' },
+      bone:  { label: '뼈',   icon: ICONS.bone,  color: 'text-stone-100',  bg: 'bg-stone-800/90 border-stone-500/40' }
+    };
+
+    // 능력치 명칭 및 메타데이터
+    const SKILL_META = {
+      spear: { label: '창',   icon: ICONS.spear, color: 'text-red-300',    bg: 'bg-red-950/80 border-red-500/40' },
+      axe:   { label: '도끼', icon: ICONS.axe,   color: 'text-sky-300',    bg: 'bg-sky-950/80 border-sky-500/40' },
+      eye:   { label: '관찰', icon: ICONS.eye,   color: 'text-yellow-300', bg: 'bg-yellow-950/80 border-yellow-500/40' }
+    };
+
+    // 7종 카드 뒷면 메타데이터 및 대형 SVG 아트워크 생성기
+    const BACK_META = {
+      forest: {
+        name: '울창한 숲',
+        short: '나무 · 열매 · 사슴',
+        border: 'border-emerald-500/60',
+        bg: 'from-emerald-950 to-[#0c1f16]',
+        badge: 'bg-emerald-900/90 text-emerald-200',
+        svg: `<svg width="46" height="46" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="28" fill="rgba(16,185,129,0.14)" stroke="#10b981" stroke-width="2"/><polygon points="32,12 18,36 46,36" fill="#059669"/><polygon points="32,22 14,48 50,48" fill="#10b981"/><rect x="29" y="48" width="6" height="7" fill="#78350f"/></svg>`
+      },
+      river: {
+        name: '흐르는 강',
+        short: '식량 · 조약돌 · 급류',
+        border: 'border-cyan-500/60',
+        bg: 'from-cyan-950 to-[#0a1c24]',
+        badge: 'bg-cyan-900/90 text-cyan-200',
+        svg: `<svg width="46" height="46" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="28" fill="rgba(6,182,212,0.14)" stroke="#06b6d4" stroke-width="2"/><path d="M12 26c6-5 12 5 18 0s12-5 22 0" stroke="#22d3ee" stroke-width="4" stroke-linecap="round"/><path d="M12 38c6-5 12 5 18 0s12-5 22 0" stroke="#0891b2" stroke-width="4" stroke-linecap="round"/></svg>`
+      },
+      mountain: {
+        name: '바위 산맥',
+        short: '돌 · 뼈 · 산양 · 낙석',
+        border: 'border-slate-400/60',
+        bg: 'from-slate-800 to-[#14171f]',
+        badge: 'bg-slate-700 text-slate-200',
+        svg: `<svg width="46" height="46" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="28" fill="rgba(148,163,184,0.15)" stroke="#94a3b8" stroke-width="2"/><polygon points="10,48 26,18 42,48" fill="#64748b"/><polygon points="26,48 41,22 54,48" fill="#94a3b8"/><polygon points="26,18 22,26 30,26" fill="#f8fafc"/></svg>`
+      },
+      camp: {
+        name: '부족 캠프',
+        short: '제작 · 영입 · 치유 · 벽화',
+        border: 'border-amber-500/60',
+        bg: 'from-amber-950 to-[#24160b]',
+        badge: 'bg-amber-900/90 text-amber-200',
+        svg: `<svg width="46" height="46" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="28" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="2"/><path d="M32 14c5 8 11 12 11 21a11 11 0 1 1-22 0c0-5 3-10 6-14 1 4 3 6 5 6 0-4 0-9 0-13z" fill="#f97316"/><path d="M22 49l20-4M22 45l20 4" stroke="#92400e" stroke-width="4" stroke-linecap="round"/></svg>`
+      },
+      hazard: {
+        name: '붉은 위험',
+        short: '갈릴 때 부상! 정면 돌파',
+        border: 'border-rose-500/85',
+        bg: 'from-rose-950 to-[#280b12]',
+        badge: 'bg-rose-800 text-rose-100',
+        svg: `<svg width="46" height="46" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="28" fill="rgba(244,63,94,0.22)" stroke="#f43f5e" stroke-width="2.5"/><path d="M32 14l18 32H14L32 14z" fill="rgba(244,63,94,0.35)" stroke="#fb7185" stroke-width="2.5" stroke-linejoin="round"/><line x1="32" y1="25" x2="32" y2="36" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/><circle cx="32" cy="41.5" r="2" fill="#fff"/></svg>`
+      },
+      mammoth: {
+        name: '거대 짐승',
+        short: '매머드 사냥 · 벽화 보상',
+        border: 'border-purple-400/70',
+        bg: 'from-purple-950 to-[#1c1026]',
+        badge: 'bg-purple-900/90 text-purple-200',
+        svg: `<svg width="46" height="46" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="28" fill="rgba(168,85,247,0.16)" stroke="#a855f7" stroke-width="2"/><path d="M16 44V30c0-8 7-13 15-13 7 0 13 4 14 11v16h-6v-8h-5v8h-7v-8h-5v8h-6z" fill="#c084fc"/><path d="M44 30c5 2 7 7 3 11" stroke="#fef08a" stroke-width="3" stroke-linecap="round"/></svg>`
+      },
+      dream: {
+        name: '신비한 꿈',
+        short: '고대 영감 · 벽화 · 유물',
+        border: 'border-indigo-400/70',
+        bg: 'from-indigo-950 to-[#111229]',
+        badge: 'bg-indigo-900/90 text-indigo-200',
+        svg: `<svg width="46" height="46" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="28" fill="rgba(99,102,241,0.18)" stroke="#818cf8" stroke-width="2"/><path d="M14 32s7-11 18-11 18 11 18 11-7 11-18 11-18-11-18-11z" stroke="#a5b4fc" stroke-width="2.5"/><circle cx="32" cy="32" r="5" fill="#fde047"/></svg>`
+      }
+    };
+
+    // ----------------------------------------------------------------------------
+    // 2. 부족민 풀 (PEOPLE_POOL) & 작업대 아이디어 (WORKBENCH_IDEAS)
+    // ----------------------------------------------------------------------------
+    const PEOPLE_POOL = [
+      { id: 'kaya',  name: '카야', role: '사냥꾼', maxHp: 3, skills: { spear: 1, axe: 0, eye: 0 }, trait: '기본 사냥꾼 (체력 3, 창 1)' },
+      { id: 'tor',   name: '토르', role: '석기 장인', maxHp: 2, skills: { spear: 0, axe: 1, eye: 0 }, trait: '도구 제작 숙련 (체력 2, 도끼 1)' },
+      { id: 'ria',   name: '리아', role: '정찰병', maxHp: 2, skills: { spear: 0, axe: 0, eye: 1 }, trait: '예리한 관찰 (체력 2, 관찰 1)' },
+      { id: 'grog',  name: '그로그', role: '대형 맹수 사냥꾼', maxHp: 3, skills: { spear: 1, axe: 0, eye: 0 }, trait: '강인한 체격 (체력 3, 창 1)' },
+      { id: 'mira',  name: '미라', role: '약초 치유사', maxHp: 2, skills: { spear: 0, axe: 0, eye: 1 }, trait: '약초 치료 (체력 2, 관찰 1)' },
+      { id: 'bold',  name: '볼드', role: '벌목·채석가', maxHp: 3, skills: { spear: 0, axe: 1, eye: 0 }, trait: '튼튼한 채집가 (체력 3, 도끼 1)' }
+    ];
+
+    const WORKBENCH_IDEAS = [
+      {
+        id: 'stone_axe',
+        name: '부싯돌 도끼',
+        cost: { stone: 1, wood: 1 },
+        skills: { spear: 0, axe: 1, eye: 0 },
+        maxCraft: 3,
+        desc: '부족 전체 영구 [도끼 +1]. 채석과 벌목, 천막 제작에 필수입니다.'
+      },
+      {
+        id: 'hunting_spear',
+        name: '사냥용 창',
+        cost: { wood: 2, stone: 1 },
+        skills: { spear: 1, axe: 0, eye: 0 },
+        maxCraft: 3,
+        desc: '부족 전체 영구 [창 +1]. 맹수 방어 및 대형 사냥에 활용됩니다.'
+      },
+      {
+        id: 'torch',
+        name: '불타는 횃불',
+        cost: { wood: 1, stone: 1 },
+        skills: { spear: 0, axe: 0, eye: 1 },
+        maxCraft: 3,
+        desc: '부족 전체 영구 [관찰 +1]. 동굴 탐색과 밤 어둠 미션에 유리합니다.'
+      },
+      {
+        id: 'spear_thrower',
+        name: '뼈 투창기',
+        cost: { bone: 1, wood: 1 },
+        skills: { spear: 2, axe: 0, eye: 0 },
+        maxCraft: 2,
+        desc: '부족 전체 영구 [창 +2]. 매머드와 늑대 우두머리를 사냥하는 핵심 무기!'
+      },
+      {
+        id: 'tent',
+        name: '가죽 천막',
+        cost: { fur: 2, wood: 2 },
+        skills: { spear: 0, axe: 0, eye: 0 },
+        maxCraft: 1,
+        desc: '[모듈 B 핵심] 밤 [임시 거처] 미션 자동 방어! 낮 피해 저항에도 도움됩니다.'
+      },
+      {
+        id: 'fur_coat',
+        name: '따뜻한 모피 옷',
+        cost: { fur: 2, bone: 1 },
+        skills: { spear: 0, axe: 0, eye: 1 },
+        maxCraft: 1,
+        desc: '[모듈 E 핵심] 밤 [설산의 한파] 미션 자동 방어 및 영구 [관찰 +1].'
+      },
+      {
+        id: 'raft',
+        name: '통나무 뗏목',
+        cost: { wood: 3 },
+        skills: { spear: 0, axe: 0, eye: 0 },
+        maxCraft: 1,
+        desc: '[모듈 H 핵심] 밤 [강물 범람] 미션 자동 방어 및 강 탐험 시 유리합니다.'
+      }
+    ];
+
+    // ----------------------------------------------------------------------------
+    // 3. 시나리오(모듈 조합) 3종 정의
+    // ----------------------------------------------------------------------------
+    const SCENARIOS = {
+      1: {
+        id: 1,
+        badge: 'Lv.1 A+B',
+        name: '모듈 A [풍요로운 사냥감] + B [새로운 세계]',
+        desc: '입문자용 기본 시나리오. 천막을 제작해 거처를 확보하고 매머드 사냥과 동굴 벽화에 집중하세요.',
+        missions: [
+          {
+            id: 'm1_fire',
+            title: '미션 1: 모닥불 유지',
+            reqText: '나무 1개를 지불하여 밤새 모닥불을 지핍니다.',
+            autoCheck: () => false,
+            autoLabel: '',
+            payCost: { wood: 1 },
+            penaltySkulls: 1,
+            penaltyWounds: 0,
+            failText: '추위에 떨며 밤을 보냈습니다 (해골 토큰 +1)'
+          },
+          {
+            id: 'm1_shelter',
+            title: '미션 2: 임시 거처 구축',
+            reqText: '작업대에서 [가죽 천막]을 제작해 보유 중이면 자동 성공! 미보유 시 나무 1개 + 모피 1개를 지불해야 합니다.',
+            autoCheck: (st) => (st.tools.tent || 0) >= 1,
+            autoLabel: '가죽 천막 보유로 자동 방어 완료!',
+            payCost: { wood: 1, fur: 1 },
+            penaltySkulls: 1,
+            penaltyWounds: 0,
+            failText: '거처가 없어 부족이 큰 타격을 입었습니다 (해골 토큰 +1)'
+          }
+        ]
+      },
+      2: {
+        id: 2,
+        badge: 'Lv.2 C+E',
+        name: '모듈 C [굶주린 늑대] + E [혹한의 설산]',
+        desc: '숙련자용. 창 능력을 3 이상 키우거나 불을 피워 늑대를 쫓아내고, 모피 옷으로 설산의 추위를 버티세요.',
+        missions: [
+          {
+            id: 'm2_wolves',
+            title: '미션 1: 늑대 습격 방어',
+            reqText: '부족 합산 [창 3 이상]이면 자동 격퇴! 미달 시 나무 1개를 태워 쫓아내야 합니다.',
+            autoCheck: (st, skills) => skills.spear >= 3,
+            autoLabel: '창 능력 3 이상으로 늑대 무리 격퇴!',
+            payCost: { wood: 1 },
+            penaltySkulls: 1,
+            penaltyWounds: 1,
+            failText: '늑대 무리가 캠프를 습격했습니다 (해골 +1, 부상 1)'
+          },
+          {
+            id: 'm2_cold',
+            title: '미션 2: 설산의 한파',
+            reqText: '[따뜻한 모피 옷] 보유 시 자동 방어! 미보유 시 식량 1개 + 나무 1개를 소모해야 합니다.',
+            autoCheck: (st) => (st.tools.fur_coat || 0) >= 1,
+            autoLabel: '모피 옷 착용으로 혹한 완벽 방어!',
+            payCost: { food: 1, wood: 1 },
+            penaltySkulls: 1,
+            penaltyWounds: 0,
+            failText: '혹독한 동상에 시달렸습니다 (해골 토큰 +1)'
+          }
+        ]
+      },
+      3: {
+        id: 3,
+        badge: 'Lv.3 F+H',
+        name: '모듈 F [깊은 동굴] + H [거친 대하]',
+        desc: '도전용 고난도 시나리오. 횃불/관찰 능력으로 어둠의 공포를 밝히고 통나무 뗏목으로 범람을 이겨내세요.',
+        missions: [
+          {
+            id: 'm3_dark',
+            title: '미션 1: 어둠 속의 공포',
+            reqText: '[불타는 횃불 2개 이상] 또는 부족 [관찰 3 이상]이면 자동 극복! 미달 시 나무 1 + 식량 1을 바쳐야 합니다.',
+            autoCheck: (st, skills) => (st.tools.torch || 0) >= 2 || skills.eye >= 3,
+            autoLabel: '횃불과 예리한 관찰로 어둠 극복!',
+            payCost: { wood: 1, food: 1 },
+            penaltySkulls: 1,
+            penaltyWounds: 0,
+            failText: '어둠 속 미지의 공포에 휩싸였습니다 (해골 토큰 +1)'
+          },
+          {
+            id: 'm3_flood',
+            title: '미션 2: 강물 범람 대비',
+            reqText: '[통나무 뗏목] 보유 시 자동 방어! 미보유 시 돌 1개 + 나무 1개로 둑을 쌓아야 합니다.',
+            autoCheck: (st) => (st.tools.raft || 0) >= 1,
+            autoLabel: '통나무 뗏목으로 안전하게 피난 완료!',
+            payCost: { stone: 1, wood: 1 },
+            penaltySkulls: 1,
+            penaltyWounds: 0,
+            failText: '강물이 범람해 물자가 유실되었습니다 (해골 토큰 +1)'
+          }
+        ]
+      }
+    };
+
+    // ----------------------------------------------------------------------------
+    // 4. 카드 데이터베이스 (기본 16장 + 모듈 특화 10장 = 총 26장/시나리오)
+    // ----------------------------------------------------------------------------
+    function buildScenarioDeck(scenarioId) {
+      // 모든 시나리오 공통 기본 덱 (16장)
+      const baseCards = [
+        {
+          id: 'b_forest_1', backType: 'forest', title: '고목과 야생 열매',
+          desc: '거대한 참나무 아래에 붉은 열매와 마른 장작이 풍부하게 떨어져 있습니다.',
+          options: [
+            { label: '도끼로 굵은 장작 베기', reqSkills: { axe: 1 }, timeCost: 1, gain: { wood: 2, food: 1 }, destroyCard: false },
+            { label: '가볍게 열매와 잔가지 줍기', reqSkills: {}, timeCost: 0, gain: { food: 1, wood: 1 }, destroyCard: false }
+          ]
+        },
+        {
+          id: 'b_forest_2', backType: 'forest', title: '숲속의 붉은 사슴',
+          desc: '나무 사이로 거대한 뿔을 가진 사슴 한 마리가 풀을 뜯고 있습니다.',
+          options: [
+            { label: '창으로 정조준 사냥하기', reqSkills: { spear: 2 }, timeCost: 1, gain: { food: 2, fur: 1, bone: 1 }, destroyCard: true },
+            { label: '흔적만 살피고 약초 채집', reqSkills: { eye: 1 }, timeCost: 0, gain: { food: 1, heal: 1 }, destroyCard: false },
+            { label: '그냥 지나치기', reqSkills: {}, timeCost: 0, gain: {}, destroyCard: false }
+          ]
+        },
+        {
+          id: 'b_forest_3', backType: 'forest', title: '쓰러진 거목 지대',
+          desc: '벼락을 맞아 쓰러진 고대 삼나무 주변에 벌목할 통나무가 많습니다.',
+          options: [
+            { label: '대규모 통나무 벌목', reqSkills: { axe: 2 }, timeCost: 2, gain: { wood: 3 }, destroyCard: false },
+            { label: '마른 가지 1개만 챙기기', reqSkills: {}, timeCost: 0, gain: { wood: 1 }, destroyCard: false }
+          ]
+        },
+        {
+          id: 'b_forest_4', backType: 'forest', title: '덩굴 뒤 숨은 멧돼지',
+          desc: '덤불이 거칠게 흔들립니다. 성난 멧돼지가 튀어나올 준비를 합니다.',
+          options: [
+            { label: '창으로 맞서 사냥 (성공 시 큰 보상)', reqSkills: { spear: 2 }, timeCost: 1, gain: { food: 2, fur: 1 }, destroyCard: true },
+            { label: '조심스레 버섯과 나무만 회수', reqSkills: { eye: 1 }, timeCost: 1, gain: { food: 1, wood: 1 }, destroyCard: false }
+          ]
+        },
+        {
+          id: 'b_river_1', backType: 'river', title: '맑은 여울과 연어 떼',
+          desc: '물살을 거슬러 오르는 연어와 강변의 단단한 부싯돌 원석이 보입니다.',
+          options: [
+            { label: '창으로 연어 작살잡이', reqSkills: { spear: 1 }, timeCost: 1, gain: { food: 2 }, destroyCard: false },
+            { label: '강가 조약돌과 먹거리 줍기', reqSkills: {}, timeCost: 0, gain: { stone: 1, food: 1 }, destroyCard: false }
+          ]
+        },
+        {
+          id: 'b_river_2', backType: 'river', title: '진흙 강둑의 뼈 무더기',
+          desc: '강물이 빠진 갯벌에 오래된 짐승의 뼈와 유용한 유목이 걸려 있습니다.',
+          options: [
+            { label: '샅샅이 수색해 뼈·돌 회수', reqSkills: { eye: 1 }, timeCost: 1, gain: { bone: 1, stone: 1, wood: 1 }, destroyCard: false },
+            { label: '떠내려온 유목만 줍기', reqSkills: {}, timeCost: 0, gain: { wood: 1 }, destroyCard: false }
+          ]
+        },
+        {
+          id: 'b_river_3', backType: 'river', title: '은신한 강변 여행자',
+          desc: '모닥불을 피우던 낯선 떠돌이 생존자가 부족 합류를 원합니다.',
+          options: [
+            { label: '식량 1을 나누고 새 부족민 영입!', cost: { food: 1 }, reqSkills: {}, timeCost: 1, gain: { recruit: true }, destroyCard: true },
+            { label: '물물교환 (모피/뼈 소량 획득)', reqSkills: { eye: 1 }, timeCost: 0, gain: { bone: 1 }, destroyCard: false }
+          ]
+        },
+        {
+          id: 'b_mountain_1', backType: 'mountain', title: '부싯돌 바위 절벽',
+          desc: '도구 제작에 딱 좋은 날카로운 부싯돌 맥이 드러나 있습니다.',
+          options: [
+            { label: '도끼로 돌 덩어리 채굴', reqSkills: { axe: 1 }, timeCost: 1, gain: { stone: 2 }, destroyCard: false },
+            { label: '떨어진 돌 1개만 주워오기', reqSkills: {}, timeCost: 0, gain: { stone: 1 }, destroyCard: false }
+          ]
+        },
+        {
+          id: 'b_mountain_2', backType: 'mountain', title: '가파른 산양 무리',
+          desc: '절벽 위 바위 틈을 뛰어다니는 야생 산양 떼를 발견했습니다.',
+          options: [
+            { label: '매복 사냥 (창 2 + 관찰 1 필요)', reqSkills: { spear: 2, eye: 1 }, timeCost: 1, gain: { food: 2, fur: 2 }, destroyCard: true },
+            { label: '절벽 아래 돌·뼈 조각 수집', reqSkills: {}, timeCost: 0, gain: { stone: 1, bone: 1 }, destroyCard: false }
+          ]
+        },
+        {
+          id: 'b_camp_1', backType: 'camp', title: '캠프: 작업대와 장인의 불',
+          desc: '캠프로 돌아와 보유 자원을 깎아 정교한 도구나 동굴 벽화를 그립니다.',
+          options: [
+            { label: '즉시 도구 제작 (작업대 1개 무료 돌 할인)', reqSkills: { axe: 1 }, timeCost: 1, special: 'camp_craft_discount', gain: {}, destroyCard: false },
+            { label: '동굴 벽화 그리기 (나무1+돌1+모피1 -> 벽화+1)', cost: { wood: 1, stone: 1, fur: 1 }, reqSkills: {}, timeCost: 1, gain: { paintings: 1 }, destroyCard: false },
+            { label: '모닥불 곁 휴식 (부상자 1점 치유)', reqSkills: {}, timeCost: 1, gain: { heal: 1 }, destroyCard: false }
+          ]
+        },
+        {
+          id: 'b_camp_2', backType: 'camp', title: '캠프: 원로의 전승과 벽화',
+          desc: '동굴 안쪽 성소에 모여 사냥의 영광을 붉은 흙과 숯으로 기록합니다.',
+          options: [
+            { label: '성대한 벽화 조각 완성 (식량1+뼈1 -> 벽화+1)', cost: { food: 1, bone: 1 }, reqSkills: { eye: 1 }, timeCost: 1, gain: { paintings: 1 }, destroyCard: true },
+            { label: '정찰병 영입 의식 (나무1 -> 부족민+1)', cost: { wood: 1 }, reqSkills: {}, timeCost: 1, gain: { recruit: true }, destroyCard: true },
+            { label: '부족 응급 치료 (식량1 -> 부상 2점 치유)', cost: { food: 1 }, reqSkills: {}, timeCost: 0, gain: { heal: 2 }, destroyCard: false }
+          ]
+        },
+        {
+          id: 'b_hazard_1', backType: 'hazard', title: '위험! 굶주린 동굴곰',
+          desc: '거대한 동굴곰이 포효하며 앞길을 막아섭니다! (시간 비용으로 갈려나가면 부상 1점)',
+          options: [
+            { label: '결사 항전으로 곰 토벌! (창 3 필요)', reqSkills: { spear: 3 }, timeCost: 1, gain: { fur: 2, food: 2, paintings: 1 }, destroyCard: true },
+            { label: '상처를 입으며 황급히 후퇴', reqSkills: {}, timeCost: 0, woundCost: 1, gain: {}, destroyCard: false }
+          ]
+        },
+        {
+          id: 'b_hazard_2', backType: 'hazard', title: '위험! 벼랑 낙석 사고',
+          desc: '머리 위 절벽에서 거대한 바위들이 무너져 내립니다! (갈릴 때 부상 1점)',
+          options: [
+            { label: '재빠른 회피 및 돌 회수 (관찰 2 필요)', reqSkills: { eye: 2 }, timeCost: 1, gain: { stone: 2 }, destroyCard: true },
+            { label: '파편에 스치며 몸을 피함', reqSkills: {}, timeCost: 0, woundCost: 1, gain: {}, destroyCard: false }
+          ]
+        },
+        {
+          id: 'b_mammoth_1', backType: 'mammoth', title: '고독한 털매머드 조우',
+          desc: '대지를 울리는 발걸음! 전설적인 거대 매머드가 평원을 가로지릅니다.',
+          options: [
+            { label: '전 부족 총력 사냥! (창 3 + 관찰 1)', reqSkills: { spear: 3, eye: 1 }, timeCost: 2, gain: { paintings: 1, food: 2, fur: 1, bone: 1 }, destroyCard: true },
+            { label: '눈 속 매머드 발자국과 뼈 줍기', reqSkills: { eye: 1 }, timeCost: 0, gain: { bone: 1 }, destroyCard: false }
+          ]
+        },
+        {
+          id: 'b_dream_1', backType: 'dream', title: '선조의 붉은 손바닥 꿈',
+          desc: '깊은 밤 동굴 속 별빛이 당신의 손끝에 고대의 지혜를 속삭입니다.',
+          options: [
+            { label: '영감을 벽화로 형상화 (관찰 2)', reqSkills: { eye: 2 }, timeCost: 1, gain: { paintings: 1 }, destroyCard: true },
+            { label: '고대의 치유와 식량 축복 받기', reqSkills: {}, timeCost: 1, gain: { heal: 1, food: 1 }, destroyCard: false }
+          ]
+        },
+        {
+          id: 'b_dream_2', backType: 'dream', title: '검은 흑요석 제단',
+          desc: '반짝이는 검은 유리 돌과 기이한 조각이 놓인 고대 제단입니다.',
+          options: [
+            { label: '제물 봉헌 (나무1+돌1 -> 벽화+1)', cost: { wood: 1, stone: 1 }, reqSkills: {}, timeCost: 1, gain: { paintings: 1 }, destroyCard: true },
+            { label: '흑요석 파편 떼어내기', reqSkills: { axe: 1 }, timeCost: 0, gain: { stone: 1, bone: 1 }, destroyCard: false }
+          ]
+        }
+      ];
+
+      // 시나리오별 모듈 특화 카드 (각 9장)
+      const modCardsByScenario = {
+        1: [
+          {
+            id: 'm1_a1', backType: 'mammoth', title: '[모듈 A] 무리에서 떨어진 어린 매머드',
+            desc: '강가 진흙에 발이 빠진 매머드를 발견했습니다. 절호의 기회입니다!',
+            options: [
+              { label: '사냥 완료 (창 2 필요)', reqSkills: { spear: 2 }, timeCost: 1, gain: { food: 3, fur: 1, bone: 1 }, destroyCard: true },
+              { label: '그냥 지나쳐 가기', reqSkills: {}, timeCost: 0, gain: {}, destroyCard: false }
+            ]
+          },
+          {
+            id: 'm1_a2', backType: 'forest', title: '[모듈 A] 순록 대이동 목격',
+            desc: '수십 마리의 순록 떼가 숲을 가로질러 이동하고 있습니다.',
+            options: [
+              { label: '추적 사냥 (창 2 + 관찰 1)', reqSkills: { spear: 2, eye: 1 }, timeCost: 1, gain: { food: 2, fur: 2, paintings: 1 }, destroyCard: true },
+              { label: '낙각(사슴 뿔/뼈) 줍기', reqSkills: {}, timeCost: 0, gain: { bone: 1, food: 1 }, destroyCard: false }
+            ]
+          },
+          {
+            id: 'm1_a3', backType: 'hazard', title: '[모듈 A] 위험! 검치호의 기습',
+            desc: '어둠 속에서 날카로운 송곳니를 드러낸 검치호가 달려듭니다!',
+            options: [
+              { label: '검치호 사냥 성공! (창 3)', reqSkills: { spear: 3 }, timeCost: 1, gain: { fur: 2, bone: 1, paintings: 1 }, destroyCard: true },
+              { label: '방어 실패 후 도주', reqSkills: {}, timeCost: 0, woundCost: 1, gain: {}, destroyCard: false }
+            ]
+          },
+          {
+            id: 'm1_b1', backType: 'camp', title: '[모듈 B] 천막 설계의 영감',
+            desc: '긴 나뭇가지와 두꺼운 가죽을 엮으면 찬 바람을 막을 수 있을 듯합니다!',
+            options: [
+              { label: '가죽 천막 즉석 건립 (나무1+모피1)', cost: { wood: 1, fur: 1 }, reqSkills: { axe: 1 }, timeCost: 1, special: 'build_tent_direct', gain: {}, destroyCard: true },
+              { label: '기본 재료(모피1+나무1) 비축', reqSkills: {}, timeCost: 1, gain: { fur: 1, wood: 1 }, destroyCard: false }
+            ]
+          },
+          {
+            id: 'm1_b2', backType: 'river', title: '[모듈 B] 비버 댐의 보물',
+            desc: '부지런한 비버들이 쌓아 둔 훌륭한 건축용 나무와 튼튼한 돌입니다.',
+            options: [
+              { label: '통나무와 돌 대량 채취 (도끼 1)', reqSkills: { axe: 1 }, timeCost: 1, gain: { wood: 2, stone: 1 }, destroyCard: false },
+              { label: '모피 1개만 조용히 얻기', reqSkills: { eye: 1 }, timeCost: 0, gain: { fur: 1 }, destroyCard: false }
+            ]
+          },
+          {
+            id: 'm1_b3', backType: 'mountain', title: '[모듈 B] 원시 동굴 벽화터 발견',
+            desc: '비바람을 피할 수 있는 매끈한 석회암 벽면이 보입니다.',
+            options: [
+              { label: '벽화 남기기 (모피1+식량1 -> 벽화+1)', cost: { fur: 1, food: 1 }, reqSkills: {}, timeCost: 1, gain: { paintings: 1 }, destroyCard: true },
+              { label: '바위 틈에서 돌 1개 캐기', reqSkills: {}, timeCost: 0, gain: { stone: 1 }, destroyCard: false }
+            ]
+          },
+          {
+            id: 'm1_b4', backType: 'hazard', title: '[모듈 B] 위험! 독사와 늪지',
+            desc: '발밑 진흙 수렁에서 독사가 똬리를 틀고 위협합니다.',
+            options: [
+              { label: '관찰력으로 우회 및 약초 채집 (관찰 1)', reqSkills: { eye: 1 }, timeCost: 1, gain: { heal: 1, wood: 1 }, destroyCard: true },
+              { label: '물려서 부상 입기', reqSkills: {}, timeCost: 0, woundCost: 1, gain: {}, destroyCard: false }
+            ]
+          },
+          {
+            id: 'm1_b5', backType: 'camp', title: '[모듈 B] 부족 잔치와 결속',
+            desc: '풍요로운 사냥의 기쁨을 나누며 새로운 동료가 합류합니다.',
+            options: [
+              { label: '식량 1 제공 -> 새 부족민 영입 + 치유 1', cost: { food: 1 }, reqSkills: {}, timeCost: 1, gain: { recruit: true, heal: 1 }, destroyCard: true },
+              { label: '식량 1 나눠 먹기', reqSkills: {}, timeCost: 0, gain: { food: 1 }, destroyCard: false }
+            ]
+          },
+          {
+            id: 'm1_b6', backType: 'dream', title: '[모듈 B] 별자리와 부족의 전설',
+            desc: '밤하늘에 떠오른 거대한 매머드 별자리를 보며 부족의 승리를 예감합니다.',
+            options: [
+              { label: '별의 계시 받기 (관찰 1 + 나무 1)', cost: { wood: 1 }, reqSkills: { eye: 1 }, timeCost: 1, gain: { paintings: 1, stone: 1 }, destroyCard: true },
+              { label: '고요히 체력 회복', reqSkills: {}, timeCost: 0, gain: { heal: 1 }, destroyCard: false }
+            ]
+          }
+        ],
+        2: [
+          {
+            id: 'm2_c1', backType: 'hazard', title: '[모듈 C] 위험! 우두머리 늑대 포위망',
+            desc: '은빛 털을 가진 거대한 늑대 우두머리가 무리를 이끌고 포위합니다!',
+            options: [
+              { label: '우두머리 늑대 토벌! (창 3)', reqSkills: { spear: 3 }, timeCost: 1, gain: { fur: 2, bone: 1, paintings: 1 }, destroyCard: true },
+              { label: '식량 1을 던져 시선 돌리기', cost: { food: 1 }, reqSkills: {}, timeCost: 0, gain: {}, destroyCard: false },
+              { label: '물어뜯기며 후퇴', reqSkills: {}, timeCost: 0, woundCost: 1, gain: {}, destroyCard: false }
+            ]
+          },
+          {
+            id: 'm2_c2', backType: 'forest', title: '[모듈 C] 늑대 굴의 유실물',
+            desc: '비어 있는 늑대 굴 안쪽에 사냥감의 뼈와 가죽이 쌓여 있습니다.',
+            options: [
+              { label: '모피와 뼈 재빠르게 회수 (관찰 1)', reqSkills: { eye: 1 }, timeCost: 1, gain: { fur: 1, bone: 2 }, destroyCard: true },
+              { label: '입구 나무만 챙기기', reqSkills: {}, timeCost: 0, gain: { wood: 1 }, destroyCard: false }
+            ]
+          },
+          {
+            id: 'm2_c3', backType: 'hazard', title: '[모듈 C] 위험! 굶주린 늑대 척후',
+            desc: '정찰 중인 늑대 두 마리가 불쑥 튀어나왔습니다.',
+            options: [
+              { label: '창으로 신속 제압 (창 2)', reqSkills: { spear: 2 }, timeCost: 1, gain: { fur: 1, food: 1 }, destroyCard: true },
+              { label: '도주 중 부상', reqSkills: {}, timeCost: 0, woundCost: 1, gain: {}, destroyCard: false }
+            ]
+          },
+          {
+            id: 'm2_e1', backType: 'mountain', title: '[모듈 E] 설산 정상의 빙벽',
+            desc: '눈보라를 뚫고 올라선 정상에서 맑은 흑요석과 빙하 아래 매머드 유해를 발견합니다.',
+            options: [
+              { label: '빙하 채굴 (도끼 2 + 관찰 1)', reqSkills: { axe: 2, eye: 1 }, timeCost: 2, gain: { stone: 2, bone: 2, paintings: 1 }, destroyCard: true },
+              { label: '돌 1개만 캐고 하산', reqSkills: {}, timeCost: 0, gain: { stone: 1 }, destroyCard: false }
+            ]
+          },
+          {
+            id: 'm2_e2', backType: 'mammoth', title: '[모듈 E] 눈폭풍 속 털코뿔소',
+            desc: '거대한 뿔을 세운 털코뿔소가 설원을 가로지릅니다.',
+            options: [
+              { label: '협공 사냥 (창 3)', reqSkills: { spear: 3 }, timeCost: 1, gain: { fur: 2, food: 2, paintings: 1 }, destroyCard: true },
+              { label: '숨죽여 지나가길 기다림', reqSkills: {}, timeCost: 0, gain: { food: 1 }, destroyCard: false }
+            ]
+          },
+          {
+            id: 'm2_e3', backType: 'camp', title: '[모듈 E] 털가죽 재봉 작업',
+            desc: '두꺼운 모피와 뼈 바늘로 설산 한파를 막을 방한복을 바느질합니다.',
+            options: [
+              { label: '모피 옷 즉석 완성 (모피1+뼈1)', cost: { fur: 1, bone: 1 }, reqSkills: { axe: 1 }, timeCost: 1, special: 'build_coat_direct', gain: {}, destroyCard: true },
+              { label: '불 쬐며 체력 2 회복', reqSkills: {}, timeCost: 1, gain: { heal: 2 }, destroyCard: false }
+            ]
+          },
+          {
+            id: 'm2_e4', backType: 'hazard', title: '[모듈 E] 위험! 매서운 눈사태',
+            desc: '산등성이에서 거대한 눈더미가 굴러 떨어집니다!',
+            options: [
+              { label: '바위 굴로 완벽 대피 (관찰 2)', reqSkills: { eye: 2 }, timeCost: 1, gain: { stone: 1, wood: 1 }, destroyCard: true },
+              { label: '눈더미에 휩쓸려 부상', reqSkills: {}, timeCost: 0, woundCost: 1, gain: {}, destroyCard: false }
+            ]
+          },
+          {
+            id: 'm2_e5', backType: 'dream', title: '[모듈 E] 설산의 오로라 계시',
+            desc: '얼어붙은 밤하늘을 수놓은 찬란한 빛이 고대의 그림을 비춥니다.',
+            options: [
+              { label: '벽화 1조각 각성 (나무1+모피1)', cost: { wood: 1, fur: 1 }, reqSkills: {}, timeCost: 1, gain: { paintings: 1 }, destroyCard: true },
+              { label: '따뜻한 기운으로 식량 1 획득', reqSkills: {}, timeCost: 0, gain: { food: 1 }, destroyCard: false }
+            ]
+          },
+          {
+            id: 'm2_c4', backType: 'river', title: '[모듈 C] 얼어붙은 강물 사냥터',
+            desc: '얼음 구멍 아래로 큰 물고기들이 헤엄치고 있습니다.',
+            options: [
+              { label: '얼음 깨고 어획 (도끼 1 + 창 1)', reqSkills: { axe: 1, spear: 1 }, timeCost: 1, gain: { food: 3 }, destroyCard: false },
+              { label: '얼음 위에서 조용히 식량 1', reqSkills: {}, timeCost: 0, gain: { food: 1 }, destroyCard: false }
+            ]
+          }
+        ],
+        3: [
+          {
+            id: 'm3_f1', backType: 'dream', title: '[모듈 F] 깊은 동굴의 고대 성소',
+            desc: '어둠 너머 석순 사이에서 고대 부족이 남긴 미완성 거대 벽화를 발견했습니다!',
+            options: [
+              { label: '횃불 비춰 벽화 복원 (관찰 2 + 돌 1)', cost: { stone: 1 }, reqSkills: { eye: 2 }, timeCost: 1, gain: { paintings: 1, bone: 1 }, destroyCard: true },
+              { label: '동굴 입구 돌만 줍기', reqSkills: {}, timeCost: 0, gain: { stone: 1 }, destroyCard: false }
+            ]
+          },
+          {
+            id: 'm3_f2', backType: 'hazard', title: '[모듈 F] 위험! 동굴 박쥐 떼와 심연',
+            desc: '칠흑 같은 동굴 속에서 박쥐 떼가 덮치며 발밑 절벽이 무너집니다!',
+            options: [
+              { label: '예리한 관찰로 돌파 (관찰 3)', reqSkills: { eye: 3 }, timeCost: 1, gain: { bone: 2, paintings: 1 }, destroyCard: true },
+              { label: '넘어져 부상 입기', reqSkills: {}, timeCost: 0, woundCost: 1, gain: {}, destroyCard: false }
+            ]
+          },
+          {
+            id: 'm3_f3', backType: 'mountain', title: '[모듈 F] 수정 동굴 광맥',
+            desc: '희미한 빛에 반짝이는 귀한 석영과 날카로운 부싯돌 덩어리입니다.',
+            options: [
+              { label: '정교한 채굴 (도끼 2)', reqSkills: { axe: 2 }, timeCost: 1, gain: { stone: 3 }, destroyCard: false },
+              { label: '입구 돌 1개 획득', reqSkills: {}, timeCost: 0, gain: { stone: 1 }, destroyCard: false }
+            ]
+          },
+          {
+            id: 'm3_h1', backType: 'river', title: '[모듈 H] 거친 대하의 모래톱',
+            desc: '범람하는 대하 중앙에 뗏목 없이는 닿기 힘든 자원의 섬이 보입니다.',
+            options: [
+              { label: '뗏목으로 건너 대량 수확 (도끼 1)', reqSkills: { axe: 1 }, timeCost: 1, gain: { wood: 2, food: 2, fur: 1 }, destroyCard: true },
+              { label: '강둑 나무 1개만 줍기', reqSkills: {}, timeCost: 0, gain: { wood: 1 }, destroyCard: false }
+            ]
+          },
+          {
+            id: 'm3_h2', backType: 'hazard', title: '[모듈 H] 위험! 거대 강 악어 습격',
+            desc: '탁한 강물 아래에서 거대한 턱을 벌린 강 포식자가 덮쳐옵니다!',
+            options: [
+              { label: '창으로 맞서 사냥 (창 3)', reqSkills: { spear: 3 }, timeCost: 1, gain: { food: 2, bone: 1, paintings: 1 }, destroyCard: true },
+              { label: '간신히 뭍으로 기어오름', reqSkills: {}, timeCost: 0, woundCost: 1, gain: {}, destroyCard: false }
+            ]
+          },
+          {
+            id: 'm3_h3', backType: 'camp', title: '[모듈 H] 강변 조선소(뗏목 건조)',
+            desc: '쓰러진 거목들을 엮어 홍수를 건널 튼튼한 통나무 뗏목을 만듭니다.',
+            options: [
+              { label: '통나무 뗏목 즉석 건조 (나무 2)', cost: { wood: 2 }, reqSkills: { axe: 1 }, timeCost: 1, special: 'build_raft_direct', gain: {}, destroyCard: true },
+              { label: '나무 2개 벌목해 오기', reqSkills: { axe: 1 }, timeCost: 1, gain: { wood: 2 }, destroyCard: false }
+            ]
+          },
+          {
+            id: 'm3_h4', backType: 'mammoth', title: '[모듈 H] 강 건너 고대 매머드 무덤',
+            desc: '수많은 매머드의 상아와 뼈가 잠들어 있는 신성한 계곡입니다.',
+            options: [
+              { label: '상아 조각으로 벽화 봉헌 (관찰 2)', reqSkills: { eye: 2 }, timeCost: 1, gain: { bone: 2, paintings: 1 }, destroyCard: true },
+              { label: '뼈 1개 조심스레 챙기기', reqSkills: {}, timeCost: 0, gain: { bone: 1 }, destroyCard: false }
+            ]
+          },
+          {
+            id: 'm3_f4', backType: 'camp', title: '[모듈 F] 어둠 속 생존자 구출',
+            desc: '동굴에 고립되었던 숙련된 탐험가를 횃불로 구출했습니다!',
+            options: [
+              { label: '식량 1 제공하고 새 부족민 영입!', cost: { food: 1 }, reqSkills: { eye: 1 }, timeCost: 1, gain: { recruit: true }, destroyCard: true },
+              { label: '함께 휴식 (부상 1 회복)', reqSkills: {}, timeCost: 0, gain: { heal: 1 }, destroyCard: false }
+            ]
+          },
+          {
+            id: 'm3_f5', backType: 'hazard', title: '[모듈 F] 위험! 지하수 급류 침수',
+            desc: '동굴 바닥에서 차가운 지하수가 순식간에 차오릅니다!',
+            options: [
+              { label: '벽면을 타고 민첩하게 탈출 (도끼 2)', reqSkills: { axe: 2 }, timeCost: 1, gain: { stone: 1, food: 1 }, destroyCard: true },
+              { label: '물살에 부딪혀 부상', reqSkills: {}, timeCost: 0, woundCost: 1, gain: {}, destroyCard: false }
+            ]
+          }
+        ]
+      };
+
+      const combined = [...baseCards, ...(modCardsByScenario[scenarioId] || modCardsByScenario[1])];
+      // 깊은 복사 후 셔플하여 반환
+      return shuffleArray(combined.map(c => ({ ...c, seenBefore: false })));
+    }
+
+    function shuffleArray(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    // ----------------------------------------------------------------------------
+    // 5. 글로벌 게임 상태 (State) 및 되돌리기 스택 (historyStack)
+    // ----------------------------------------------------------------------------
+    let state = null;
+    let historyStack = [];
+
+    function createInitialState(scenarioId = 1) {
+      const startHumans = [
+        { ...PEOPLE_POOL[0], wounds: 0 },
+        { ...PEOPLE_POOL[1], wounds: 0 }
+      ];
+      return {
+        scenarioId,
+        dayCount: 1,
+        phase: 'day_pick', // 'day_pick' | 'day_resolve' | 'night' | 'gameover'
+        activeTab: 'explore', // 'explore' | 'workbench' | 'painting' | 'camp'
+        paintings: 0, // 5개 모으면 즉시 승리
+        skulls: 0,    // 5개 모이면 즉시 패배
+        resources: { food: 2, wood: 1, stone: 1, fur: 0, bone: 0 },
+        tools: { stone_axe: 0, hunting_spear: 0, torch: 0, spear_thrower: 0, tent: 0, fur_coat: 0, raft: 0 },
+        humans: startHumans,
+        nextRecruitIdx: 2,
+        targetWoundHumanId: startHumans[0].id,
+        dayDeck: buildScenarioDeck(scenarioId),
+        discardPile: [],
+        destroyedPile: [],
+        drawnChoices: [], // 현재 턴에 뽑은 최대 3장의 카드
+        selectedCard: null, // 앞면으로 뒤집은 현재 카드
+        usePartnerHelp: false, // 동료 지원 요청 토글
+        partnerState: generatePartnerState(1),
+        nightState: {
+          foodPaid: false,
+          missionDone: [false, false]
+        },
+        campDiscountActive: false, // 캠프 카드에서 무료 돌 1 할인 얻었을 때
+        gameResult: null, // null | 'win' | 'lose'
+        gameOverReason: '',
+        logs: [`[1일차 시작] ${SCENARIOS[scenarioId].name} 모험을 시작합니다! 동굴 벽화 5조각을 먼저 완성하세요.`]
+      };
+    }
+
+    // 매 낮 턴마다 동료 부족 그룹의 상태를 생성 (지원 대기 또는 위기 협동 요청)
+    function generatePartnerState(turnSeed) {
+      const skillPool = [
+        { type: 'ready', skill: 'spear', amount: 1, title: '동료 부족 지원 대기 (창 +1)', desc: '우리 행동 시 [동료 지원]을 켜면 사냥 창 능력을 +1 보태줍니다.' },
+        { type: 'ready', skill: 'axe',   amount: 1, title: '동료 부족 지원 대기 (도끼 +1)', desc: '우리 행동 시 [동료 지원]을 켜면 제작·채굴 도끼 능력을 +1 보태줍니다.' },
+        { type: 'ready', skill: 'eye',   amount: 1, title: '동료 부족 지원 대기 (관찰 +1)', desc: '우리 행동 시 [동료 지원]을 켜면 정찰 관찰 능력을 +1 보태줍니다.' },
+        { type: 'crisis', skill: 'spear', amount: 1, reward: { fur: 1, food: 1 }, title: '동료 부족 위기! [거대 늑대 조우]', desc: '우리 카드를 소비해 [동료 돕기]를 선택하면 모피 1 + 식량 1을 함께 얻습니다!' },
+        { type: 'crisis', skill: 'eye', amount: 1, reward: { stone: 1, bone: 1 }, title: '동료 부족 요청! [동굴 유적 발견]', desc: '우리 카드를 소비해 [동료 돕기]를 선택하면 돌 1 + 뼈 1을 함께 얻습니다!' }
+      ];
+      const idx = Math.floor(Math.random() * skillPool.length);
+      return { ...skillPool[idx], helpedThisTurn: false };
+    }
+
+    function saveSnapshot() {
+      historyStack.push(JSON.parse(JSON.stringify(state)));
+      if (historyStack.length > 35) historyStack.shift();
+    }
+
+    function undoLastAction() {
+      if (historyStack.length === 0) {
+        showToast('더 이상 되돌릴 수 있는 이전 기록이 없습니다.', 'warn');
+        return;
+      }
+      state = historyStack.pop();
+      showToast('직전 행동 이전 상태로 되돌렸습니다.', 'info');
+      renderAll();
+    }
+
+    function startNewGame(scenarioId = state ? state.scenarioId : 1) {
+      historyStack = [];
+      state = createInitialState(scenarioId);
+      prepareDayChoices();
+      closeModal();
+      showToast(`${SCENARIOS[scenarioId].badge} 새 게임이 시작되었습니다!`, 'success');
+      renderAll();
+    }
+
+    // ----------------------------------------------------------------------------
+    // 6. 핵심 계산 및 규칙 엔진 함수
+    // ----------------------------------------------------------------------------
+
+    // 부족민 + 제작 도구 + (활성화 시) 동료 지원 능력치 합산 계산
+    function getEffectiveSkills(includePartner = state.usePartnerHelp) {
+      const totals = { spear: 0, axe: 0, eye: 0 };
+      // 살아있는 부족민 능력치 합산
+      for (const h of state.humans) {
+        totals.spear += (h.skills.spear || 0);
+        totals.axe   += (h.skills.axe || 0);
+        totals.eye   += (h.skills.eye || 0);
+      }
+      // 작업대 제작 도구 능력치 합산
+      for (const idea of WORKBENCH_IDEAS) {
+        const count = state.tools[idea.id] || 0;
+        if (count > 0) {
+          totals.spear += (idea.skills.spear || 0) * count;
+          totals.axe   += (idea.skills.axe || 0) * count;
+          totals.eye   += (idea.skills.eye || 0) * count;
+        }
+      }
+      // 동료 지원 토글이 켜져 있고 동료가 ready 상태이면 추가
+      if (includePartner && state.partnerState && state.partnerState.type === 'ready') {
+        totals[state.partnerState.skill] += state.partnerState.amount;
+      }
+      return totals;
+    }
+
+    // 자원 지불 가능 여부 확인
+    function canAffordCost(cost = {}, discountStone = 0) {
+      for (const [res, amt] of Object.entries(cost)) {
+        const needed = (res === 'stone') ? Math.max(0, amt - discountStone) : amt;
+        if ((state.resources[res] || 0) < needed) return false;
+      }
+      return true;
+    }
+
+    // 능력치 충족 여부 확인
+    function meetsReqSkills(reqSkills = {}, skills = getEffectiveSkills()) {
+      for (const [sk, amt] of Object.entries(reqSkills)) {
+        if ((skills[sk] || 0) < amt) return false;
+      }
+      return true;
+    }
+
+    // 자원 지불 실행
+    function payCost(cost = {}, discountStone = 0) {
+      for (const [res, amt] of Object.entries(cost)) {
+        const needed = (res === 'stone') ? Math.max(0, amt - discountStone) : amt;
+        state.resources[res] = Math.max(0, (state.resources[res] || 0) - needed);
+      }
+    }
+
+    // 낮 턴 시작 시 덱 위에서 최대 3장을 뽑아 뒷면 선택지 준비
+    function prepareDayChoices() {
+      if (state.phase === 'gameover') return;
+      if (state.dayDeck.length === 0) {
+        enterNightPhase('낮 탐험 덱을 모두 소진하여 밤 단계로 전환합니다.');
+        return;
+      }
+      const count = Math.min(3, state.dayDeck.length);
+      state.drawnChoices = state.dayDeck.splice(0, count);
+      state.selectedCard = null;
+      state.usePartnerHelp = false;
+      state.phase = 'day_pick';
+    }
+
+    // STEP 1: 뒷면 3장 중 1장을 클릭하여 선택 -> 나머지 최대 2장은 원래 순서대로 덱 맨 위에 복귀!
+    function pickCardBack(choiceIndex) {
+      if (state.phase !== 'day_pick' || choiceIndex < 0 || choiceIndex >= state.drawnChoices.length) return;
+      saveSnapshot();
+
+      const chosen = state.drawnChoices[choiceIndex];
+      const returned = state.drawnChoices
+        .filter((_, idx) => idx !== choiceIndex)
+        .map(card => ({ ...card, seenBefore: true }));
+
+      // 선택하지 않은 카드들은 원래 순서대로 덱 맨 위에 되돌림 (팔레오 핵심 규칙)
+      state.dayDeck = [...returned, ...state.dayDeck];
+      state.drawnChoices = [];
+      state.selectedCard = chosen;
+      state.phase = 'day_resolve';
+      state.usePartnerHelp = false;
+
+      addLog(`[탐험] '${BACK_META[chosen.backType].name}' 뒷면 선택 -> [${chosen.title}] 조우! (미선택 ${returned.length}장은 덱 상단 유지)`);
+      renderAll();
+    }
+
+    // 시간 비용(timeCost)만큼 덱 상단에서 카드를 버릴 때 버려지는 붉은 위험(hazard) 카드 수 미리 계산
+    function previewTimeCostHazards(timeCost) {
+      if (!timeCost || timeCost <= 0) return { discardCount: 0, knownHazards: 0, unknownCount: 0, previewCards: [] };
+      const count = Math.min(timeCost, state.dayDeck.length);
+      const slice = state.dayDeck.slice(0, count);
+      let knownHazards = 0;
+      let unknownCount = 0;
+      const previewCards = slice.map(c => {
+        if (c.seenBefore && c.backType === 'hazard') knownHazards++;
+        if (!c.seenBefore) unknownCount++;
+        return { backType: c.backType, seenBefore: c.seenBefore, isHazard: c.backType === 'hazard' };
+      });
+      // 주의: 시뮬레이터 경고에서는 실제 위험 여부를 알 수 있는 경우(seenBefore)를 강조하고,
+      // UI에서는 "확인된 위험 X장 + 미확인 Y장"으로 투명하게 안내 (치팅 방지)
+      const actualHazards = slice.filter(c => c.backType === 'hazard').length;
+      return { discardCount: count, knownHazards, unknownCount, actualHazards, previewCards };
+    }
+
+    // 부족민 부상 처리 및 사망 시 해골 토큰 +1
+    function applyWounds(amount) {
+      if (!amount || amount <= 0) return;
+      for (let i = 0; i < amount; i++) {
+        if (state.humans.length === 0) break;
+        // 우선 지정된 부족민 또는 생존 확률이 높은 부족민 탐색
+        let target = state.humans.find(h => h.id === state.targetWoundHumanId);
+        if (!target) {
+          target = [...state.humans].sort((a, b) => (b.maxHp - b.wounds) - (a.maxHp - a.wounds))[0];
+        }
+        target.wounds += 1;
+        addLog(`[부상] ${target.name}이(가) 부상 1점을 입었습니다 (${target.wounds}/${target.maxHp}).`);
+
+        if (target.wounds >= target.maxHp) {
+          state.humans = state.humans.filter(h => h.id !== target.id);
+          state.skulls += 1;
+          addLog(`[사망] ${target.name}이(가) 쓰러졌습니다! 해골 토큰 +1 (현재 ${state.skulls}/5)`);
+          if (state.humans.length > 0) {
+            state.targetWoundHumanId = state.humans[0].id;
+          }
+        }
+      }
+    }
+
+    // 부상 치유 처리
+    function healWounds(amount) {
+      if (!amount || amount <= 0) return;
+      let left = amount;
+      while (left > 0) {
+        const injured = state.humans.filter(h => h.wounds > 0).sort((a, b) => b.wounds - a.wounds);
+        if (injured.length === 0) break;
+        injured[0].wounds -= 1;
+        addLog(`[치유] ${injured[0].name}의 부상이 1점 회복되었습니다.`);
+        left--;
+      }
+    }
+
+    // 새 부족민 영입
+    function recruitHuman() {
+      if (state.humans.length >= 5) {
+        addLog('[영입] 부족 인원이 이미 최대(5명)여서 대신 식량 1개를 얻었습니다.');
+        state.resources.food += 1;
+        return;
+      }
+      const existingIds = new Set(state.humans.map(h => h.id));
+      const candidate = PEOPLE_POOL.find(p => !existingIds.has(p.id));
+      if (!candidate) {
+        state.resources.food += 1;
+        addLog('[영입] 더 이상 합류할 새 부족민이 없어 식량 1개를 얻었습니다.');
+        return;
+      }
+      state.humans.push({ ...candidate, wounds: 0 });
+      addLog(`[영입] 새로운 동료 '${candidate.name}(${candidate.role})'이(가) 부족에 합류했습니다!`);
+    }
+
+    // STEP 2: 선택된 앞면 카드의 선택지 실행
+    function resolveCardOption(optionIndex) {
+      if (state.phase !== 'day_resolve' || !state.selectedCard) return;
+      const card = state.selectedCard;
+      const opt = card.options[optionIndex];
+      if (!opt) return;
+
+      const skills = getEffectiveSkills();
+      if (!meetsReqSkills(opt.reqSkills, skills)) {
+        showToast('필요한 부족 능력치(창/도끼/관찰)가 부족합니다. 동료 지원을 켜보세요!', 'warn');
+        return;
+      }
+      if (!canAffordCost(opt.cost)) {
+        showToast('이 행동을 수행할 보유 자원이 부족합니다.', 'warn');
+        return;
+      }
+
+      saveSnapshot();
+
+      // 1) 자원 및 직접 부상 비용 지불 (팔레오 황금률: 보상보다 비용 먼저 해결)
+      if (opt.cost) payCost(opt.cost);
+      if (opt.woundCost) applyWounds(opt.woundCost);
+
+      // 2) 시간 비용(timeCost) 해결: 덱 위에서 N장 버리기 & 붉은 위험(hazard) 카드 수만큼 부상!
+      if (opt.timeCost && opt.timeCost > 0) {
+        const count = Math.min(opt.timeCost, state.dayDeck.length);
+        const discarded = state.dayDeck.splice(0, count);
+        let hazardCount = 0;
+        for (const dc of discarded) {
+          dc.seenBefore = false;
+          state.discardPile.push(dc);
+          if (dc.backType === 'hazard') hazardCount++;
+        }
+        addLog(`[시간 소모] 덱에서 카드 ${count}장을 버렸습니다.`);
+        if (hazardCount > 0) {
+          addLog(`[위험 발동!] 버려진 카드 중 붉은 위험 카드가 ${hazardCount}장 포함되어 부상 ${hazardCount}점을 입습니다!`);
+          applyWounds(hazardCount);
+        }
+      }
+
+      // 3) 보상 지급
+      const g = opt.gain || {};
+      const gainedText = [];
+      for (const res of ['food', 'wood', 'stone', 'fur', 'bone']) {
+        if (g[res]) {
+          state.resources[res] += g[res];
+          gainedText.push(`${RESOURCE_META[res].label} +${g[res]}`);
+        }
+      }
+      if (g.paintings) {
+        state.paintings = Math.min(5, state.paintings + g.paintings);
+        gainedText.push(`동굴 벽화 +${g.paintings}`);
+      }
+      if (g.heal) healWounds(g.heal);
+      if (g.recruit) recruitHuman();
+
+      // 특수 행동 처리
+      if (opt.special === 'camp_craft_discount') {
+        state.campDiscountActive = true;
+        state.activeTab = 'workbench';
+        gainedText.push('작업대 돌 1개 무료 할인 활성화');
+      } else if (opt.special === 'build_tent_direct') {
+        state.tools.tent = Math.min(1, (state.tools.tent || 0) + 1);
+        gainedText.push('가죽 천막 즉시 제작');
+      } else if (opt.special === 'build_coat_direct') {
+        state.tools.fur_coat = Math.min(1, (state.tools.fur_coat || 0) + 1);
+        gainedText.push('따뜻한 모피 옷 즉시 제작');
+      } else if (opt.special === 'build_raft_direct') {
+        state.tools.raft = Math.min(1, (state.tools.raft || 0) + 1);
+        gainedText.push('통나무 뗏목 즉시 건조');
+      }
+
+      addLog(`[행동 완료] '${opt.label}'${gainedText.length ? ' -> ' + gainedText.join(', ') : ''}`);
+
+      // 4) 해결한 카드 처리 (일회성 파괴 또는 버림 더미)
+      card.seenBefore = false;
+      if (opt.destroyCard) {
+        state.destroyedPile.push(card);
+        addLog(`[제거] '${card.title}' 카드는 영구 제거 더미로 이동했습니다.`);
+      } else {
+        state.discardPile.push(card);
+      }
+
+      // 5) 승패 확인 후 다음 턴 준비
+      state.selectedCard = null;
+      if (!checkWinLose()) {
+        state.partnerState = generatePartnerState(state.dayCount + state.dayDeck.length);
+        prepareDayChoices();
+      }
+      renderAll();
+    }
+
+    // 협동 행동: 현재 카드를 소비해 [동료 부족 돕기(Help)] 수행
+    function helpPartnerWithCard() {
+      if (state.phase !== 'day_resolve' || !state.selectedCard) return;
+      saveSnapshot();
+
+      const card = state.selectedCard;
+      card.seenBefore = false;
+      state.discardPile.push(card);
+
+      const p = state.partnerState;
+      const rewards = [];
+      if (p.type === 'crisis' && p.reward) {
+        for (const [res, amt] of Object.entries(p.reward)) {
+          state.resources[res] += amt;
+          rewards.push(`${RESOURCE_META[res].label} +${amt}`);
+        }
+        addLog(`[협동 구조!] '${card.title}' 턴을 바쳐 동료 부족의 위기를 도왔습니다 -> ${rewards.join(', ')}`);
+        showToast(`동료 부족 구출 성공! (${rewards.join(', ')})`, 'success');
+      } else {
+        state.resources.food += 1;
+        addLog(`[협동 지원] 동료 부족의 채집을 도와 감사의 표시로 식량 +1을 받았습니다.`);
+        showToast('동료를 도와 식량 +1을 받았습니다!', 'success');
+      }
+
+      state.selectedCard = null;
+      if (!checkWinLose()) {
+        state.partnerState = generatePartnerState(state.dayCount + state.dayDeck.length + 3);
+        prepareDayChoices();
+      }
+      renderAll();
+    }
+
+    // 작업대 도구 제작
+    function craftTool(toolId) {
+      const idea = WORKBENCH_IDEAS.find(i => i.id === toolId);
+      if (!idea || state.phase === 'gameover') return;
+      const owned = state.tools[toolId] || 0;
+      if (owned >= idea.maxCraft) {
+        showToast('이미 최대 보유 수량을 제작했습니다.', 'warn');
+        return;
+      }
+      const discount = state.campDiscountActive ? 1 : 0;
+      if (!canAffordCost(idea.cost, discount)) {
+        showToast('제작에 필요한 재료가 부족합니다.', 'warn');
+        return;
+      }
+
+      saveSnapshot();
+      payCost(idea.cost, discount);
+      state.tools[toolId] = owned + 1;
+      if (state.campDiscountActive && (idea.cost.stone || 0) > 0) {
+        state.campDiscountActive = false;
+      }
+      addLog(`[작업대 제작] '${idea.name}' 제작 완료! (${idea.desc})`);
+      showToast(`'${idea.name}' 제작 완료!`, 'success');
+      renderAll();
+    }
+
+    // 응급 치유 (부족 탭에서 식량 1개를 소모해 부상 1점 회복)
+    function emergencyHeal(humanId) {
+      if (state.phase === 'gameover') return;
+      const h = state.humans.find(m => m.id === humanId);
+      if (!h || h.wounds <= 0) {
+        showToast('부상이 없는 건강한 부족민입니다.', 'info');
+        return;
+      }
+      if (state.resources.food < 1) {
+        showToast('응급 치료에 필요한 식량(1개)이 부족합니다.', 'warn');
+        return;
+      }
+      saveSnapshot();
+      state.resources.food -= 1;
+      h.wounds -= 1;
+      addLog(`[응급 치료] 식량 1개를 사용해 ${h.name}의 부상을 1점 치유했습니다.`);
+      showToast(`${h.name}의 부상 1점을 치료했습니다.`, 'success');
+      renderAll();
+    }
+
+    // 밤 단계 진입
+    function enterNightPhase(reasonMsg = '밤이 깊어 모닥불 주변으로 모입니다.') {
+      if (state.phase === 'gameover' || state.phase === 'night') return;
+      // 만약 낮 선택 화면에서 조기 수면 버튼을 눌렀다면 뽑아둔 카드들을 덱에 돌려둠
+      if (state.drawnChoices.length > 0) {
+        state.dayDeck = [...state.drawnChoices, ...state.dayDeck];
+        state.drawnChoices = [];
+      }
+      state.selectedCard = null;
+      state.phase = 'night';
+      state.activeTab = 'explore';
+      state.nightState = { foodPaid: false, missionDone: [false, false] };
+      addLog(`[${state.dayCount}일차 밤] ${reasonMsg}`);
+      renderAll();
+    }
+
+    // 밤 1단계: 부족민 식량 배급
+    function resolveNightFood() {
+      if (state.phase !== 'night' || state.nightState.foodPaid) return;
+      saveSnapshot();
+      const needed = state.humans.length;
+      const have = state.resources.food;
+      if (have >= needed) {
+        state.resources.food -= needed;
+        addLog(`[밤 - 식량 배급] 부족민 ${needed}명에게 식량 ${needed}개를 모두 배급했습니다.`);
+        showToast(`부족민 ${needed}명 전원 배불리 먹었습니다!`, 'success');
+      } else {
+        const deficit = needed - have;
+        state.resources.food = 0;
+        state.skulls += deficit;
+        addLog(`[밤 - 굶주림] 식량이 ${deficit}개 부족하여 해골 토큰 +${deficit}개를 받았습니다! (${state.skulls}/5)`);
+        showToast(`식량 부족으로 해골 +${deficit}개 발생!`, 'danger');
+      }
+      state.nightState.foodPaid = true;
+      checkWinLose();
+      renderAll();
+    }
+
+    // 밤 2단계: 시나리오 미션 카드 해결
+    function resolveNightMission(missionIdx, acceptFailure = false) {
+      if (state.phase !== 'night' || state.nightState.missionDone[missionIdx]) return;
+      const scenario = SCENARIOS[state.scenarioId];
+      const mission = scenario.missions[missionIdx];
+      if (!mission) return;
+
+      const skills = getEffectiveSkills(false);
+      const isAuto = mission.autoCheck(state, skills);
+
+      if (!isAuto && !acceptFailure && !canAffordCost(mission.payCost)) {
+        showToast('미션 요구 자원이 부족합니다. [미션 실패 감수]를 선택해야 합니다.', 'warn');
+        return;
+      }
+
+      saveSnapshot();
+      if (isAuto) {
+        addLog(`[밤 - ${mission.title}] ${mission.autoLabel}`);
+        showToast(mission.autoLabel, 'success');
+      } else if (!acceptFailure) {
+        payCost(mission.payCost);
+        addLog(`[밤 - ${mission.title}] 요구 자원을 지불해 안전하게 미션을 완수했습니다.`);
+        showToast(`${mission.title} 완료!`, 'success');
+      } else {
+        state.skulls += mission.penaltySkulls;
+        if (mission.penaltyWounds > 0) applyWounds(mission.penaltyWounds);
+        addLog(`[밤 - ${mission.title} 실패] ${mission.failText} (현재 해골 ${state.skulls}/5)`);
+        showToast(mission.failText, 'danger');
+      }
+
+      state.nightState.missionDone[missionIdx] = true;
+      checkWinLose();
+      renderAll();
+    }
+
+    // 밤 3단계: 새로운 날 아침 맞이하기
+    function startNextDay() {
+      if (state.phase !== 'night') return;
+      if (!state.nightState.foodPaid || !state.nightState.missionDone[0] || !state.nightState.missionDone[1]) {
+        showToast('먼저 식량 배급과 2가지 밤 미션을 모두 정산해야 합니다.', 'warn');
+        return;
+      }
+      saveSnapshot();
+      // 버림 더미와 남은 덱을 합쳐 셔플해 새 낮 덱 구성 (제거 더미는 제외!)
+      const nextDeck = shuffleArray([...state.dayDeck, ...state.discardPile]).map(c => ({ ...c, seenBefore: false }));
+      state.dayDeck = nextDeck;
+      state.discardPile = [];
+      state.dayCount += 1;
+      state.partnerState = generatePartnerState(state.dayCount);
+      addLog(`=== [${state.dayCount}일차 아침] 새로운 태양이 떠올랐습니다! (덱 ${nextDeck.length}장) ===`);
+      prepareDayChoices();
+      renderAll();
+    }
+
+    // 즉시 승패 판정
+    function checkWinLose() {
+      if (state.paintings >= 5) {
+        state.phase = 'gameover';
+        state.gameResult = 'win';
+        state.gameOverReason = `${state.dayCount}일차 만에 구석기 동굴 벽화 5조각을 모두 완성하여 위대한 부족의 전설을 남겼습니다!`;
+        openGameOverModal();
+        return true;
+      }
+      if (state.skulls >= 5) {
+        state.phase = 'gameover';
+        state.gameResult = 'lose';
+        state.gameOverReason = `해골 토큰이 5개 쌓여(${state.skulls}/5) 부족이 험난한 구석기 환경에서 멸망했습니다.`;
+        openGameOverModal();
+        return true;
+      }
+      if (state.humans.length === 0) {
+        state.phase = 'gameover';
+        state.gameResult = 'lose';
+        state.gameOverReason = '살아남은 부족민이 단 한 명도 남지 않아 부족이 멸망했습니다.';
+        openGameOverModal();
+        return true;
+      }
+      return false;
+    }
+
+    function addLog(msg) {
+      state.logs.unshift(msg);
+      if (state.logs.length > 60) state.logs.pop();
+    }
+
+    // ----------------------------------------------------------------------------
+    // 7. UI 렌더링 & 커스텀 동굴 벽화 SVG
+    // ----------------------------------------------------------------------------
+    function switchTab(tabName) {
+      state.activeTab = tabName;
+      renderAll();
+    }
+
+    function selectWoundTarget(humanId) {
+      state.targetWoundHumanId = humanId;
+      renderAll();
+    }
+
+    function togglePartnerHelp() {
+      if (state.partnerState.type !== 'ready') return;
+      state.usePartnerHelp = !state.usePartnerHelp;
+      renderAll();
+    }
+
+    let toastTimer = null;
+    function showToast(msg, type = 'info') {
+      const el = document.getElementById('toastBanner');
+      if (!el) return;
+      const styles = {
+        info:    'bg-stone-800/95 border-stone-500 text-stone-100',
+        success: 'bg-emerald-950/95 border-emerald-500 text-emerald-100',
+        warn:    'bg-amber-950/95 border-amber-500 text-amber-100',
+        danger:  'bg-rose-950/95 border-rose-500 text-rose-100'
+      };
+      el.className = `rounded-xl px-3 py-2 text-xs font-bold border shadow-md animate-in ${styles[type] || styles.info}`;
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.add('hidden'), 3600);
+    }
+
+    function renderCostBadges(cost = {}, prefix = '') {
+      const entries = Object.entries(cost).filter(([, v]) => v > 0);
+      if (entries.length === 0) return '';
+      return entries.map(([k, v]) => {
+        const m = RESOURCE_META[k];
+        return `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-black/35 border border-white/15 text-xs font-bold ${m.color}">${m.icon}<span>${prefix}${m.label} ${v}</span></span>`;
+      }).join('');
+    }
+
+    function renderSkillBadges(skills = {}) {
+      const entries = Object.entries(skills).filter(([, v]) => v > 0);
+      if (entries.length === 0) return '';
+      return entries.map(([k, v]) => {
+        const m = SKILL_META[k];
+        return `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded ${m.bg} border text-xs font-black ${m.color}">${m.icon}<span>${m.label} ${v}</span></span>`;
+      }).join('');
+    }
+
+    function renderAll() {
+      renderHeaderHUD();
+      renderTribeAndPartner();
+      renderFooterNav();
+      renderActiveTab();
+    }
+
+    function renderHeaderHUD() {
+      document.getElementById('hudLogoBox').innerHTML = ICONS.logo;
+      document.getElementById('hudGearIcon').innerHTML = ICONS.gear;
+      document.getElementById('hudIconPainting').innerHTML = ICONS.painting;
+      document.getElementById('hudIconSkull').innerHTML = ICONS.skull;
+
+      const phaseMap = {
+        day_pick: '낮 (탐험 선택)',
+        day_resolve: '낮 (카드 해결)',
+        night: '밤 (정산)',
+        gameover: '게임 종료'
+      };
+      document.getElementById('hudDayPhaseBadge').textContent = `${state.dayCount}일차 ${phaseMap[state.phase] || ''}`;
+      document.getElementById('hudScenarioBadge').textContent = SCENARIOS[state.scenarioId].badge;
+      document.getElementById('btnUndo').disabled = historyStack.length === 0;
+
+      document.getElementById('hudPaintings').textContent = `${state.paintings}/5`;
+      document.getElementById('hudSkulls').textContent = `${state.skulls}/5`;
+
+      // 자원 바
+      const resRow = document.getElementById('hudResourcesRow');
+      resRow.innerHTML = ['food', 'wood', 'stone', 'fur', 'bone'].map(r => {
+        const m = RESOURCE_META[r];
+        return `<div class="flex items-center gap-0.5 px-1.5 py-0.5 rounded border ${m.bg}" title="${m.label}">${m.icon}<strong class="${m.color}">${state.resources[r]}</strong></div>`;
+      }).join('');
+
+      // 능력치 바
+      const effSkills = getEffectiveSkills();
+      document.getElementById('hudSkillsRow').innerHTML = ['spear', 'axe', 'eye'].map(sk => {
+        const m = SKILL_META[sk];
+        const boosted = state.usePartnerHelp && state.partnerState.type === 'ready' && state.partnerState.skill === sk;
+        return `<div class="flex items-center gap-1 px-2 py-0.5 rounded-lg border ${m.bg} ${boosted ? 'ring-1 ring-amber-400' : ''}">${m.icon}<span class="${m.color} font-black">${m.label} ${effSkills[sk]}${boosted ? '(+지원)' : ''}</span></div>`;
+      }).join('');
+
+      // 덱 요약
+      document.getElementById('hudDeckSummary').innerHTML = `
+        <span class="px-1.5 py-0.5 rounded bg-stone-900 border border-stone-700 text-amber-200">덱 ${state.dayDeck.length}</span>
+        <span class="px-1.5 py-0.5 rounded bg-stone-900 border border-stone-700 text-stone-400">버림 ${state.discardPile.length}</span>
+        <span class="px-1.5 py-0.5 rounded bg-stone-900 border border-stone-700 text-rose-300">제거 ${state.destroyedPile.length}</span>
+      `;
+    }
+
+    function renderTribeAndPartner() {
+      document.getElementById('tribeCountText').textContent = state.humans.length;
+      const strip = document.getElementById('tribeStrip');
+      strip.innerHTML = state.humans.map(h => {
+        const isTarget = state.targetWoundHumanId === h.id;
+        let hearts = '';
+        for (let i = 0; i < h.maxHp; i++) {
+          hearts += (i < h.maxHp - h.wounds) ? ICONS.heartFull : ICONS.heartEmpty;
+        }
+        return `
+          <button onclick="selectWoundTarget('${h.id}')" class="shrink-0 min-w-[116px] text-left rounded-xl p-2 border transition-all ${isTarget ? 'bg-amber-950/80 border-amber-400 shadow' : 'bg-[#1f1710] border-stone-700'}">
+            <div class="flex items-center justify-between gap-1">
+              <strong class="text-xs font-black text-amber-100">${h.name}</strong>
+              <span class="text-xs px-1 rounded ${isTarget ? 'bg-amber-500 text-stone-950 font-black' : 'bg-stone-800 text-stone-400'}">${isTarget ? '선봉' : h.role}</span>
+            </div>
+            <div class="flex items-center justify-between gap-1 mt-1">
+              <div class="flex items-center gap-0.5">${hearts}</div>
+              <div>${renderSkillBadges(h.skills)}</div>
+            </div>
+          </button>
+        `;
+      }).join('');
+
+      // 동료 그룹 상태 배너
+      const p = state.partnerState;
+      const pb = document.getElementById('partnerBanner');
+      if (p.type === 'ready') {
+        pb.className = 'rounded-lg px-2.5 py-1.5 border text-xs flex items-center justify-between gap-2 bg-sky-950/60 border-sky-600/50 text-sky-100';
+        pb.innerHTML = `
+          <div class="min-w-0">
+            <strong class="text-sky-300 font-black block">${p.title}</strong>
+            <span class="text-stone-300">${p.desc}</span>
+          </div>
+        `;
+      } else {
+        pb.className = 'rounded-lg px-2.5 py-1.5 border text-xs flex items-center justify-between gap-2 bg-purple-950/60 border-purple-500/60 text-purple-100';
+        pb.innerHTML = `
+          <div class="min-w-0">
+            <strong class="text-purple-300 font-black block">${p.title}</strong>
+            <span class="text-stone-300">${p.desc}</span>
+          </div>
+        `;
+      }
+    }
+
+    function renderFooterNav() {
+      document.getElementById('navIconExplore').innerHTML = ICONS.explore;
+      document.getElementById('navIconWorkbench').innerHTML = ICONS.workbench;
+      document.getElementById('navIconPainting').innerHTML = ICONS.painting;
+      document.getElementById('navIconCamp').innerHTML = ICONS.camp;
+
+      ['explore', 'workbench', 'painting', 'camp'].forEach(t => {
+        const el = document.getElementById(`nav-${t}`);
+        if (state.activeTab === t) {
+          el.className = 'min-h-[54px] rounded-xl flex flex-col items-center justify-center gap-0.5 text-xs font-black border bg-amber-500/20 border-amber-400 text-amber-200 shadow-inner btn-tactile';
+        } else {
+          el.className = 'min-h-[54px] rounded-xl flex flex-col items-center justify-center gap-0.5 text-xs font-bold border bg-[#231911] border-stone-700/70 text-stone-400 hover:text-stone-200 btn-tactile';
+        }
+      });
+    }
+
+    function renderActiveTab() {
+      const container = document.getElementById('tabContent');
+      if (state.activeTab === 'explore') container.innerHTML = renderExploreTab();
+      else if (state.activeTab === 'workbench') container.innerHTML = renderWorkbenchTab();
+      else if (state.activeTab === 'painting') container.innerHTML = renderPaintingTab();
+      else if (state.activeTab === 'camp') container.innerHTML = renderCampTab();
+    }
+
+    // ----------------------------------------------------------------------------
+    // 탭 1: 탐험 보드 (낮 2단계 / 밤 3단계 정산)
+    // ----------------------------------------------------------------------------
+    function renderExploreTab() {
+      if (state.phase === 'gameover') {
+        return `
+          <div class="stone-panel rounded-2xl p-4 text-center space-y-3">
+            <h2 class="text-base font-black ${state.gameResult === 'win' ? 'text-amber-300' : 'text-rose-400'}">
+              ${state.gameResult === 'win' ? '위대한 승리! 구석기 동굴 벽화 완성!' : '부족 멸망 — 생존 실패'}
+            </h2>
+            <p class="text-xs text-stone-200 leading-relaxed">${state.gameOverReason}</p>
+            <button onclick="openGameOverModal()" class="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-black text-sm btn-tactile">
+              최종 생존 결과 보기
+            </button>
+          </div>
+        `;
+      }
+
+      if (state.phase === 'day_pick') {
+        const cardsHtml = state.drawnChoices.map((c, idx) => {
+          const bm = BACK_META[c.backType];
+          return `
+            <button onclick="pickCardBack(${idx})" class="card-back-tile rounded-2xl p-2.5 border-2 ${bm.border} bg-gradient-to-b ${bm.bg} flex flex-col items-center justify-between text-center min-h-[178px] shadow-lg">
+              <div class="w-full flex justify-center">
+                <span class="px-1.5 py-0.5 rounded text-xs font-black ${bm.badge}">${bm.name}</span>
+              </div>
+              <div class="my-1.5">${bm.svg}</div>
+              <div class="space-y-1 w-full">
+                <p class="text-xs font-bold text-stone-200 leading-tight">${bm.short}</p>
+                ${c.seenBefore ? `<span class="inline-block px-1.5 py-0.5 rounded bg-amber-500 text-stone-950 text-xs font-black">이전 턴 확인됨</span>` : `<span class="inline-block px-1.5 py-0.5 rounded bg-black/40 text-stone-300 text-xs font-bold">미확인 카드</span>`}
+              </div>
+            </button>
+          `;
+        }).join('');
+
+        return `
+          <div class="stone-panel rounded-2xl p-3 space-y-3 animate-in">
+            <div class="flex items-center justify-between gap-2">
+              <div>
+                <span class="px-2 py-0.5 rounded bg-amber-500 text-stone-950 text-xs font-black">STEP 1</span>
+                <h2 class="text-sm font-black text-amber-200 inline-block ml-1">행선지 선택 (뒷면 3장 중 1장)</h2>
+              </div>
+            </div>
+            <p class="text-xs text-stone-300 leading-relaxed">
+              뒷면만 보고 탐험할 카드를 1장 고르세요. 고르지 않은 나머지 카드들은 <strong>원래 순서 그대로 덱 맨 위</strong>에 남아 다음 턴에 다시 보게 됩니다.
+            </p>
+            ${state.campDiscountActive ? `<div class="rounded-lg bg-emerald-950/90 border border-emerald-500 px-2.5 py-1.5 text-xs font-bold text-emerald-200">[작업대 돌 1개 무료 할인 활성화 중] 작업대 탭에서 할인 제작 가능합니다!</div>` : ''}
+            <div class="grid grid-cols-3 gap-2">${cardsHtml}</div>
+            <div class="pt-1 border-t border-white/10 flex items-center justify-between gap-2">
+              <span class="text-xs text-stone-400">덱에 남은 카드: ${state.dayDeck.length}장</span>
+              <button onclick="enterNightPhase('일찍 잠자리에 들어 밤 단계로 넘어갑니다.')" class="px-3 py-2 rounded-xl bg-indigo-950 hover:bg-indigo-900 border border-indigo-400/50 text-indigo-200 text-xs font-black btn-tactile">
+                일찍 잠자리에 들기 (밤 전환)
+              </button>
+            </div>
+          </div>
+        `;
+      }
+
+      if (state.phase === 'day_resolve' && state.selectedCard) {
+        const card = state.selectedCard;
+        const bm = BACK_META[card.backType];
+        const effSkills = getEffectiveSkills();
+
+        // 동료 지원 토글 영역 (ready 상태일 때)
+        let partnerToggleHtml = '';
+        if (state.partnerState.type === 'ready') {
+          const ps = state.partnerState;
+          const sm = SKILL_META[ps.skill];
+          partnerToggleHtml = `
+            <button onclick="togglePartnerHelp()" class="w-full rounded-xl px-3 py-2 border text-xs font-black flex items-center justify-between transition-all btn-tactile ${state.usePartnerHelp ? 'bg-sky-600 border-sky-300 text-white shadow' : 'bg-sky-950/70 border-sky-600/50 text-sky-200'}">
+              <span class="flex items-center gap-1.5">${sm.icon}<span>동료 부족 지원 요청 (${sm.label} +${ps.amount} 합산)</span></span>
+              <span class="px-2 py-0.5 rounded bg-black/30">${state.usePartnerHelp ? '적용 중' : '켜기'}</span>
+            </button>
+          `;
+        }
+
+        // 선택지 목록 렌더링
+        const optionsHtml = card.options.map((opt, idx) => {
+          const skillOk = meetsReqSkills(opt.reqSkills, effSkills);
+          const costOk = canAffordCost(opt.cost);
+          const ready = skillOk && costOk;
+          const hazardPreview = previewTimeCostHazards(opt.timeCost || 0);
+
+          let hazardWarningHtml = '';
+          if (opt.timeCost > 0) {
+            const iconsLine = hazardPreview.previewCards.map(pc => {
+              if (pc.seenBefore) {
+                return `<span class="px-1.5 py-0.5 rounded text-xs font-black ${pc.isHazard ? 'bg-rose-700 text-white' : 'bg-stone-700 text-stone-200'}">${BACK_META[pc.backType].name}</span>`;
+              }
+              return `<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-stone-800 border border-stone-600 text-stone-300">미확인 카드</span>`;
+            }).join('');
+
+            // 실제 덱 순서상 붉은 위험이 확정된(이전 턴 확인된) 경우 경고
+            let warnText = '';
+            if (hazardPreview.knownHazards > 0) {
+              warnText = `<div class="text-xs font-black text-rose-300 mt-1">[경고: 확인된 붉은 위험 카드 ${hazardPreview.knownHazards}장이 버려져 부상 ${hazardPreview.knownHazards}점을 입습니다!]</div>`;
+            } else if (hazardPreview.actualHazards > 0 && hazardPreview.unknownCount > 0) {
+              warnText = `<div class="text-xs font-bold text-amber-300 mt-1">[주의: 미확인 카드가 덱 위에서 버려집니다. 붉은 위험 카드일 경우 부상을 입을 수 있습니다.]</div>`;
+            }
+            hazardWarningHtml = `
+              <div class="mt-1.5 pt-1.5 border-t border-white/10">
+                <div class="flex flex-wrap items-center gap-1 text-xs">
+                  <span class="text-stone-400 font-bold">시간 비용(덱 ${opt.timeCost}장 버림):</span>
+                  ${iconsLine || '<span class="text-stone-400">남은 덱 없음</span>'}
+                </div>
+                ${warnText}
+              </div>
+            `;
+          }
+
+          // 보상 텍스트
+          const g = opt.gain || {};
+          const rewardsArr = [];
+          for (const r of ['food', 'wood', 'stone', 'fur', 'bone']) {
+            if (g[r]) rewardsArr.push(`${RESOURCE_META[r].label} +${g[r]}`);
+          }
+          if (g.paintings) rewardsArr.push(`동굴 벽화 +${g.paintings}`);
+          if (g.heal) rewardsArr.push(`부상 치유 +${g.heal}`);
+          if (g.recruit) rewardsArr.push('새 부족민 영입');
+          if (opt.special === 'camp_craft_discount') rewardsArr.push('작업대 돌 1 할인');
+          if (opt.special === 'build_tent_direct') rewardsArr.push('천막 즉시 제작');
+          if (opt.special === 'build_coat_direct') rewardsArr.push('모피 옷 즉시 제작');
+          if (opt.special === 'build_raft_direct') rewardsArr.push('뗏목 즉시 건조');
+
+          return `
+            <button onclick="resolveCardOption(${idx})" ${ready ? '' : 'disabled'} class="w-full text-left rounded-xl p-3 border transition-all btn-tactile ${ready ? 'bg-[#2a1f16] hover:bg-[#35271c] border-amber-500/60 shadow-md' : 'bg-stone-900/60 border-stone-700/50 opacity-60 cursor-not-allowed'}">
+              <div class="flex items-start justify-between gap-2">
+                <strong class="text-sm font-black ${ready ? 'text-amber-200' : 'text-stone-400'}">${opt.label}</strong>
+                ${opt.destroyCard ? `<span class="shrink-0 px-1.5 py-0.5 rounded bg-rose-950 border border-rose-500/50 text-rose-200 text-xs font-black">1회용(제거)</span>` : ''}
+              </div>
+              <div class="flex flex-wrap items-center gap-1.5 mt-1.5 text-xs">
+                ${Object.keys(opt.reqSkills || {}).length ? `<span class="text-stone-300 font-bold">필요 능력:</span> ${renderSkillBadges(opt.reqSkills)}` : ''}
+                ${Object.keys(opt.cost || {}).length ? `<span class="text-stone-300 font-bold">비용:</span> ${renderCostBadges(opt.cost)}` : ''}
+                ${opt.woundCost ? `<span class="px-1.5 py-0.5 rounded bg-rose-900 text-rose-100 font-black">부상 +${opt.woundCost}</span>` : ''}
+              </div>
+              <div class="mt-1.5 text-xs font-bold text-emerald-300">
+                보상: ${rewardsArr.length ? rewardsArr.join(' · ') : '없음 (안전 통과)'}
+              </div>
+              ${hazardWarningHtml}
+              ${!ready ? `<div class="mt-1 text-xs font-bold text-rose-300">${!skillOk ? '부족 능력치 미달 (도구 제작 또는 동료 지원 필요)' : '필요한 보유 자원이 부족합니다'}</div>` : ''}
+            </button>
+          `;
+        }).join('');
+
+        // 동료 돕기 (Help) 협동 선택지
+        const ps = state.partnerState;
+        const coopLabel = ps.type === 'crisis'
+          ? `[동료 돕기 (Help)] ${ps.title} -> 모피/식량·재료 협동 보상!`
+          : '[동료 돕기 (Help)] 이 턴을 양보해 동료 채집 지원 (식량 +1)';
+
+        return `
+          <div class="stone-panel rounded-2xl p-3 space-y-3 animate-in">
+            <div class="flex items-center justify-between gap-2">
+              <span class="px-2 py-0.5 rounded bg-amber-500 text-stone-950 text-xs font-black">STEP 2 — 카드 해결</span>
+              <span class="px-2 py-0.5 rounded text-xs font-black ${bm.badge}">${bm.name}</span>
+            </div>
+
+            <div class="rounded-xl bg-black/30 border border-white/10 p-3 flex items-center gap-3">
+              <div class="shrink-0">${bm.svg}</div>
+              <div class="min-w-0">
+                <h2 class="text-base font-black text-amber-100">${card.title}</h2>
+                <p class="text-xs text-stone-300 mt-1 leading-relaxed">${card.desc}</p>
+              </div>
+            </div>
+
+            ${partnerToggleHtml}
+
+            <div class="space-y-2">
+              ${optionsHtml}
+              <button onclick="helpPartnerWithCard()" class="w-full text-left rounded-xl p-2.5 border border-purple-500/60 bg-purple-950/60 hover:bg-purple-900/70 text-purple-100 text-xs font-black btn-tactile">
+                ${coopLabel}
+              </button>
+            </div>
+          </div>
+        `;
+      }
+
+      if (state.phase === 'night') {
+        const scenario = SCENARIOS[state.scenarioId];
+        const skills = getEffectiveSkills(false);
+        const neededFood = state.humans.length;
+        const canFeedAll = state.resources.food >= neededFood;
+        const allDone = state.nightState.foodPaid && state.nightState.missionDone[0] && state.nightState.missionDone[1];
+
+        const missionsHtml = scenario.missions.map((m, idx) => {
+          const done = state.nightState.missionDone[idx];
+          const isAuto = m.autoCheck(state, skills);
+          const canPay = canAffordCost(m.payCost);
+
+          return `
+            <div class="rounded-xl p-3 border ${done ? 'bg-emerald-950/40 border-emerald-600/50' : 'bg-[#221912] border-amber-600/50'} space-y-2">
+              <div class="flex items-center justify-between">
+                <strong class="text-sm font-black text-amber-200">${m.title}</strong>
+                <span class="px-2 py-0.5 rounded text-xs font-black ${done ? 'bg-emerald-600 text-white' : 'bg-amber-900 text-amber-200'}">${done ? '정산 완료' : '대기 중'}</span>
+              </div>
+              <p class="text-xs text-stone-300 leading-relaxed">${m.reqText}</p>
+              ${!done ? `
+                <div class="flex flex-wrap gap-2 pt-1">
+                  ${isAuto ? `
+                    <button onclick="resolveNightMission(${idx}, false)" class="flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black btn-tactile">
+                      조건 충족! 무료 방어 완료
+                    </button>
+                  ` : `
+                    <button onclick="resolveNightMission(${idx}, false)" ${canPay ? '' : 'disabled'} class="flex-1 py-2.5 px-3 rounded-xl ${canPay ? 'bg-amber-500 hover:bg-amber-400 text-stone-950' : 'bg-stone-800 text-stone-500 cursor-not-allowed'} text-xs font-black btn-tactile">
+                      요구 자원 지불 (${Object.entries(m.payCost).map(([k, v]) => `${RESOURCE_META[k].label} ${v}`).join(' + ')})
+                    </button>
+                    <button onclick="resolveNightMission(${idx}, true)" class="py-2.5 px-3 rounded-xl bg-rose-900 hover:bg-rose-800 border border-rose-500/60 text-rose-100 text-xs font-black btn-tactile">
+                      미션 실패 감수 (해골 +${m.penaltySkulls})
+                    </button>
+                  `}
+                </div>
+              ` : ''}
+            </div>
+          `;
+        }).join('');
+
+        return `
+          <div class="stone-panel rounded-2xl p-3 space-y-3 animate-in">
+            <div class="flex items-center gap-3 bg-black/30 rounded-xl p-3 border border-amber-600/40">
+              <div class="campfire-glow shrink-0">${BACK_META.camp.svg}</div>
+              <div>
+                <span class="px-2 py-0.5 rounded bg-indigo-800 text-indigo-100 text-xs font-black">${state.dayCount}일차 밤 정산</span>
+                <h2 class="text-base font-black text-amber-200 mt-1">모닥불 아래 밤 단계 해결</h2>
+                <p class="text-xs text-stone-300">부족민 식량 배급과 2가지 밤 미션을 순서대로 정산하세요.</p>
+              </div>
+            </div>
+
+            <!-- 1단계: 부족민 식량 배급 -->
+            <div class="rounded-xl p-3 border ${state.nightState.foodPaid ? 'bg-emerald-950/40 border-emerald-600/50' : 'bg-[#221912] border-orange-500/60'} space-y-2">
+              <div class="flex items-center justify-between">
+                <strong class="text-sm font-black text-orange-200">1단계: 부족민 식량 배급 (${neededFood}명 필요)</strong>
+                <span class="px-2 py-0.5 rounded text-xs font-black ${state.nightState.foodPaid ? 'bg-emerald-600 text-white' : 'bg-orange-900 text-orange-100'}">${state.nightState.foodPaid ? '배급 완료' : `보유 식량 ${state.resources.food}개`}</span>
+              </div>
+              ${!state.nightState.foodPaid ? `
+                <button onclick="resolveNightFood()" class="w-full py-2.5 rounded-xl font-black text-xs btn-tactile ${canFeedAll ? 'bg-orange-500 hover:bg-orange-400 text-stone-950' : 'bg-rose-800 hover:bg-rose-700 text-white'}">
+                  ${canFeedAll ? `식량 ${neededFood}개 배급하기` : `식량 ${neededFood - state.resources.food}개 부족! (해골 +${neededFood - state.resources.food} 감수하고 정산)`}
+                </button>
+              ` : ''}
+            </div>
+
+            <!-- 2단계: 밤 미션 2종 -->
+            <div class="space-y-2">
+              <div class="text-xs font-black text-amber-300">2단계: 밤 미션 카드 2종 해결</div>
+              ${missionsHtml}
+            </div>
+
+            <!-- 3단계: 다음 날 아침 맞이하기 -->
+            <button onclick="startNextDay()" ${allDone ? '' : 'disabled'} class="w-full py-3 rounded-xl font-black text-sm btn-tactile ${allDone ? 'bg-amber-500 hover:bg-amber-400 text-stone-950 shadow-lg' : 'bg-stone-800 text-stone-500 cursor-not-allowed'}">
+              ${allDone ? `${state.dayCount + 1}일차 아침 맞이하기 (버림 더미 셔플)` : '위 3개 정산을 모두 완료해 주세요'}
+            </button>
+          </div>
+        `;
+      }
+
+      return '';
+    }
+
+    // ----------------------------------------------------------------------------
+    // 탭 2: 작업대 (도구 및 아이디어 제작)
+    // ----------------------------------------------------------------------------
+    function renderWorkbenchTab() {
+      const discount = state.campDiscountActive ? 1 : 0;
+      const itemsHtml = WORKBENCH_IDEAS.map(idea => {
+        const owned = state.tools[idea.id] || 0;
+        const isMax = owned >= idea.maxCraft;
+        const affordable = !isMax && canAffordCost(idea.cost, discount);
+
+        return `
+          <div class="stone-panel rounded-xl p-3 space-y-2 ${owned > 0 ? 'border-amber-500/50' : ''}">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <h3 class="text-sm font-black text-amber-100">${idea.name}</h3>
+                <p class="text-xs text-stone-300 mt-0.5 leading-relaxed">${idea.desc}</p>
+              </div>
+              <span class="shrink-0 px-2 py-0.5 rounded text-xs font-black ${owned > 0 ? 'bg-amber-500 text-stone-950' : 'bg-stone-800 text-stone-300'}">
+                보유 ${owned}/${idea.maxCraft}
+              </span>
+            </div>
+            <div class="flex items-center justify-between gap-2 pt-1 border-t border-white/10">
+              <div class="flex flex-wrap items-center gap-1">
+                ${renderCostBadges(idea.cost)}
+                ${renderSkillBadges(idea.skills)}
+              </div>
+              <button onclick="craftTool('${idea.id}')" ${affordable ? '' : 'disabled'} class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-black btn-tactile ${isMax ? 'bg-emerald-900 text-emerald-200' : affordable ? 'bg-amber-500 hover:bg-amber-400 text-stone-950' : 'bg-stone-800 text-stone-500 cursor-not-allowed'}">
+                ${isMax ? '제작 완료' : discount && (idea.cost.stone || 0) > 0 ? '할인 제작' : '제작하기'}
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div class="space-y-2.5 animate-in">
+          <div class="stone-panel rounded-xl p-3">
+            <h2 class="text-sm font-black text-amber-200">부족 작업대 — 도구 및 아이디어 제작</h2>
+            <p class="text-xs text-stone-300 mt-1">
+              모은 자원으로 도구를 제작하면 부족 전체의 능력치(창·도끼·관찰)가 영구적으로 상승하거나 밤 미션을 자동으로 막아냅니다.
+            </p>
+            ${state.campDiscountActive ? `<div class="mt-2 rounded-lg bg-emerald-900/70 border border-emerald-400 px-2.5 py-1.5 text-xs font-black text-emerald-100">캠프 장인 보너스 활성화! 이번 제작 시 [돌 1개]가 무료 할인됩니다.</div>` : ''}
+          </div>
+          ${itemsHtml}
+        </div>
+      `;
+    }
+
+    // ----------------------------------------------------------------------------
+    // 탭 3: 동굴 벽화 (5조각 대형 벡터 퍼즐) & 시나리오 미션 정보
+    // ----------------------------------------------------------------------------
+    function renderCaveMuralSVG(pieces) {
+      // 5개의 석판 구획이 pieces (0~5) 수에 따라 선명한 구석기 황토·주황·금빛 벽화로 채워짐
+      const active = (n) => pieces >= n;
+      return `
+        <svg viewBox="0 0 360 190" class="w-full rounded-xl border border-amber-700/50 bg-[#1a110b] shadow-inner">
+          <defs>
+            <linearGradient id="rockGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#3b2718"/>
+              <stop offset="100%" stop-color="#21150d"/>
+            </linearGradient>
+          </defs>
+          <rect width="360" height="190" fill="url(#rockGrad)" />
+          <!-- 석판 분할선 -->
+          <line x1="120" y1="0" x2="120" y2="190" stroke="#140c07" stroke-width="4"/>
+          <line x1="240" y1="0" x2="240" y2="190" stroke="#140c07" stroke-width="4"/>
+          <line x1="0" y1="95" x2="240" y2="95" stroke="#140c07" stroke-width="4"/>
+
+          <!-- 1번 조각 (좌상단): 사냥꾼과 창 -->
+          <g opacity="${active(1) ? '1' : '0.22'}">
+            <rect x="4" y="4" width="112" height="87" rx="6" fill="${active(1) ? 'rgba(245,158,11,0.18)' : 'none'}" stroke="${active(1) ? '#f59e0b' : '#57534e'}" stroke-width="2"/>
+            <circle cx="46" cy="34" r="9" fill="#fb923c"/>
+            <path d="M46 43v25M46 50l-14 8M46 50l16-6M46 68l-10 14M46 68l10 14" stroke="#fb923c" stroke-width="4" stroke-linecap="round"/>
+            <line x1="30" y1="62" x2="96" y2="34" stroke="#fde047" stroke-width="3" stroke-linecap="round"/>
+            <text x="14" y="22" font-size="12" font-weight="900" fill="#fde68a">1조각: 사냥꾼</text>
+          </g>
+
+          <!-- 2번 조각 (중상단): 불꽃과 별 -->
+          <g opacity="${active(2) ? '1' : '0.22'}">
+            <rect x="124" y="4" width="112" height="87" rx="6" fill="${active(2) ? 'rgba(249,115,22,0.18)' : 'none'}" stroke="${active(2) ? '#f97316' : '#57534e'}" stroke-width="2"/>
+            <path d="M180 28c6 10 14 14 14 25a14 14 0 1 1-28 0c0-6 4-13 8-17 1 5 4 8 6 8 0-5 0-11 0-16z" fill="#f97316"/>
+            <circle cx="146" cy="32" r="4" fill="#fde047"/>
+            <circle cx="214" cy="36" r="3.5" fill="#fde047"/>
+            <text x="134" y="22" font-size="12" font-weight="900" fill="#fed7aa">2조각: 성화</text>
+          </g>
+
+          <!-- 3번 조각 (좌하단): 부족의 붉은 손바닥 -->
+          <g opacity="${active(3) ? '1' : '0.22'}">
+            <rect x="4" y="99" width="112" height="87" rx="6" fill="${active(3) ? 'rgba(239,68,68,0.18)' : 'none'}" stroke="${active(3) ? '#ef4444' : '#57534e'}" stroke-width="2"/>
+            <ellipse cx="60" cy="152" rx="16" ry="18" fill="#dc2626"/>
+            <path d="M46 146v-18M54 142v-22M62 141v-23M70 144v-19M77 154l10-8" stroke="#dc2626" stroke-width="5" stroke-linecap="round"/>
+            <text x="14" y="117" font-size="12" font-weight="900" fill="#fecaca">3조각: 맹세</text>
+          </g>
+
+          <!-- 4번 조각 (중하단): 숲과 순록 떼 -->
+          <g opacity="${active(4) ? '1' : '0.22'}">
+            <rect x="124" y="99" width="112" height="87" rx="6" fill="${active(4) ? 'rgba(16,185,129,0.18)' : 'none'}" stroke="${active(4) ? '#10b981' : '#57534e'}" stroke-width="2"/>
+            <path d="M150 158h36v16h-6v-9h-24v9h-6v-16z" fill="#fbbf24"/>
+            <path d="M186 158l8-10M194 148l-4-8M194 148l7-5" stroke="#fbbf24" stroke-width="3" stroke-linecap="round"/>
+            <text x="134" y="117" font-size="12" font-weight="900" fill="#a7f3d0">4조각: 풍요</text>
+          </g>
+
+          <!-- 5번 조각 (우측 전체): 전설의 거대 매머드 -->
+          <g opacity="${active(5) ? '1' : '0.22'}">
+            <rect x="244" y="4" width="112" height="182" rx="6" fill="${active(5) ? 'rgba(251,191,36,0.22)' : 'none'}" stroke="${active(5) ? '#fbbf24' : '#57534e'}" stroke-width="2.5"/>
+            <path d="M262 140V92c0-22 18-36 38-36 18 0 34 14 36 33v51h-15v-22h-14v22h-18v-22h-13v22h-14z" fill="#d97706"/>
+            <path d="M334 95c13 8 15 24 3 34" stroke="#fef08a" stroke-width="6" stroke-linecap="round"/>
+            <circle cx="322" cy="78" r="3" fill="#fef08a"/>
+            <text x="254" y="24" font-size="12" font-weight="900" fill="#fef08a">5조각: 매머드</text>
+          </g>
+        </svg>
+      `;
+    }
+
+    function renderPaintingTab() {
+      const scenario = SCENARIOS[state.scenarioId];
+      return `
+        <div class="space-y-2.5 animate-in">
+          <div class="stone-panel rounded-2xl p-3 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <h2 class="text-sm font-black text-amber-200">구석기 동굴 벽화 완성 현황 (${state.paintings}/5)</h2>
+              <span class="px-2 py-0.5 rounded bg-amber-500 text-stone-950 text-xs font-black">5조각 모으면 승리!</span>
+            </div>
+            ${renderCaveMuralSVG(state.paintings)}
+            <p class="text-xs text-stone-300 leading-relaxed">
+              매머드 사냥, 캠프 벽화 그리기, 신비한 꿈 영감, 모듈 특별 퀘스트를 통해 동굴 벽화 조각 5개를 모으면 부족이 역사의 전설로 남아 즉시 승리합니다.
+            </p>
+          </div>
+
+          <div class="stone-panel rounded-2xl p-3 space-y-2">
+            <h3 class="text-sm font-black text-amber-300">${scenario.name}</h3>
+            <p class="text-xs text-stone-300">${scenario.desc}</p>
+            <div class="space-y-2 pt-1">
+              ${scenario.missions.map(m => `
+                <div class="rounded-xl bg-black/30 border border-amber-700/40 p-2.5">
+                  <strong class="text-xs font-black text-amber-200 block">${m.title}</strong>
+                  <span class="text-xs text-stone-300">${m.reqText}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // ----------------------------------------------------------------------------
+    // 탭 4: 부족 관리 & 남은 덱 뒷면 통계 & 생존 로그
+    // ----------------------------------------------------------------------------
+    function renderCampTab() {
+      // 남은 덱 뒷면 분포 통계 계산 (팔레오 카드 카운팅 전략 핵심!)
+      const counts = { forest: 0, river: 0, mountain: 0, camp: 0, hazard: 0, mammoth: 0, dream: 0 };
+      for (const c of state.dayDeck) {
+        counts[c.backType] = (counts[c.backType] || 0) + 1;
+      }
+      const distHtml = Object.entries(BACK_META).map(([k, m]) => `
+        <div class="rounded-lg p-2 border ${m.border} bg-black/30 flex items-center justify-between text-xs">
+          <span class="font-bold text-stone-200">${m.name}</span>
+          <strong class="font-black text-amber-200">${counts[k]}장</strong>
+        </div>
+      `).join('');
+
+      const humansHtml = state.humans.map(h => `
+        <div class="rounded-xl p-2.5 bg-black/30 border border-stone-700 flex items-center justify-between gap-2">
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5">
+              <strong class="text-sm font-black text-amber-100">${h.name}</strong>
+              <span class="text-xs text-stone-400">(${h.role})</span>
+            </div>
+            <p class="text-xs text-stone-300 mt-0.5">${h.trait} | 현재 부상: ${h.wounds}/${h.maxHp}</p>
+          </div>
+          <button onclick="emergencyHeal('${h.id}')" ${h.wounds > 0 && state.resources.food >= 1 ? '' : 'disabled'} class="shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-black btn-tactile ${h.wounds > 0 && state.resources.food >= 1 ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-stone-800 text-stone-500 cursor-not-allowed'}">
+            식량1로 치료
+          </button>
+        </div>
+      `).join('');
+
+      const logsHtml = state.logs.slice(0, 20).map(l => `
+        <li class="text-xs text-stone-300 border-b border-white/5 pb-1 leading-relaxed">${l}</li>
+      `).join('');
+
+      return `
+        <div class="space-y-2.5 animate-in">
+          <div class="stone-panel rounded-2xl p-3 space-y-2">
+            <h2 class="text-sm font-black text-amber-200">부족민 상세 관리 & 응급 치료</h2>
+            <div class="space-y-1.5">${humansHtml}</div>
+          </div>
+
+          <div class="stone-panel rounded-2xl p-3 space-y-2">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-black text-amber-200">현재 덱 뒷면 남은 장수 (${state.dayDeck.length}장)</h3>
+              <span class="text-xs text-rose-300 font-bold">붉은 위험 주의!</span>
+            </div>
+            <div class="grid grid-cols-2 gap-1.5">${distHtml}</div>
+          </div>
+
+          <div class="stone-panel rounded-2xl p-3 space-y-2">
+            <h3 class="text-sm font-black text-amber-200">생존 연대기 (최근 기록)</h3>
+            <ul class="space-y-1 max-h-[200px] overflow-y-auto no-scrollbar">${logsHtml}</ul>
+          </div>
+        </div>
+      `;
+    }
+
+    // ----------------------------------------------------------------------------
+    // 8. 5단계 한국어 튜토리얼 가이드 모달 / 설정 모달 / 게임 종료 모달
+    // ----------------------------------------------------------------------------
+    const GUIDE_STEPS = [
+      {
+        title: '1/5. 팔레오(Paleo)의 목표: 벽화 5조각 vs 해골 5개',
+        body: '구석기 부족의 생존자가 되어 맹수와 추위를 이겨내고, <strong>동굴 벽화 조각 5개</strong>를 먼저 완성하면 승리합니다. 반대로 굶주림·밤 미션 실패·부족민 사망으로 <strong>해골 토큰이 5개</strong> 쌓이거나 모두 사망하면 즉시 패배합니다.'
+      },
+      {
+        title: '2/5. 뒷면만 보고 탐험 선택 (기억력 전략)',
+        body: '낮이 시작되면 덱 맨 위에서 <strong>카드 3장의 뒷면</strong>만 보고 1장을 고릅니다. 숲(나무)·강(식량)·산(돌)·캠프(제작)를 고를 때, 선택하지 않은 나머지 2장은 <strong>덱 맨 위에 그대로 유지</strong>되어 다음 턴에 다시 보입니다!'
+      },
+      {
+        title: '3/5. 시간 비용과 붉은 위험(Hazard) 규칙!',
+        body: '좋은 행동을 하려면 <strong>시간 비용(덱 위에서 카드 N장 버리기)</strong>을 치러야 합니다. 이때 버려지는 카드 중에 <strong>붉은 위험 카드</strong>가 섞여 있으면 1장당 부상 1점을 입습니다! 덱 상단에 어떤 카드를 남겼는지 기억하고 피하세요.'
+      },
+      {
+        title: '4/5. 동료 부족 협동(Help) & 작업대 도구',
+        body: '능력치(창·도끼·관찰)가 부족할 땐 상단 동료 배너를 확인하세요. <strong>[동료 지원 요청]</strong>을 켜면 동료의 능력치를 빌려 어려운 사냥도 성공할 수 있고, 동료가 위기에 처했을 땐 내 카드로 도울 수 있습니다. 작업대에서 도구를 만들면 능력치가 영구 상승합니다.'
+      },
+      {
+        title: '5/5. 밤 단계 정산 (식량 배급 + 미션 2종)',
+        body: '낮 덱이 끝나면 밤이 찾아옵니다. 살아있는 부족민 수만큼 <strong>식량</strong>을 먹이고, 현재 시나리오의 <strong>밤 미션 2종(모닥불/천막/늑대/한파 등)</strong>을 자원이나 제작 도구로 막아낸 뒤 다음 날 아침을 맞이하세요!'
+      }
+    ];
+
+    function openGuideModal(step = 0) {
+      const s = GUIDE_STEPS[step] || GUIDE_STEPS[0];
+      const dialog = document.getElementById('modalDialog');
+      dialog.innerHTML = `
+        <div class="p-4 border-b border-amber-700/40 flex items-center justify-between">
+          <h2 class="text-base font-black text-amber-300">팔레오 1분 마스터 가이드</h2>
+          <button onclick="closeModal()" class="px-2.5 py-1 rounded-lg bg-stone-800 text-stone-200 text-xs font-black">닫기</button>
+        </div>
+        <div class="p-4 space-y-3 overflow-y-auto">
+          <div class="text-sm font-black text-amber-200">${s.title}</div>
+          <p class="text-xs text-stone-200 leading-relaxed">${s.body}</p>
+          <div class="flex items-center justify-center gap-1.5 pt-2">
+            ${GUIDE_STEPS.map((_, i) => `<button onclick="openGuideModal(${i})" class="w-6 h-6 rounded-full text-xs font-black ${i === step ? 'bg-amber-500 text-stone-950' : 'bg-stone-800 text-stone-400'}">${i + 1}</button>`).join('')}
+          </div>
+        </div>
+        <div class="p-3 border-t border-amber-700/40 flex items-center justify-between gap-2 bg-[#160f0a]">
+          <button onclick="openGuideModal(${Math.max(0, step - 1)})" ${step === 0 ? 'disabled' : ''} class="px-3 py-2 rounded-xl bg-stone-800 disabled:opacity-40 text-stone-200 text-xs font-black">이전</button>
+          ${step < GUIDE_STEPS.length - 1
+            ? `<button onclick="openGuideModal(${step + 1})" class="flex-1 py-2 rounded-xl bg-amber-500 text-stone-950 text-xs font-black">다음 설명</button>`
+            : `<button onclick="closeModal()" class="flex-1 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black">게임 시작하기</button>`}
+        </div>
+      `;
+      document.getElementById('modalBackdrop').classList.remove('hidden');
+    }
+
+    function openSettingsModal() {
+      const dialog = document.getElementById('modalDialog');
+      const scHtml = Object.values(SCENARIOS).map(sc => `
+        <button onclick="startNewGame(${sc.id})" class="w-full text-left rounded-xl p-3 border ${state.scenarioId === sc.id ? 'bg-amber-950/70 border-amber-400' : 'bg-stone-900 border-stone-700'} space-y-1 btn-tactile">
+          <div class="flex items-center justify-between">
+            <strong class="text-xs font-black text-amber-200">${sc.name}</strong>
+            <span class="px-1.5 py-0.5 rounded bg-amber-500 text-stone-950 text-xs font-black">${sc.badge}</span>
+          </div>
+          <p class="text-xs text-stone-300 leading-relaxed">${sc.desc}</p>
+        </button>
+      `).join('');
+
+      dialog.innerHTML = `
+        <div class="p-4 border-b border-amber-700/40 flex items-center justify-between">
+          <h2 class="text-base font-black text-amber-300">시나리오 선택 및 새 게임</h2>
+          <button onclick="closeModal()" class="px-2.5 py-1 rounded-lg bg-stone-800 text-stone-200 text-xs font-black">닫기</button>
+        </div>
+        <div class="p-4 space-y-2.5 overflow-y-auto">
+          <p class="text-xs text-stone-300">원하는 모듈 조합 시나리오를 선택하면 새 게임이 시작됩니다.</p>
+          ${scHtml}
+        </div>
+      `;
+      document.getElementById('modalBackdrop').classList.remove('hidden');
+    }
+
+    function openGameOverModal() {
+      const dialog = document.getElementById('modalDialog');
+      const isWin = state.gameResult === 'win';
+      dialog.innerHTML = `
+        <div class="p-5 text-center space-y-3 overflow-y-auto">
+          <div class="mx-auto w-14 h-14 rounded-2xl flex items-center justify-center ${isWin ? 'bg-amber-500/20 border-2 border-amber-400' : 'bg-rose-500/20 border-2 border-rose-500'}">
+            ${isWin ? ICONS.painting : ICONS.skull}
+          </div>
+          <h2 class="text-lg font-black ${isWin ? 'text-amber-300' : 'text-rose-400'}">${isWin ? '승리! 동굴 벽화 완성!' : '패배! 부족 생존 실패'}</h2>
+          <p class="text-xs text-stone-200 leading-relaxed">${state.gameOverReason}</p>
+          <div class="grid grid-cols-3 gap-2 pt-1 text-xs">
+            <div class="rounded-lg bg-black/40 p-2 border border-white/10">
+              <div class="text-stone-400">생존 일수</div>
+              <strong class="text-amber-200 text-sm">${state.dayCount}일차</strong>
+            </div>
+            <div class="rounded-lg bg-black/40 p-2 border border-white/10">
+              <div class="text-stone-400">완성 벽화</div>
+              <strong class="text-amber-200 text-sm">${state.paintings}/5</strong>
+            </div>
+            <div class="rounded-lg bg-black/40 p-2 border border-white/10">
+              <div class="text-stone-400">누적 해골</div>
+              <strong class="text-rose-300 text-sm">${state.skulls}/5</strong>
+            </div>
+          </div>
+          <div class="flex gap-2 pt-2">
+            <button onclick="undoLastAction(); closeModal();" class="flex-1 py-2.5 rounded-xl bg-stone-800 text-stone-200 text-xs font-black">직전으로 되돌리기</button>
+            <button onclick="startNewGame(${state.scenarioId})" class="flex-1 py-2.5 rounded-xl bg-amber-500 text-stone-950 text-xs font-black">같은 시나리오 재도전</button>
+          </div>
+        </div>
+      `;
+      document.getElementById('modalBackdrop').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('modalBackdrop').classList.add('hidden');
+    }
+
+    // ----------------------------------------------------------------------------
+    // 9. 앱 초기화
+    // ----------------------------------------------------------------------------
+    window.addEventListener('DOMContentLoaded', () => {
+      state = createInitialState(1);
+      prepareDayChoices();
+      renderAll();
+    });
+  </script>
+</body>
+</html>
