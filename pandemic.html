@@ -439,6 +439,16 @@
           </label>
         </div>
 
+        <div class="grid grid-cols-1 gap-2">
+          <label class="space-y-1 block">
+            <span class="font-black text-emerald-300">혼자 플레이 &amp; AI 동료 방식</span>
+            <select id="cfgAiMode" class="w-full p-2 rounded-xl bg-slate-900 border border-emerald-400/50 text-white font-bold">
+              <option value="ai_partner" selected>혼자 하기 + AI 동료 파트너 (2~3번 요원 자동 협동)</option>
+              <option value="solo_manual">혼자 전담 지휘 (모든 요원 내가 직접 조작)</option>
+            </select>
+          </label>
+        </div>
+
         <div class="space-y-1.5">
           <span class="font-black text-cyan-300 block">3대 공식 확장팩 모듈 선택 (다중 결합 가능)</span>
           <label class="flex items-start gap-2 p-2.5 rounded-xl bg-purple-950/40 border border-purple-400/40 cursor-pointer">
@@ -446,6 +456,13 @@
             <div>
               <strong class="text-purple-200 block">벼랑 끝에서 (On the Brink)</strong>
               <span class="text-[12px] text-slate-300">악성 균주 지정 + 5번째 보라색 돌연변이 질병 + 검역 전문가 요원 추가</span>
+            </div>
+          </label>
+          <label class="flex items-start gap-2 p-2.5 rounded-xl bg-rose-950/40 border border-rose-400/45 cursor-pointer">
+            <input type="checkbox" id="cfgBioTerror" class="mt-0.5 accent-rose-400" />
+            <div>
+              <strong class="text-rose-200 block">적대 AI: 바이오테러리스트 추적전 (벼랑 끝에서)</strong>
+              <span class="text-[12px] text-slate-300">매 턴 도시를 몰래 이동해 보라색 돌연변이를 살포하는 적대 AI 출현! 같은 도시에서 체포 가능</span>
             </div>
           </label>
           <label class="flex items-start gap-2 p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-400/40 cursor-pointer">
@@ -748,6 +765,8 @@
     function initNewPandemicGame(opts = {}) {
       const cfgEpidemics = Number(opts.epidemicCount || document.getElementById("cfgEpidemics")?.value || 4);
       const cfgAgentCount = Number(opts.agentCount || document.getElementById("cfgAgentCount")?.value || 2);
+      const cfgAiMode = opts.aiMode || document.getElementById("cfgAiMode")?.value || "ai_partner";
+      const cfgBioTerror = opts.bioTerrorist !== undefined ? opts.bioTerrorist : (document.getElementById("cfgBioTerror")?.checked ?? false);
       const expOnTheBrink = opts.onTheBrink !== undefined ? opts.onTheBrink : (document.getElementById("cfgExpBrink")?.checked ?? true);
       const expInTheLab = opts.inTheLab !== undefined ? opts.inTheLab : (document.getElementById("cfgExpLab")?.checked ?? true);
       const expStateOfEmergency = opts.stateOfEmergency !== undefined ? opts.stateOfEmergency : (document.getElementById("cfgExpEmergency")?.checked ?? false);
@@ -812,6 +831,7 @@
           desc: spec.desc,
           cityId: "atlanta",
           hand,
+          isAI: (cfgAiMode === "ai_partner" && idx > 0),
           freeTreatUsedThisTurn: false
         };
       });
@@ -868,6 +888,12 @@
         skipNextInfection: false,
         activeEmergency: null,
         virulentStrain: null,
+        aiMode: cfgAiMode,
+        bioTerrorist: {
+          enabled: Boolean(cfgBioTerror),
+          cityId: "cairo",
+          stunnedTurns: 0
+        },
         expansions: {
           onTheBrink: Boolean(expOnTheBrink),
           inTheLab: Boolean(expInTheLab),
@@ -878,7 +904,7 @@
           yellow: 24,
           black: 24,
           red: 24,
-          purple: expOnTheBrink ? 12 : 0
+          purple: (expOnTheBrink || cfgBioTerror) ? 12 : 0
         },
         cures: { blue: 0, yellow: 0, black: 0, red: 0, purple: 0 }, // 0:미개발, 1:치료제개발, 2:박멸
         lab: {
@@ -951,7 +977,9 @@
     }
 
     function getActiveColors() {
-      return G.expansions.onTheBrink ? DISEASE_COLORS : ["blue", "yellow", "black", "red"];
+      return (G.expansions.onTheBrink || (G.bioTerrorist && G.bioTerrorist.enabled))
+        ? DISEASE_COLORS
+        : ["blue", "yellow", "black", "red"];
     }
 
     function isQuarantineProtected(cityId) {
@@ -995,7 +1023,7 @@
     function checkVictoryCondition() {
       const baseDone = ["blue", "yellow", "black", "red"].every(c => G.cures[c] >= 1);
       if (!baseDone) return false;
-      if (G.expansions.onTheBrink) {
+      if (G.expansions.onTheBrink || (G.bioTerrorist && G.bioTerrorist.enabled)) {
         const purpleLeftOnBoard = G.cubePool.purple < DISEASE_META.purple.maxPool;
         if (G.cures.purple === 0 && purpleLeftOnBoard) {
           return false;
@@ -1464,24 +1492,205 @@
       return true;
     }
 
-    // 턴 종료 -> 플레이어 2장 드로우(전염/돌연변이/위기 체크) -> 감염 단계 -> 다음 요원 교대
-    function endPlayerTurn() {
-      if (G.ended) return;
+    function arrestBioTerrorist() {
+      if (G.ended || G.actionsLeft <= 0 || !G.bioTerrorist || !G.bioTerrorist.enabled) return false;
       const actor = getActiveAgent();
+      if (actor.cityId !== G.bioTerrorist.cityId) {
+        pushToast("바이오테러리스트와 같은 도시에 있어야 체포할 수 있습니다.", true);
+        return false;
+      }
       saveUndoSnapshot();
+      closeActionWizard();
+      const city = G.cities[actor.cityId];
+      G.bioTerrorist.stunnedTurns = 2;
+      if (city.cubes.purple > 0) {
+        city.cubes.purple -= 1;
+        G.cubePool.purple += 1;
+        if (G.expansions.inTheLab) G.lab.samples.purple += 1;
+      }
+      log(`[바이오테러리스트 체포!] ${actor.name}이(가) ${city.name}에서 테러리스트를 제압했습니다! (2턴간 활동 정지 + 보라 큐브 제거)`);
+      updateEradicatedStatus("purple");
+      consumeActionPoint(`${city.short} 테러리스트 체포`);
+      return true;
+    }
 
-      const recapLines = [];
-      let epiTriggeredHere = false;
+    function toggleAgentAi(idx) {
+      if (!G || !G.agents[idx]) return;
+      G.agents[idx].isAI = !G.agents[idx].isAI;
+      pushToast(`${G.agents[idx].name}: ${G.agents[idx].isAI ? "AI 자동 동료" : "직접 조작"}으로 전환`);
+      renderAll();
+    }
 
+    function getNextStepToward(fromId, targetId) {
+      if (fromId === targetId) return fromId;
+      const queue = [[fromId]];
+      const visited = new Set([fromId]);
+      while (queue.length > 0) {
+        const path = queue.shift();
+        const cur = path[path.length - 1];
+        for (const nxt of G.cities[cur].adj) {
+          if (nxt === targetId) return path.length === 1 ? nxt : path[1];
+          if (!visited.has(nxt)) {
+            visited.add(nxt);
+            queue.push([...path, nxt]);
+          }
+        }
+      }
+      return G.cities[fromId].adj[0];
+    }
+
+    function autoTrimAiHand(ag, recapLines) {
+      while (ag.hand.length > 7) {
+        const discardIdx = ag.hand.findIndex(c => c.kind === "city");
+        const idx = discardIdx !== -1 ? discardIdx : 0;
+        const disc = ag.hand.splice(idx, 1)[0];
+        G.playerDiscard.push(disc);
+        recapLines.push(`[AI ${ag.short}] 손패 7장 초과로 '${disc.title}' 자동 정리`);
+      }
+    }
+
+    function executeSingleAiAction(ag, recapLines) {
+      if (G.ended) return;
+      const curCity = G.cities[ag.cityId];
+
+      // 1순위: 연구소에서 즉시 치료제 완성 (기본 또는 인더랩)
+      if (curCity.hasLab) {
+        const needStd = ag.roleId === "scientist" ? 4 : 5;
+        const needLab = ag.roleId === "scientist" ? 1 : 2;
+        for (const col of getActiveColors()) {
+          if (G.cures[col] >= 1) continue;
+          const idxs = [];
+          ag.hand.forEach((c, idx) => {
+            if (c.kind === "city" && (c.color === col || (col === "purple" && G.cities[c.cityId].cubes.purple > 0))) {
+              idxs.push(idx);
+            }
+          });
+          if (G.expansions.inTheLab) {
+            if (G.lab.sequenced[col] && G.lab.testedCubes[col] >= 3 && idxs.length >= needLab) {
+              idxs.slice(0, needLab).sort((a, b) => b - a).forEach(i => G.playerDiscard.push(ag.hand.splice(i, 1)[0]));
+              G.cures[col] = 1;
+              updateEradicatedStatus(col);
+              const msg = `[AI ${ag.name}] 실험실 합성으로 ${DISEASE_META[col].name} 치료제 개발!`;
+              log(msg);
+              recapLines.push(msg);
+              return;
+            }
+            if (G.lab.sequenced[col] && G.lab.testedCubes[col] < 3 && G.lab.samples[col] > 0) {
+              const useCnt = Math.min(3 - G.lab.testedCubes[col], G.lab.samples[col]);
+              G.lab.samples[col] -= useCnt;
+              G.lab.testedCubes[col] += useCnt;
+              const msg = `[AI ${ag.name}] ${DISEASE_META[col].short} 시료 ${useCnt}개 실험대 주입`;
+              log(msg);
+              recapLines.push(msg);
+              return;
+            }
+            if (!G.lab.sequenced[col] && idxs.length >= 1) {
+              G.playerDiscard.push(ag.hand.splice(idxs[0], 1)[0]);
+              G.lab.sequenced[col] = true;
+              const msg = `[AI ${ag.name}] ${DISEASE_META[col].short} 염기서열 분석 개시`;
+              log(msg);
+              recapLines.push(msg);
+              return;
+            }
+          } else if (idxs.length >= needStd) {
+            idxs.slice(0, needStd).sort((a, b) => b - a).forEach(i => G.playerDiscard.push(ag.hand.splice(i, 1)[0]));
+            G.cures[col] = 1;
+            updateEradicatedStatus(col);
+            const msg = `[AI ${ag.name}] ${DISEASE_META[col].name} 치료제 개발 완료!`;
+            log(msg);
+            recapLines.push(msg);
+            return;
+          }
+        }
+      }
+
+      // 2순위: 현재 도시에 바이오테러리스트가 있으면 체포 또는 질병 치료
+      if (G.bioTerrorist && G.bioTerrorist.enabled && G.bioTerrorist.cityId === ag.cityId && G.bioTerrorist.stunnedTurns === 0) {
+        G.bioTerrorist.stunnedTurns = 2;
+        if (curCity.cubes.purple > 0) {
+          curCity.cubes.purple -= 1;
+          G.cubePool.purple += 1;
+          if (G.expansions.inTheLab) G.lab.samples.purple += 1;
+        }
+        const msg = `[AI ${ag.name}] ${curCity.short}에서 바이오테러리스트 체포!`;
+        log(msg);
+        recapLines.push(msg);
+        return;
+      }
+
+      const worstHere = getActiveColors()
+        .map(col => ({ col, cnt: curCity.cubes[col] }))
+        .filter(x => x.cnt > 0)
+        .sort((a, b) => b.cnt - a.cnt)[0];
+      if (worstHere) {
+        const clearAll = (ag.roleId === "medic" || G.cures[worstHere.col] >= 1);
+        const rem = clearAll ? worstHere.cnt : 1;
+        curCity.cubes[worstHere.col] -= rem;
+        G.cubePool[worstHere.col] += rem;
+        if (G.expansions.inTheLab) G.lab.samples[worstHere.col] += rem;
+        updateEradicatedStatus(worstHere.col);
+        const msg = `[AI ${ag.name}] ${curCity.short} ${DISEASE_META[worstHere.col].short} 큐브 ${rem}개 치료`;
+        log(msg);
+        recapLines.push(msg);
+        return;
+      }
+
+      // 3순위: 같은 도시에 있는 인간 요원(isAI: false)에게 현재 도시(연구원은 아무 도시) 카드 공유
+      const humanMate = G.agents.find(m => !m.isAI && m.cityId === ag.cityId);
+      if (humanMate && humanMate.hand.length < 7) {
+        const shareIdx = ag.hand.findIndex(c => c.kind === "city" && (ag.roleId === "researcher" || c.cityId === curCity.id));
+        if (shareIdx !== -1) {
+          const shared = ag.hand.splice(shareIdx, 1)[0];
+          humanMate.hand.push(shared);
+          const msg = `[AI ${ag.name}] ${humanMate.name}에게 '${shared.title}' 전달!`;
+          log(msg);
+          recapLines.push(msg);
+          return;
+        }
+      }
+
+      // 4순위: 가장 위급한 3큐브/최다 큐브 감염 도시를 향해 BFS 최단 경로 이동
+      const hotCity = Object.values(G.cities)
+        .map(c => ({ id: c.id, total: getActiveColors().reduce((s, col) => s + c.cubes[col], 0) }))
+        .filter(x => x.total > 0)
+        .sort((a, b) => b.total - a.total)[0];
+      const goalId = hotCity ? hotCity.id : "atlanta";
+      const nextStepId = getNextStepToward(ag.cityId, goalId);
+      ag.cityId = nextStepId;
+      applyMedicAutoClear();
+      const msg = `[AI ${ag.name}] ${G.cities[nextStepId].short}(으)로 이동 (${G.cities[goalId].short} 지원)`;
+      log(msg);
+      recapLines.push(msg);
+    }
+
+    function runBioTerroristStep(recapLines) {
+      if (!G.bioTerrorist || !G.bioTerrorist.enabled || G.ended) return;
+      if (G.bioTerrorist.stunnedTurns > 0) {
+        G.bioTerrorist.stunnedTurns -= 1;
+        recapLines.push(`[적대 AI: 바이오테러리스트] 체포 상태로 행동 불가 (잔여 정지 ${G.bioTerrorist.stunnedTurns}턴)`);
+        return;
+      }
+      const cur = G.cities[G.bioTerrorist.cityId];
+      const candidates = cur.adj.filter(nid => !G.agents.some(ag => ag.cityId === nid));
+      const nextCityId = (candidates.length > 0 ? candidates : cur.adj)[0] || cur.id;
+      G.bioTerrorist.cityId = nextCityId;
+      addDiseaseCube(nextCityId, "purple", new Set(), recapLines);
+      const bMsg = `[적대 AI: 바이오테러리스트] ${G.cities[nextCityId].name}(으)로 잠입해 보라색 돌연변이 살포!`;
+      log(bMsg);
+      recapLines.push(bMsg);
+    }
+
+    function runDrawAndInfectionForAgent(actor, recapLines) {
+      let epiTriggered = false;
       for (let d = 0; d < 2; d++) {
         if (G.ended) break;
         if (G.playerDeck.length === 0) {
           triggerGameEnd(false, "플레이어 덱의 마지막 카드까지 모두 소진되어 방역 시간이 종료되었습니다.");
-          return;
+          return false;
         }
         const drawn = G.playerDeck.pop();
         if (drawn.kind === "epidemic") {
-          epiTriggeredHere = true;
+          epiTriggered = true;
           resolveEpidemic(recapLines);
         } else if (drawn.kind === "mutation") {
           const mutCard = G.infectionDeck.shift();
@@ -1504,11 +1713,10 @@
           }
         } else {
           actor.hand.push(drawn);
-          recapLines.push(`획득 카드: ${drawn.title}`);
+          recapLines.push(`${actor.isAI ? `[AI ${actor.short}] ` : ""}획득 카드: ${drawn.title}`);
         }
       }
 
-      // 감염 단계 (조용한 밤이면 스킵)
       if (!G.ended) {
         if (G.skipNextInfection) {
           G.skipNextInfection = false;
@@ -1525,9 +1733,21 @@
             recapLines.push(`감염: ${G.cities[infCard.cityId].name} (${DISEASE_META[infCard.color].short} ${beforeCnt}->${afterCnt})`);
           }
         }
+        runBioTerroristStep(recapLines);
       }
+      if (actor.isAI) autoTrimAiHand(actor, recapLines);
+      return epiTriggered;
+    }
 
-      // 다음 요원 턴으로 교대
+    // 턴 종료 -> 드로우/감염 -> 다음 요원이 AI 동료 파트너면 자동 4행동 + 드로우/감염 실행!
+    function endPlayerTurn() {
+      if (G.ended) return;
+      const actor = getActiveAgent();
+      saveUndoSnapshot();
+
+      const recapLines = [];
+      let epiTriggeredHere = runDrawAndInfectionForAgent(actor, recapLines);
+
       actor.freeTreatUsedThisTurn = false;
       G.turnCount += 1;
       G.activeAgentIdx = (G.activeAgentIdx + 1) % G.agents.length;
@@ -1536,16 +1756,40 @@
       mapCardFilterIdx = null;
       applyMedicAutoClear();
 
+      // AI 동료 파트너 자동 실행 루프 (인간 요원이 나올 때까지 최대 팀 인원수-1회)
+      let aiGuard = 0;
+      const hasHuman = G.agents.some(a => !a.isAI);
+      const maxAiLoops = hasHuman ? G.agents.length - 1 : 0;
+      while (!G.ended && G.agents[G.activeAgentIdx].isAI && aiGuard < maxAiLoops) {
+        aiGuard += 1;
+        const aiAg = G.agents[G.activeAgentIdx];
+        recapLines.push(`--- [${aiAg.name} (AI 파트너) 자동 협동 개시] ---`);
+        for (let act = 0; act < 4; act++) {
+          if (G.ended) break;
+          executeSingleAiAction(aiAg, recapLines);
+          checkVictoryCondition();
+        }
+        if (!G.ended) {
+          const aiEpi = runDrawAndInfectionForAgent(aiAg, recapLines);
+          if (aiEpi) epiTriggeredHere = true;
+        }
+        aiAg.freeTreatUsedThisTurn = false;
+        G.turnCount += 1;
+        G.activeAgentIdx = (G.activeAgentIdx + 1) % G.agents.length;
+        G.actionsLeft = 4;
+        G.agents[G.activeAgentIdx].freeTreatUsedThisTurn = false;
+        applyMedicAutoClear();
+      }
+
       if (!G.ended) {
-        // 리캡 모달 표시
         const rTitle = document.getElementById("recapTitle");
         const rBody = document.getElementById("recapBody");
         if (rTitle && rBody) {
           rTitle.textContent = epiTriggeredHere
             ? `긴급 전염 경보! (${G.turnCount}턴 개시)`
-            : `${G.turnCount - 1}턴 종료 보고서`;
+            : `작전 턴 종료 보고서 (${G.turnCount}턴 개시)`;
           rBody.innerHTML = recapLines.map(line => `
-            <div class="p-2 rounded-xl ${line.includes("전염") || line.includes("확산") ? "bg-rose-950/70 border border-rose-400/50 text-rose-200 font-bold" : "bg-slate-900 border border-white/10"}">${line}</div>
+            <div class="p-2 rounded-xl ${line.includes("전염") || line.includes("확산") || line.includes("테러리스트") ? "bg-rose-950/70 border border-rose-400/50 text-rose-200 font-bold" : (line.includes("[AI") ? "bg-emerald-950/55 border border-emerald-400/40 text-emerald-200" : "bg-slate-900 border border-white/10")}">${line}</div>
           `).join("");
           document.getElementById("modalTurnRecap")?.classList.remove("hidden");
         }
@@ -1774,7 +2018,20 @@
           }
         }
 
-        bodyEl.innerHTML = (cubeRows.length > 0 ? cubeRows.join("") : `<div class="p-3 rounded-xl bg-slate-900 text-slate-300">현재 도시(${curCity.name})에는 제거할 질병 큐브가 없습니다.</div>`) + directorFreeHtml;
+        let bioArrestHtml = "";
+        if (G.bioTerrorist && G.bioTerrorist.enabled && G.bioTerrorist.cityId === curCity.id && G.bioTerrorist.stunnedTurns === 0) {
+          bioArrestHtml = `
+            <button onclick="arrestBioTerrorist()" ${G.actionsLeft > 0 ? "" : "disabled"} class="w-full p-3 rounded-xl bg-purple-950/80 border border-purple-400 flex items-center justify-between text-left">
+              <div>
+                <strong class="text-purple-200 text-sm">바이오테러리스트 현행범 체포!</strong>
+                <div class="text-[12px] text-slate-200">1행동으로 2턴간 무력화 + 보라 큐브 1개 제거</div>
+              </div>
+              <span class="px-3 py-1.5 rounded-xl bg-purple-400 text-slate-950 font-black">체포</span>
+            </button>
+          `;
+        }
+
+        bodyEl.innerHTML = bioArrestHtml + (cubeRows.length > 0 ? cubeRows.join("") : `<div class="p-3 rounded-xl bg-slate-900 text-slate-300">현재 도시(${curCity.name})에는 제거할 질병 큐브가 없습니다.</div>`) + directorFreeHtml;
         return;
       }
 
@@ -2066,7 +2323,7 @@
       if (agBar) {
         agBar.innerHTML = G.agents.map(ag => `
           <button onclick="selectActiveAgent(${ag.idx})" class="px-2 py-0.5 rounded-lg border ${ag.idx === G.activeAgentIdx ? "bg-cyan-400 text-slate-950 border-white font-black" : "bg-slate-900 text-slate-200 border-white/20 font-bold"} shrink-0">
-            ${ag.name}(${ag.hand.length})
+            ${ag.isAI ? "[AI]" : ""}${ag.name}(${ag.hand.length})
           </button>
         `).join("");
       }
@@ -2107,7 +2364,7 @@
           emgBanner.classList.add("hidden");
         }
       }
-      document.getElementById("legendPurpleBadge")?.classList.toggle("hidden", !G.expansions.onTheBrink);
+      document.getElementById("legendPurpleBadge")?.classList.toggle("hidden", !(G.expansions.onTheBrink || (G.bioTerrorist && G.bioTerrorist.enabled)));
     }
 
     function renderMapView() {
@@ -2193,6 +2450,17 @@
         pawnHtml += `<text x="${px}" y="${py + 4}" text-anchor="middle" fill="#020617" font-size="12" font-weight="900">${ag.short.slice(0, 1)}</text>`;
         pawnHtml += `</g>`;
       });
+      if (G.bioTerrorist && G.bioTerrorist.enabled) {
+        const btc = G.cities[G.bioTerrorist.cityId];
+        if (btc) {
+          const btx = btc.x + 26;
+          const bty = btc.y - 25;
+          pawnHtml += `<g onclick="onSelectMapCity('${btc.id}')" class="map-node">`;
+          pawnHtml += `<circle cx="${btx}" cy="${bty}" r="11" fill="#7e22ce" stroke="#f43f5e" stroke-width="2.4" />`;
+          pawnHtml += `<text x="${btx}" y="${bty + 4}" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="900">테</text>`;
+          pawnHtml += `</g>`;
+        }
+      }
       if (pawnsLayer) pawnsLayer.innerHTML = pawnHtml;
 
       // 4) 듀얼 뷰 토글 & 스마트 일람표 갱신
@@ -2259,12 +2527,17 @@
         <div class="p-3 rounded-2xl bg-slate-900/90 border ${ag.idx === G.activeAgentIdx ? "border-cyan-400 ring-1 ring-cyan-400" : "border-white/15"} space-y-2">
           <div class="flex items-center justify-between gap-2">
             <div>
-              <strong class="text-sm font-black" style="color:${ag.color}">${ag.name}</strong>
+              <strong class="text-sm font-black" style="color:${ag.color}">${ag.isAI ? "[AI 동료] " : ""}${ag.name}</strong>
               <span class="text-[12px] text-slate-300 ml-1">위치: ${G.cities[ag.cityId].name}</span>
             </div>
-            <button onclick="selectActiveAgent(${ag.idx})" class="px-2.5 py-1 rounded-lg font-black text-[12px] ${ag.idx === G.activeAgentIdx ? "bg-cyan-400 text-slate-950" : "bg-slate-800 text-cyan-200 border border-cyan-400/40"}">
-              ${ag.idx === G.activeAgentIdx ? "조작 중" : "이 요원 선택"}
-            </button>
+            <div class="flex items-center gap-1">
+              <button onclick="toggleAgentAi(${ag.idx})" class="px-2 py-1 rounded-lg font-black text-[12px] ${ag.isAI ? "bg-emerald-950 text-emerald-200 border border-emerald-400/50" : "bg-slate-800 text-slate-200 border border-white/20"}">
+                ${ag.isAI ? "AI 자동" : "직접 조작"}
+              </button>
+              <button onclick="selectActiveAgent(${ag.idx})" class="px-2.5 py-1 rounded-lg font-black text-[12px] ${ag.idx === G.activeAgentIdx ? "bg-cyan-400 text-slate-950" : "bg-slate-800 text-cyan-200 border border-cyan-400/40"}">
+                ${ag.idx === G.activeAgentIdx ? "조작 중" : "선택"}
+              </button>
+            </div>
           </div>
           <div class="text-[12px] text-cyan-200">${ag.desc}</div>
           <div class="flex flex-wrap gap-1 pt-1">
@@ -2326,6 +2599,8 @@
       }
       if (expBox) {
         expBox.innerHTML = `
+          <div>• 솔로·AI 모드: <strong>${G.aiMode === "ai_partner" ? "혼자 하기 + AI 동료 파트너 자동 협동" : "혼자 전담 지휘 (직접 조작)"}</strong></div>
+          <div>• 적대 AI(바이오테러리스트): <strong>${G.bioTerrorist && G.bioTerrorist.enabled ? `활성 (${G.cities[G.bioTerrorist.cityId].name} 출몰 중)` : "비활성"}</strong></div>
           <div>• 벼랑 끝에서: <strong>${G.expansions.onTheBrink ? "활성 (악성 균주 + 보라색 돌연변이)" : "비활성"}</strong></div>
           <div>• 인 더 랩: <strong>${G.expansions.inTheLab ? "활성 (시료 채취 + 바이오 실험실 합성)" : "비활성"}</strong></div>
           <div>• 비상사태: <strong>${G.expansions.stateOfEmergency ? "활성 (격리 마커 + 위기 이벤트)" : "비활성"}</strong></div>
@@ -2473,7 +2748,7 @@
       document.getElementById("iconGearMini").innerHTML = iconSvg("gear");
       document.getElementById("iconCoachBulb").innerHTML = iconSvg("bulb");
       bindMapPanZoomGestures();
-      initNewPandemicGame({ epidemicCount: 4, agentCount: 2, onTheBrink: true, inTheLab: true, stateOfEmergency: false });
+      initNewPandemicGame({ epidemicCount: 4, agentCount: 2, aiMode: "ai_partner", bioTerrorist: false, onTheBrink: true, inTheLab: true, stateOfEmergency: false });
       applyMapTransform();
     });
   </script>
