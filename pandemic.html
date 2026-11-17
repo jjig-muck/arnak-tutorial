@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>팬데믹 (Pandemic) — 기본판 &amp; 3대 확장팩 통합 모바일 전략 시뮬레이터</title>
+  <title>팬데믹 v2.0 (Pandemic) — 원작 48도시 &amp; 3대 확장팩 통합 시뮬레이터</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
@@ -90,7 +90,7 @@
         <div class="w-7 h-7 rounded-lg bg-cyan-500/20 border border-cyan-400/60 flex items-center justify-center text-cyan-300 shrink-0" id="iconHeaderBio"></div>
         <div class="truncate">
           <div class="flex items-center gap-1">
-            <h1 class="text-xs font-black tracking-tight text-cyan-300 truncate">팬데믹 WHO 사령부</h1>
+            <h1 class="text-xs font-black tracking-tight text-cyan-300 truncate">팬데믹 WHO 사령부 v2.0</h1>
             <span id="hudTurnBadge" class="px-1.5 py-0.5 rounded bg-sky-950 text-sky-200 border border-sky-400/50 text-[12px] font-extrabold shrink-0">1턴</span>
             <span id="hudExpBadge" class="px-1.5 py-0.5 rounded bg-purple-950 text-purple-200 border border-purple-500/40 text-[12px] font-extrabold shrink-0">기본판</span>
           </div>
@@ -200,15 +200,25 @@
         </div>
       </div>
 
+      <!-- 대륙별 원탭 줌 포커스 바 (48도시 모바일 탐색 최적화) -->
+      <div class="bg-[#08101c] border-b border-white/10 px-2 py-1 flex items-center gap-1 overflow-x-auto no-scrollbar text-[12px] shrink-0 z-10">
+        <span class="text-slate-400 font-bold shrink-0">지역 줌:</span>
+        <button onclick="focusMapRegion('all')" class="px-2 py-0.5 rounded bg-cyan-950 border border-cyan-500/40 text-cyan-200 font-black shrink-0">세계 전체</button>
+        <button onclick="focusMapRegion('americas')" class="px-2 py-0.5 rounded bg-blue-950 border border-blue-400/50 text-blue-200 font-black shrink-0">미주</button>
+        <button onclick="focusMapRegion('europe_africa')" class="px-2 py-0.5 rounded bg-yellow-950 border border-yellow-400/50 text-yellow-200 font-black shrink-0">유럽·아프리카</button>
+        <button onclick="focusMapRegion('middle_india')" class="px-2 py-0.5 rounded bg-stone-800 border border-stone-400/50 text-stone-200 font-black shrink-0">중동·인도</button>
+        <button onclick="focusMapRegion('asia')" class="px-2 py-0.5 rounded bg-red-950 border border-red-400/50 text-red-200 font-black shrink-0">아시아·호주</button>
+      </div>
+
       <!-- 중앙: SVG 세계 네트워크 지도 vs 스마트 일람표 -->
       <div class="flex-1 relative overflow-hidden flex flex-col">
         <div id="mapSvgContainer" class="flex-1 w-full h-full cursor-grab active:cursor-grabbing touch-none select-none">
-          <svg id="worldBioSvg" class="w-full h-full" viewBox="0 0 820 500" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+          <svg id="worldBioSvg" class="w-full h-full" viewBox="0 0 1160 660" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <radialGradient id="bgBioGrad" cx="50%" cy="48%" r="65%">
-                <stop offset="0%" stop-color="#0f2036" />
-                <stop offset="65%" stop-color="#091220" />
-                <stop offset="100%" stop-color="#040810" />
+                <stop offset="0%" stop-color="#0d233d" />
+                <stop offset="65%" stop-color="#071324" />
+                <stop offset="100%" stop-color="#030811" />
               </radialGradient>
               <pattern id="bioGridPattern" width="40" height="40" patternUnits="userSpaceOnUse">
                 <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#38bdf8" stroke-opacity="0.06" stroke-width="1" />
@@ -217,9 +227,10 @@
                 <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.85" />
               </filter>
             </defs>
-            <rect x="0" y="0" width="820" height="500" fill="url(#bgBioGrad)" />
-            <rect x="0" y="0" width="820" height="500" fill="url(#bioGridPattern)" />
+            <rect x="0" y="0" width="1160" height="660" fill="url(#bgBioGrad)" />
+            <rect x="0" y="0" width="1160" height="660" fill="url(#bioGridPattern)" />
             <g id="mapTransformGroup">
+              <g id="mapContinentsLayer"></g>
               <g id="mapRoutesLayer"></g>
               <g id="mapCitiesLayer"></g>
               <g id="mapPawnsLayer"></g>
@@ -557,36 +568,63 @@
 
     const INFECTION_RATES = [2, 2, 2, 3, 3, 4, 4];
 
-    // 세계 24개 핵심 거점 도시 및 인접 항로 (태평양 횡단 포함)
+    // 원작 《팬데믹》 정식 48개 전체 거점 도시(색상별 12도시) 및 대륙간 항로
     const CITIES_SPEC = [
-      // 파랑 (북미·유럽 6도시)
-      { id: "atlanta",      name: "애틀랜타",   short: "애틀랜타", color: "blue", x: 185, y: 200, adj: ["chicago", "miami", "newyork"] },
-      { id: "chicago",      name: "시카고",     short: "시카고",   color: "blue", x: 125, y: 130, adj: ["atlanta", "newyork", "mexicocity", "tokyo"] },
-      { id: "newyork",      name: "뉴욕",       short: "뉴욕",     color: "blue", x: 265, y: 145, adj: ["chicago", "atlanta", "london", "paris"] },
-      { id: "london",       name: "런던",       short: "런던",     color: "blue", x: 355, y: 105, adj: ["newyork", "paris", "milan"] },
-      { id: "paris",        name: "파리",       short: "파리",     color: "blue", x: 415, y: 175, adj: ["london", "newyork", "milan", "algiers"] },
-      { id: "milan",        name: "밀라노",     short: "밀라노",   color: "blue", x: 495, y: 145, adj: ["london", "paris", "istanbul", "algiers"] },
-      // 노랑 (중남미·아프리카 6도시)
-      { id: "mexicocity",   name: "멕시코시티", short: "멕시코",   color: "yellow", x: 115, y: 265, adj: ["chicago", "miami", "bogota", "sydney"] },
-      { id: "miami",        name: "마이애미",   short: "마이애미", color: "yellow", x: 230, y: 255, adj: ["atlanta", "mexicocity", "bogota"] },
-      { id: "bogota",       name: "보고타",     short: "보고타",   color: "yellow", x: 225, y: 345, adj: ["mexicocity", "miami", "saopaulo"] },
-      { id: "saopaulo",     name: "상파울루",   short: "상파울루", color: "yellow", x: 295, y: 415, adj: ["bogota", "lagos"] },
-      { id: "lagos",        name: "라고스",     short: "라고스",   color: "yellow", x: 395, y: 350, adj: ["saopaulo", "algiers", "johannesburg", "cairo"] },
-      { id: "johannesburg", name: "요하네스버그", short: "요하네스", color: "yellow", x: 485, y: 430, adj: ["lagos", "cairo"] },
-      // 검정 (중동·남아시아·동유럽 6도시)
-      { id: "algiers",      name: "알제",       short: "알제",     color: "black", x: 410, y: 255, adj: ["paris", "milan", "cairo", "lagos"] },
-      { id: "cairo",        name: "카이로",     short: "카이로",   color: "black", x: 495, y: 270, adj: ["algiers", "istanbul", "baghdad", "lagos", "johannesburg"] },
-      { id: "istanbul",     name: "이스탄불",   short: "이스탄불", color: "black", x: 525, y: 195, adj: ["milan", "moscow", "baghdad", "cairo"] },
-      { id: "moscow",       name: "모스크바",   short: "모스크바", color: "black", x: 585, y: 105, adj: ["istanbul", "baghdad", "beijing"] },
-      { id: "baghdad",      name: "바그다드",   short: "바그다드", color: "black", x: 595, y: 250, adj: ["istanbul", "moscow", "cairo", "mumbai"] },
-      { id: "mumbai",       name: "뭄바이",     short: "뭄바이",   color: "black", x: 590, y: 340, adj: ["baghdad", "bangkok", "hongkong"] },
-      // 빨강 (동아시아·오세아니아 6도시)
-      { id: "beijing",      name: "베이징",     short: "베이징",   color: "red", x: 665, y: 115, adj: ["moscow", "seoul", "hongkong"] },
-      { id: "seoul",        name: "서울",       short: "서울",     color: "red", x: 755, y: 105, adj: ["beijing", "tokyo"] },
-      { id: "tokyo",        name: "도쿄",       short: "도쿄",     color: "red", x: 760, y: 185, adj: ["seoul", "hongkong", "chicago"] },
-      { id: "hongkong",     name: "홍콩",       short: "홍콩",     color: "red", x: 700, y: 255, adj: ["beijing", "tokyo", "bangkok", "mumbai"] },
-      { id: "bangkok",      name: "방콕",       short: "방콕",     color: "red", x: 675, y: 335, adj: ["mumbai", "hongkong", "sydney"] },
-      { id: "sydney",       name: "시드니",     short: "시드니",   color: "red", x: 760, y: 430, adj: ["bangkok", "mexicocity"] }
+      // 1) 파랑 (북미 · 유럽 12도시)
+      { id: "sanfrancisco",  name: "샌프란시스코", short: "샌프란",   color: "blue",   x: 90,   y: 185, adj: ["chicago", "losangeles", "tokyo", "manila"] },
+      { id: "chicago",       name: "시카고",       short: "시카고",   color: "blue",   x: 185,  y: 155, adj: ["sanfrancisco", "losangeles", "mexicocity", "atlanta", "montreal"] },
+      { id: "montreal",      name: "몬트리올",     short: "몬트리올", color: "blue",   x: 275,  y: 130, adj: ["chicago", "washington", "newyork"] },
+      { id: "newyork",       name: "뉴욕",         short: "뉴욕",     color: "blue",   x: 350,  y: 170, adj: ["montreal", "washington", "london", "madrid"] },
+      { id: "atlanta",       name: "애틀랜타",     short: "애틀랜타", color: "blue",   x: 215,  y: 225, adj: ["chicago", "washington", "miami"] },
+      { id: "washington",    name: "워싱턴",       short: "워싱턴",   color: "blue",   x: 295,  y: 215, adj: ["montreal", "newyork", "atlanta", "miami"] },
+      { id: "london",        name: "런던",         short: "런던",     color: "blue",   x: 475,  y: 120, adj: ["newyork", "madrid", "paris", "essen"] },
+      { id: "madrid",        name: "마드리드",     short: "마드리드", color: "blue",   x: 455,  y: 205, adj: ["newyork", "saopaulo", "london", "paris", "algiers"] },
+      { id: "paris",         name: "파리",         short: "파리",     color: "blue",   x: 540,  y: 165, adj: ["london", "essen", "milan", "algiers", "madrid"] },
+      { id: "essen",         name: "에센",         short: "에센",     color: "blue",   x: 575,  y: 105, adj: ["london", "paris", "milan", "stpetersburg"] },
+      { id: "milan",         name: "밀라노",       short: "밀라노",   color: "blue",   x: 615,  y: 165, adj: ["essen", "paris", "istanbul"] },
+      { id: "stpetersburg",  name: "상트페테르",   short: "상트페",   color: "blue",   x: 675,  y: 90,  adj: ["essen", "istanbul", "moscow"] },
+
+      // 2) 노랑 (중남미 · 아프리카 12도시)
+      { id: "losangeles",    name: "로스앤젤레스", short: "LA",       color: "yellow", x: 115,  y: 255, adj: ["sanfrancisco", "chicago", "mexicocity", "sydney"] },
+      { id: "mexicocity",    name: "멕시코시티",   short: "멕시코",   color: "yellow", x: 175,  y: 315, adj: ["losangeles", "chicago", "miami", "bogota", "lima"] },
+      { id: "miami",         name: "마이애미",     short: "마이애미", color: "yellow", x: 265,  y: 285, adj: ["atlanta", "washington", "mexicocity", "bogota"] },
+      { id: "bogota",        name: "보고타",       short: "보고타",   color: "yellow", x: 275,  y: 380, adj: ["mexicocity", "miami", "lima", "saopaulo", "buenosaires"] },
+      { id: "lima",          name: "리마",         short: "리마",     color: "yellow", x: 215,  y: 455, adj: ["mexicocity", "bogota", "santiago"] },
+      { id: "santiago",      name: "산티아고",     short: "산티아고", color: "yellow", x: 245,  y: 550, adj: ["lima"] },
+      { id: "buenosaires",   name: "부에노스아이레스", short: "부에노스", color: "yellow", x: 335, y: 550, adj: ["bogota", "saopaulo"] },
+      { id: "saopaulo",      name: "상파울루",     short: "상파울루", color: "yellow", x: 385,  y: 455, adj: ["bogota", "buenosaires", "madrid", "lagos"] },
+      { id: "lagos",         name: "라고스",       short: "라고스",   color: "yellow", x: 520,  y: 375, adj: ["saopaulo", "kinshasa", "khartoum"] },
+      { id: "kinshasa",      name: "킨샤사",       short: "킨샤사",   color: "yellow", x: 575,  y: 455, adj: ["lagos", "khartoum", "johannesburg"] },
+      { id: "khartoum",      name: "하르툼",       short: "하르툼",   color: "yellow", x: 630,  y: 355, adj: ["cairo", "lagos", "kinshasa", "johannesburg"] },
+      { id: "johannesburg",  name: "요하네스버그", short: "요하네스", color: "yellow", x: 635,  y: 540, adj: ["kinshasa", "khartoum"] },
+
+      // 3) 검정 (지중해 · 중동 · 남아시아 12도시)
+      { id: "algiers",       name: "알제",         short: "알제",     color: "black",  x: 525,  y: 255, adj: ["madrid", "paris", "istanbul", "cairo"] },
+      { id: "istanbul",      name: "이스탄불",     short: "이스탄불", color: "black",  x: 665,  y: 215, adj: ["milan", "stpetersburg", "moscow", "baghdad", "cairo", "algiers"] },
+      { id: "cairo",         name: "카이로",       short: "카이로",   color: "black",  x: 615,  y: 280, adj: ["algiers", "istanbul", "baghdad", "riyadh", "khartoum"] },
+      { id: "moscow",        name: "모스크바",     short: "모스크바", color: "black",  x: 740,  y: 130, adj: ["stpetersburg", "istanbul", "tehran"] },
+      { id: "baghdad",       name: "바그다드",     short: "바그다드", color: "black",  x: 725,  y: 250, adj: ["istanbul", "tehran", "karachi", "riyadh", "cairo"] },
+      { id: "riyadh",        name: "리야드",       short: "리야드",   color: "black",  x: 735,  y: 325, adj: ["cairo", "baghdad", "karachi"] },
+      { id: "tehran",        name: "테헤란",       short: "테헤란",   color: "black",  x: 805,  y: 185, adj: ["moscow", "baghdad", "karachi", "delhi"] },
+      { id: "karachi",       name: "카라치",       short: "카라치",   color: "black",  x: 810,  y: 275, adj: ["tehran", "baghdad", "riyadh", "mumbai", "delhi"] },
+      { id: "mumbai",        name: "뭄바이",       short: "뭄바이",   color: "black",  x: 800,  y: 355, adj: ["karachi", "delhi", "chennai"] },
+      { id: "delhi",         name: "델리",         short: "델리",     color: "black",  x: 875,  y: 230, adj: ["tehran", "karachi", "mumbai", "chennai", "kolkata"] },
+      { id: "kolkata",       name: "콜카타",       short: "콜카타",   color: "black",  x: 920,  y: 285, adj: ["delhi", "chennai", "bangkok", "hongkong"] },
+      { id: "chennai",       name: "첸나이",       short: "첸나이",   color: "black",  x: 860,  y: 430, adj: ["mumbai", "delhi", "kolkata", "bangkok", "jakarta"] },
+
+      // 4) 빨강 (동아시아 · 동남아 · 오세아니아 12도시)
+      { id: "beijing",       name: "베이징",       short: "베이징",   color: "red",    x: 955,  y: 145, adj: ["shanghai", "seoul"] },
+      { id: "seoul",         name: "서울",         short: "서울",     color: "red",    x: 1035, y: 145, adj: ["beijing", "shanghai", "tokyo"] },
+      { id: "tokyo",         name: "도쿄",         short: "도쿄",     color: "red",    x: 1110, y: 190, adj: ["seoul", "shanghai", "osaka", "sanfrancisco"] },
+      { id: "shanghai",      name: "상하이",       short: "상하이",   color: "red",    x: 970,  y: 220, adj: ["beijing", "seoul", "tokyo", "taipei", "hongkong"] },
+      { id: "osaka",         name: "오사카",       short: "오사카",   color: "red",    x: 1105, y: 255, adj: ["tokyo", "taipei"] },
+      { id: "taipei",        name: "타이베이",     short: "타이베이", color: "red",    x: 1030, y: 305, adj: ["shanghai", "osaka", "hongkong", "manila"] },
+      { id: "hongkong",      name: "홍콩",         short: "홍콩",     color: "red",    x: 985,  y: 335, adj: ["kolkata", "bangkok", "hochiminh", "manila", "taipei", "shanghai"] },
+      { id: "bangkok",       name: "방콕",         short: "방콕",     color: "red",    x: 940,  y: 400, adj: ["kolkata", "chennai", "jakarta", "hochiminh", "hongkong"] },
+      { id: "manila",        name: "마닐라",       short: "마닐라",   color: "red",    x: 1095, y: 380, adj: ["taipei", "hongkong", "hochiminh", "sydney", "sanfrancisco"] },
+      { id: "hochiminh",     name: "호치민",       short: "호치민",   color: "red",    x: 1015, y: 455, adj: ["bangkok", "hongkong", "manila", "jakarta"] },
+      { id: "jakarta",       name: "자카르타",     short: "자카르타", color: "red",    x: 945,  y: 515, adj: ["chennai", "bangkok", "hochiminh", "sydney"] },
+      { id: "sydney",        name: "시드니",       short: "시드니",   color: "red",    x: 1095, y: 545, adj: ["jakarta", "manila", "losangeles"] }
     ];
 
     const ROLES_SPEC = {
@@ -2371,7 +2409,38 @@
       const actor = getActiveAgent();
       const filteredCard = (mapCardFilterIdx !== null && actor.hand[mapCardFilterIdx]) ? actor.hand[mapCardFilterIdx] : null;
 
-      // 1) 항로 렌더링 (태평양 횡단 항로는 좌우 끝으로 랩어라운드 점선 처리)
+      // 0) 세계 6대륙 실루엣 & 적도/항로 격자 렌더링
+      const contLayer = document.getElementById("mapContinentsLayer");
+      if (contLayer) {
+        contLayer.innerHTML = `
+          <line x1="0" y1="365" x2="1160" y2="365" stroke="#38bdf8" stroke-opacity="0.16" stroke-width="1.2" stroke-dasharray="8,6" />
+          <line x1="475" y1="0" x2="475" y2="660" stroke="#38bdf8" stroke-opacity="0.14" stroke-width="1.2" stroke-dasharray="8,6" />
+          <!-- 북아메리카 대륙 -->
+          <path d="M 35 75 L 290 60 L 375 110 L 340 215 L 250 285 L 185 330 L 145 315 L 90 250 L 55 155 Z" fill="#13253e" stroke="#284b78" stroke-width="2" stroke-linejoin="round" />
+          <!-- 남아메리카 대륙 -->
+          <path d="M 225 355 L 345 390 L 415 460 L 350 580 L 235 615 L 205 470 Z" fill="#152840" stroke="#284b78" stroke-width="2" stroke-linejoin="round" />
+          <!-- 유럽 대륙 & 영국 -->
+          <path d="M 455 95 L 500 95 L 495 140 L 455 140 Z" fill="#152b47" stroke="#2f568a" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M 435 170 L 520 135 L 615 70 L 705 70 L 700 205 L 580 220 L 440 225 Z" fill="#152b47" stroke="#2f568a" stroke-width="2" stroke-linejoin="round" />
+          <!-- 아프리카 대륙 -->
+          <path d="M 495 245 L 635 250 L 665 360 L 655 555 L 570 570 L 535 450 L 485 360 Z" fill="#182a42" stroke="#2f568a" stroke-width="2" stroke-linejoin="round" />
+          <!-- 유라시아·중동·인도·동아시아 -->
+          <path d="M 690 75 L 995 75 L 1065 160 L 1015 350 L 945 420 L 895 315 L 860 445 L 805 375 L 770 340 L 710 355 L 655 245 Z" fill="#13263e" stroke="#2b5282" stroke-width="2" stroke-linejoin="round" />
+          <!-- 일본·타이완·동남아 섬들 & 오세아니아 -->
+          <path d="M 1085 165 L 1135 165 L 1125 275 L 1080 275 Z" fill="#162d4a" stroke="#2f568a" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M 1010 285 L 1120 345 L 1110 410 L 1015 340 Z" fill="#162d4a" stroke="#2f568a" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M 915 475 L 1030 470 L 1040 535 L 920 535 Z" fill="#162d4a" stroke="#2f568a" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M 1035 485 L 1135 495 L 1130 595 L 1035 585 Z" fill="#162d4a" stroke="#2f568a" stroke-width="2" stroke-linejoin="round" />
+          <text x="210" y="95" fill="#64748b" font-size="13" font-weight="900">북아메리카</text>
+          <text x="305" y="505" fill="#64748b" font-size="13" font-weight="900">남아메리카</text>
+          <text x="565" y="75" fill="#64748b" font-size="13" font-weight="900">유럽</text>
+          <text x="580" y="510" fill="#64748b" font-size="13" font-weight="900">아프리카</text>
+          <text x="855" y="120" fill="#64748b" font-size="13" font-weight="900">유라시아 · 아시아</text>
+          <text x="1085" y="618" text-anchor="middle" fill="#64748b" font-size="13" font-weight="900">오세아니아</text>
+        `;
+      }
+
+      // 1) 항로 렌더링 (태평양 횡단 3항로는 좌우 끝으로 랩어라운드 점선 + 도시명 라벨)
       const routesLayer = document.getElementById("mapRoutesLayer");
       let routeHtml = "";
       const drawnPairs = new Set();
@@ -2383,27 +2452,29 @@
           const c2 = G.cities[id2];
           if (!c2) return;
 
-          const isPacificWrap = Math.abs(c1.x - c2.x) > 450;
+          const isPacificWrap = Math.abs(c1.x - c2.x) > 600;
           if (isPacificWrap) {
             const leftCity = c1.x < c2.x ? c1 : c2;
             const rightCity = c1.x < c2.x ? c2 : c1;
-            routeHtml += `<line x1="${leftCity.x}" y1="${leftCity.y}" x2="0" y2="${leftCity.y}" stroke="#38bdf8" stroke-opacity="0.6" stroke-width="2.6" stroke-dasharray="6,5" />`;
-            routeHtml += `<line x1="${rightCity.x}" y1="${rightCity.y}" x2="820" y2="${rightCity.y}" stroke="#38bdf8" stroke-opacity="0.6" stroke-width="2.6" stroke-dasharray="6,5" />`;
+            routeHtml += `<line x1="${leftCity.x}" y1="${leftCity.y}" x2="0" y2="${leftCity.y}" stroke="#38bdf8" stroke-opacity="0.65" stroke-width="2.4" stroke-dasharray="6,5" />`;
+            routeHtml += `<line x1="${rightCity.x}" y1="${rightCity.y}" x2="1160" y2="${rightCity.y}" stroke="#38bdf8" stroke-opacity="0.65" stroke-width="2.4" stroke-dasharray="6,5" />`;
+            routeHtml += `<text x="6" y="${leftCity.y - 6}" fill="#7dd3fc" font-size="12" font-weight="900">${rightCity.short}</text>`;
+            routeHtml += `<text x="1154" y="${rightCity.y - 6}" text-anchor="end" fill="#7dd3fc" font-size="12" font-weight="900">${leftCity.short}</text>`;
           } else {
             routeHtml += `<line x1="${c1.x}" y1="${c1.y}" x2="${c2.x}" y2="${c2.y}" stroke="transparent" stroke-width="28" stroke-linecap="round" />`;
-            routeHtml += `<line x1="${c1.x}" y1="${c1.y}" x2="${c2.x}" y2="${c2.y}" stroke="#334155" stroke-width="2.4" stroke-linecap="round" />`;
+            routeHtml += `<line x1="${c1.x}" y1="${c1.y}" x2="${c2.x}" y2="${c2.y}" stroke="#3b5270" stroke-width="2.2" stroke-linecap="round" />`;
           }
         });
       });
       if (routesLayer) routesLayer.innerHTML = routeHtml;
 
-      // 2) 24개 세계 거점 도시 카드 렌더링
+      // 2) 48개 세계 거점 도시 카드 렌더링
       const citiesLayer = document.getElementById("mapCitiesLayer");
       let cityHtml = "";
       Object.values(G.cities).forEach(c => {
         const m = DISEASE_META[c.color];
-        const w = 78;
-        const h = 42;
+        const w = 66;
+        const h = 36;
         const x0 = c.x - w / 2;
         const y0 = c.y - h / 2;
 
@@ -2412,18 +2483,18 @@
         const isAdjToActor = G.cities[actor.cityId].adj.includes(c.id);
         const isFilterMatch = filteredCard && filteredCard.kind === "city" && filteredCard.cityId === c.id;
         const strokeCol = isFilterMatch ? "#38bdf8" : (isDanger ? "#f43f5e" : (c.id === actor.cityId ? "#34d399" : m.hex));
-        const strokeW = (isFilterMatch || isDanger || c.id === actor.cityId) ? 3.2 : 1.8;
+        const strokeW = (isFilterMatch || isDanger || c.id === actor.cityId) ? 3.0 : 1.7;
 
         cityHtml += `<g class="map-node" filter="url(#nodeDropShadow)" onclick="onSelectMapCity('${c.id}')">`;
-        cityHtml += `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" rx="9" fill="#0d1525" stroke="${strokeCol}" stroke-width="${strokeW}" class="${isDanger ? "danger-pulse" : (isFilterMatch ? "valid-highlight" : "")}" />`;
-        cityHtml += `<rect x="${x0 + 2}" y="${y0 + 2}" width="${w - 4}" height="18" rx="7" fill="${m.darkHex}" />`;
-        cityHtml += `<text x="${c.x}" y="${y0 + 14.5}" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="900">${c.short}</text>`;
+        cityHtml += `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" rx="8" fill="#0c1526" stroke="${strokeCol}" stroke-width="${strokeW}" class="${isDanger ? "danger-pulse" : (isFilterMatch ? "valid-highlight" : "")}" />`;
+        cityHtml += `<rect x="${x0 + 2}" y="${y0 + 2}" width="${w - 4}" height="16" rx="6" fill="${m.darkHex}" />`;
+        cityHtml += `<text x="${c.x}" y="${y0 + 13.5}" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="900">${c.short}</text>`;
 
         // 연구소 / 격리 마커 표시 + 큐브 배지
         const cubeParts = getActiveColors().filter(col => c.cubes[col] > 0).map(col => `${DISEASE_META[col].short.slice(0, 1)}${c.cubes[col]}`);
         const statusTxt = cubeParts.length > 0 ? cubeParts.join(" ") : (c.hasLab ? "연구소" : (isAdjToActor ? "인접" : "안전"));
         const statusFill = cubeParts.length > 0 ? (isDanger ? "#fda4af" : "#fde047") : (c.hasLab ? "#6ee7b7" : "#94a3b8");
-        cityHtml += `<text x="${c.x}" y="${y0 + 34}" text-anchor="middle" fill="${statusFill}" font-size="12" font-weight="900">${statusTxt}</text>`;
+        cityHtml += `<text x="${c.x}" y="${y0 + 30}" text-anchor="middle" fill="${statusFill}" font-size="12" font-weight="900">${statusTxt}</text>`;
         if (c.hasLab) {
           cityHtml += `<rect x="${x0 - 4}" y="${y0 - 4}" width="18" height="14" rx="4" fill="#10b981" stroke="#ffffff" stroke-width="1" />`;
           cityHtml += `<text x="${x0 + 5}" y="${y0 + 7}" text-anchor="middle" fill="#020617" font-size="12" font-weight="900">연</text>`;
@@ -2625,7 +2696,7 @@
     // (H) 지도 두 손가락 핀치 줌 & 드래그 패닝 & 모달 제어
     // =========================================================
     function clampMapPan() {
-      const limit = Math.max(220, Math.round(360 * mapZoom));
+      const limit = Math.max(420, Math.round(780 * mapZoom));
       mapPan.x = Math.max(-limit, Math.min(limit, mapPan.x));
       mapPan.y = Math.max(-limit, Math.min(limit, mapPan.y));
     }
@@ -2634,10 +2705,29 @@
       clampMapPan();
       const g = document.getElementById("mapTransformGroup");
       if (g) {
-        g.setAttribute("transform", `translate(${mapPan.x + 410 * (1 - mapZoom)} ${mapPan.y + 250 * (1 - mapZoom)}) scale(${mapZoom})`);
+        g.setAttribute("transform", `translate(${mapPan.x + 580 * (1 - mapZoom)} ${mapPan.y + 330 * (1 - mapZoom)}) scale(${mapZoom})`);
       }
       const badge = document.getElementById("mapZoomLevelBadge");
       if (badge) badge.textContent = `${Math.round(mapZoom * 100)}%`;
+    }
+
+    function focusMapRegion(regionKey) {
+      if (mapViewMode === "list") {
+        mapViewMode = "svg";
+        renderMapView();
+      }
+      const targets = {
+        all:           { zoom: 1.0, cx: 580, cy: 330 },
+        americas:      { zoom: 2.0, cx: 245, cy: 325 },
+        europe_africa: { zoom: 2.0, cx: 555, cy: 290 },
+        middle_india:  { zoom: 2.2, cx: 775, cy: 270 },
+        asia:          { zoom: 2.0, cx: 1015, cy: 330 }
+      };
+      const t = targets[regionKey] || targets.all;
+      mapZoom = t.zoom;
+      mapPan.x = Math.round((580 - t.cx) * mapZoom);
+      mapPan.y = Math.round((330 - t.cy) * mapZoom);
+      applyMapTransform();
     }
 
     function zoomMap(factor) {
