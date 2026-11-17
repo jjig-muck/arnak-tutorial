@@ -1,0 +1,2481 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>팬데믹 (Pandemic) — 기본판 &amp; 3대 확장팩 통합 모바일 전략 시뮬레이터</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background-color: #070b14;
+      color: #f1f5f9;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    @keyframes alertPulse {
+      0%, 100% {
+        filter: drop-shadow(0 0 3px rgba(244, 63, 94, 0.5));
+      }
+      50% {
+        filter: drop-shadow(0 0 11px rgba(244, 63, 94, 0.98));
+      }
+    }
+
+    .danger-pulse {
+      animation: alertPulse 1.5s infinite;
+    }
+
+    @keyframes targetGlow {
+      0%, 100% {
+        filter: drop-shadow(0 0 2px rgba(56, 189, 248, 0.45));
+      }
+      50% {
+        filter: drop-shadow(0 0 9px rgba(56, 189, 248, 0.95));
+      }
+    }
+
+    .valid-highlight {
+      animation: targetGlow 1.7s infinite;
+    }
+
+    .map-node {
+      cursor: pointer;
+      transition: transform 0.14s ease;
+    }
+    .map-node:active {
+      transform: scale(0.95);
+    }
+
+    .toast-enter {
+      animation: toastSlide 0.25s ease-out forwards;
+    }
+
+    @keyframes toastSlide {
+      from { opacity: 0; transform: translate(-50%, -10px); }
+      to   { opacity: 1; transform: translate(-50%, 0); }
+    }
+  </style>
+</head>
+<body class="h-[100dvh] w-full max-w-[500px] mx-auto flex flex-col bg-[#070b14] text-slate-100 border-x border-cyan-500/20 relative overflow-hidden">
+
+  <!-- 플로팅 토스트 알림 -->
+  <div id="toastBox" class="hidden fixed top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-2xl bg-slate-900/95 border border-cyan-400/70 text-xs font-extrabold text-cyan-200 shadow-2xl toast-enter pointer-events-none text-center max-w-[92%]"></div>
+
+  <!-- ========================================================= -->
+  <!-- 1. 상단 고정 방역 지휘 본부 HUD                           -->
+  <!-- ========================================================= -->
+  <header class="bg-[#0b1322] border-b border-cyan-500/30 px-2.5 pt-1.5 pb-1.5 shrink-0 z-20 space-y-1">
+    <!-- 1번째 줄: 타이틀 & 확장 배지 & 되돌리기/가이드/설정 -->
+    <div class="flex items-center justify-between gap-1">
+      <div class="flex items-center gap-1.5 min-w-0">
+        <div class="w-7 h-7 rounded-lg bg-cyan-500/20 border border-cyan-400/60 flex items-center justify-center text-cyan-300 shrink-0" id="iconHeaderBio"></div>
+        <div class="truncate">
+          <div class="flex items-center gap-1">
+            <h1 class="text-xs font-black tracking-tight text-cyan-300 truncate">팬데믹 WHO 사령부</h1>
+            <span id="hudTurnBadge" class="px-1.5 py-0.5 rounded bg-sky-950 text-sky-200 border border-sky-400/50 text-[12px] font-extrabold shrink-0">1턴</span>
+            <span id="hudExpBadge" class="px-1.5 py-0.5 rounded bg-purple-950 text-purple-200 border border-purple-500/40 text-[12px] font-extrabold shrink-0">기본판</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1 shrink-0 text-[12px]">
+        <button onclick="undoLastAction()" id="btnUndo" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-500/50 text-slate-200 font-bold">
+          되돌리기
+        </button>
+        <button onclick="openGuideModal(0)" class="px-2 py-1 rounded-lg bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-black shadow">
+          가이드
+        </button>
+        <button onclick="openSettingsModal()" class="p-1 rounded-lg bg-slate-800 border border-slate-600 text-slate-200 hover:bg-slate-700" title="게임 및 확장 설정">
+          <div id="iconGearMini"></div>
+        </button>
+      </div>
+    </div>
+
+    <!-- 2번째 줄: 확산(Outbreak) · 감염률 · 치료제 현황(4+1) · 남은 덱 -->
+    <div class="flex items-center justify-between gap-1 pt-1 border-t border-cyan-500/15 text-[12px] overflow-x-auto no-scrollbar">
+      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-rose-950/85 border border-rose-500/45 shrink-0" title="연쇄 확산 8회 발생 시 즉시 패배">
+        <span class="text-rose-300 font-bold">확산</span>
+        <strong class="text-white font-black" id="hudOutbreaks">0/8</strong>
+      </div>
+
+      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-950/85 border border-amber-500/45 shrink-0" title="매 턴 종료 시 감염 덱에서 뽑는 도시 수">
+        <span class="text-amber-300 font-bold">감염률</span>
+        <strong class="text-white font-black" id="hudInfRate">2장</strong>
+      </div>
+
+      <div class="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-slate-900 border border-white/15 shrink-0" id="hudCuresRow"></div>
+
+      <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-sky-950/90 border border-sky-400/50 shrink-0" title="플레이어 덱 잔여 카드 수 (0장이면 패배)">
+        <span class="text-sky-300 font-bold">덱</span>
+        <strong class="text-white font-black" id="hudDeckLeft">40장</strong>
+      </div>
+    </div>
+
+    <!-- 3번째 줄: 활성 요원 팀 전환 바 + 현재 행동 게이지 -->
+    <div class="flex items-center justify-between gap-1.5 pt-1 border-t border-white/10 text-[12px]">
+      <div class="flex items-center gap-1 min-w-0 flex-1 overflow-x-auto no-scrollbar" id="hudAgentsBar"></div>
+      <div class="px-2 py-0.5 rounded-lg bg-emerald-950 border border-emerald-400/60 text-emerald-200 font-black shrink-0" id="hudActionsLeft">
+        행동 4/4
+      </div>
+    </div>
+
+    <!-- 4번째 줄: 현재 요원 손패 트레이 (클릭 시 양방향 지도 필터 연동) -->
+    <div class="flex items-center gap-1.5 pt-1 border-t border-white/10">
+      <span class="px-1.5 py-0.5 rounded bg-cyan-950 border border-cyan-500/40 text-cyan-200 font-black text-[12px] shrink-0" id="hudHandCountLabel">손패 4/7장</span>
+      <div class="flex items-center gap-1 min-w-0 flex-1 overflow-x-auto no-scrollbar py-0.5" id="hudHandTray"></div>
+    </div>
+  </header>
+
+  <!-- ========================================================= -->
+  <!-- 2. 실시간 방역 전략 코치 & 비상 위기 배너                 -->
+  <!-- ========================================================= -->
+  <div id="coachBanner" class="bg-gradient-to-r from-[#0e1b2e] via-[#0b1322] to-slate-900 border-b border-cyan-500/35 px-2.5 py-1.5 flex items-start gap-2 text-xs shrink-0 z-10">
+    <div id="iconCoachBulb" class="text-cyan-400 mt-0.5 shrink-0"></div>
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center justify-between gap-1">
+        <strong class="text-cyan-300 font-extrabold text-[12px]">WHO 방역 작전 코치</strong>
+        <div class="flex items-center gap-1.5">
+          <span class="text-[12px] text-amber-300 font-bold" id="coachExpansionHint">연구소 1/6</span>
+          <button onclick="toggleCoachBanner()" id="btnCoachToggle" class="px-1.5 py-0.5 rounded bg-slate-800 text-cyan-300 font-bold text-[12px]">접기</button>
+        </div>
+      </div>
+      <p id="coachAdviceText" class="text-slate-200 text-[12px] leading-snug mt-0.5">
+        도시를 터치하거나 하단 [방역 행동 독]에서 이동·치료·치료제 개발을 수행하세요!
+      </p>
+      <div id="activeEmergencyBanner" class="hidden mt-1 px-2 py-0.5 rounded bg-rose-950/85 border border-rose-400/60 text-rose-200 text-[12px] font-extrabold"></div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- 3. 메인 컨텐츠 영역 (4개 탭 뷰)                            -->
+  <!-- ========================================================= -->
+  <main class="flex-1 relative overflow-hidden flex flex-col">
+
+    <!-- [탭 1] 세계 방역 네트워크 지도 & 스마트 일람표 듀얼 뷰 -->
+    <section id="view_map" class="flex-1 relative flex flex-col overflow-hidden bg-[#050911]">
+      <!-- 상단 지도 제어 바: 듀얼 뷰 전환 + 질병 범례 + 줌 컨트롤 -->
+      <div class="bg-[#0b1220]/95 border-b border-cyan-500/25 px-2 py-1 shrink-0 flex items-center justify-between gap-1.5 z-10 text-[12px]">
+        <div class="flex items-center gap-1 overflow-x-auto no-scrollbar font-black">
+          <button onclick="toggleMapViewMode()" id="btnMapViewMode" class="px-2 py-0.5 rounded bg-cyan-400 text-slate-950 border border-cyan-200 font-black shrink-0">스마트 일람표</button>
+          <span class="px-1.5 py-0.5 rounded bg-blue-950 border border-blue-400/70 text-blue-200 shrink-0">파랑</span>
+          <span class="px-1.5 py-0.5 rounded bg-yellow-950 border border-yellow-400/70 text-yellow-200 shrink-0">노랑</span>
+          <span class="px-1.5 py-0.5 rounded bg-stone-800 border border-stone-400/70 text-stone-200 shrink-0">검정</span>
+          <span class="px-1.5 py-0.5 rounded bg-red-950 border border-red-400/70 text-red-200 shrink-0">빨강</span>
+          <span id="legendPurpleBadge" class="hidden px-1.5 py-0.5 rounded bg-purple-950 border border-purple-400/70 text-purple-200 shrink-0">보라</span>
+        </div>
+        <div id="mapZoomControlsBox" class="flex items-center gap-1 shrink-0">
+          <span class="px-1.5 py-0.5 rounded bg-black/80 border border-white/15 text-slate-300 font-bold" id="mapZoomLevelBadge">100%</span>
+          <button onclick="zoomMap(1.2)" class="w-6 h-6 rounded bg-slate-800 border border-white/25 text-white font-black text-xs">+</button>
+          <button onclick="zoomMap(0.83)" class="w-6 h-6 rounded bg-slate-800 border border-white/25 text-white font-black text-xs">-</button>
+          <button onclick="resetMapPan()" class="px-1.5 h-6 rounded bg-cyan-950 border border-cyan-500/50 text-cyan-200 font-bold text-[12px]">중앙</button>
+        </div>
+      </div>
+
+      <!-- 손패 카드 선택 시 활성화되는 빠른 실행 바 -->
+      <div id="selectedCardActionBar" class="hidden bg-cyan-950/90 border-b border-cyan-400/50 px-2.5 py-1.5 flex items-center justify-between gap-2 text-[12px] shrink-0 z-10">
+        <div id="selectedCardBarLabel" class="font-extrabold text-cyan-200 truncate">선택 카드 필터</div>
+        <div class="flex items-center gap-1 shrink-0">
+          <button onclick="openWizardWithFilteredCard('move')" class="px-2 py-0.5 rounded bg-cyan-400 text-slate-950 font-black">이동/비행</button>
+          <button onclick="openWizardWithFilteredCard('action')" class="px-2 py-0.5 rounded bg-emerald-600 text-white font-black">건설/공유/개발</button>
+          <button onclick="clearHudCardFilter()" class="px-2 py-0.5 rounded bg-slate-800 text-slate-200 border border-white/20 font-bold">해제</button>
+        </div>
+      </div>
+
+      <!-- 중앙: SVG 세계 네트워크 지도 vs 스마트 일람표 -->
+      <div class="flex-1 relative overflow-hidden flex flex-col">
+        <div id="mapSvgContainer" class="flex-1 w-full h-full cursor-grab active:cursor-grabbing touch-none select-none">
+          <svg id="worldBioSvg" class="w-full h-full" viewBox="0 0 820 500" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <radialGradient id="bgBioGrad" cx="50%" cy="48%" r="65%">
+                <stop offset="0%" stop-color="#0f2036" />
+                <stop offset="65%" stop-color="#091220" />
+                <stop offset="100%" stop-color="#040810" />
+              </radialGradient>
+              <pattern id="bioGridPattern" width="40" height="40" patternUnits="userSpaceOnUse">
+                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#38bdf8" stroke-opacity="0.06" stroke-width="1" />
+              </pattern>
+              <filter id="nodeDropShadow" x="-15%" y="-15%" width="130%" height="135%">
+                <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.85" />
+              </filter>
+            </defs>
+            <rect x="0" y="0" width="820" height="500" fill="url(#bgBioGrad)" />
+            <rect x="0" y="0" width="820" height="500" fill="url(#bioGridPattern)" />
+            <g id="mapTransformGroup">
+              <g id="mapRoutesLayer"></g>
+              <g id="mapCitiesLayer"></g>
+              <g id="mapPawnsLayer"></g>
+            </g>
+          </svg>
+        </div>
+
+        <!-- 모바일 스마트 일람표 컨테이너 -->
+        <div id="mapSmartListContainer" class="hidden flex-1 overflow-y-auto p-2.5 space-y-2.5 bg-[#070b14] text-xs"></div>
+
+        <!-- 지도 하단 실시간 위협 & 큐브 잔고 미니 바 -->
+        <div class="bg-[#0b1220]/95 border-t border-white/10 px-2.5 py-1 flex items-center justify-between text-[12px] shrink-0">
+          <span class="text-cyan-200 font-extrabold truncate" id="bottomCityInfoStat">현재 위치: 애틀랜타 (CDC)</span>
+          <span class="text-rose-300 font-bold shrink-0" id="bottomCubePoolStat">위험도시 0곳</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- [탭 2] 방역팀 요원 & 손패 상세 관리 (Agents & Hands) -->
+    <section id="view_agents" class="hidden flex-1 overflow-y-auto p-3 space-y-2.5 bg-[#080d18] text-xs">
+      <div class="p-3 rounded-2xl bg-[#0e1729] border border-cyan-500/35 space-y-2">
+        <div class="flex items-center justify-between gap-2">
+          <strong class="text-sm font-black text-cyan-300">방역팀 요원 배치 &amp; 7종 고유 능력</strong>
+          <span class="px-2 py-0.5 rounded bg-cyan-950 border border-cyan-500/40 text-cyan-200 font-black text-[12px]" id="agentsTabCountBadge">2인 팀</span>
+        </div>
+        <p class="text-[12px] text-slate-300">상단 요원 배지를 터치하거나 아래 버튼을 누르면 조작할 요원을 전환할 수 있으며, [1.이동]·[3.공유]에서 원격 협동이 가능합니다.</p>
+        <div class="space-y-2" id="agentsDetailList"></div>
+      </div>
+    </section>
+
+    <!-- [탭 3] WHO 실험실 & 치료제 개발소 (In the Lab / Cure Station) -->
+    <section id="view_lab" class="hidden flex-1 overflow-y-auto p-3 space-y-3 bg-[#080d18] text-xs">
+      <div class="p-3 rounded-2xl bg-[#0e1729] border border-emerald-500/35 space-y-2">
+        <div class="flex items-center justify-between gap-2">
+          <strong class="text-sm font-black text-emerald-300">질병 공급처 &amp; 치료제 개발 현황</strong>
+          <span class="px-2 py-0.5 rounded bg-emerald-950 border border-emerald-500/40 text-emerald-200 font-black text-[12px]" id="labModeBadge">정통 치료제</span>
+        </div>
+        <div class="space-y-2" id="diseaseStatusGrid"></div>
+      </div>
+
+      <div id="inTheLabBenchBox" class="p-3 rounded-2xl bg-[#0e1729] border border-purple-500/40 space-y-2">
+        <strong class="text-sm font-black text-purple-300 block">《인 더 랩 (In the Lab)》 바이오 실험대</strong>
+        <p class="text-[12px] text-slate-300">
+          현장 치료로 수거한 큐브는 시료 보관실에 축적됩니다. 연구소에서 <strong>1) 염기서열 분석(해당 색 카드 1장) → 2) 시료 3개 주입(1행동) → 3) 최종 합성(과학자 1장 / 일반 2장)</strong>으로 치료제를 완성하세요!
+        </p>
+        <div class="space-y-2" id="labWorkbenchCards"></div>
+      </div>
+    </section>
+
+    <!-- [탭 4] 감염 덱 추론 · 확장 규칙 · 작전 로그 (Tracker & Logs) -->
+    <section id="view_intel" class="hidden flex-1 overflow-y-auto p-3 space-y-3 bg-[#080d18] text-xs">
+      <div class="p-3 rounded-2xl bg-[#0e1729] border border-amber-500/35 space-y-2">
+        <strong class="text-sm font-black text-amber-300 block">감염 버림 더미 추적기 (전염 재발 경보)</strong>
+        <p class="text-[12px] text-slate-300">전염 카드가 나오면 아래 도시 카드들이 섞여 감염 덱 맨 위에 올라가므로, 다시 뽑힐 최우선 경계 대상이 됩니다!</p>
+        <div class="flex flex-wrap gap-1.5" id="infectionDiscardChips"></div>
+      </div>
+
+      <div class="p-3 rounded-2xl bg-[#0e1729] border border-purple-500/35 space-y-1.5">
+        <strong class="text-sm font-black text-purple-300 block">활성화된 확장팩 모듈 요약</strong>
+        <div class="space-y-1 text-[12px] text-slate-200" id="activeExpansionsSummaryBox"></div>
+      </div>
+
+      <div class="p-3 rounded-2xl bg-[#0e1729] border border-white/15 space-y-1.5">
+        <strong class="text-sm font-black text-slate-200 block">WHO 방역 사령부 작전 로그</strong>
+        <div class="space-y-1 text-[12px] text-slate-300 max-h-56 overflow-y-auto pr-1" id="gameLogsBox"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ========================================================= -->
+  <!-- 4. 하단 고정 6대 방역 행동 독 & 턴 종료 버튼              -->
+  <!-- ========================================================= -->
+  <footer class="bg-[#0b1322] border-t border-cyan-500/35 px-2 pt-1.5 pb-1.5 shrink-0 z-20 space-y-1.5">
+    <div class="flex items-center justify-between gap-2 text-[12px] px-0.5">
+      <span class="font-extrabold text-cyan-200 truncate" id="dockStatusLabel">활성 요원: 의무병 · 애틀랜타</span>
+      <button onclick="endPlayerTurn()" id="btnEndTurn" class="px-3 py-1 rounded-xl bg-gradient-to-r from-amber-400 to-orange-400 hover:brightness-110 text-slate-950 font-black shadow shrink-0">
+        턴 종료 (드로우 &amp; 감염)
+      </button>
+    </div>
+
+    <div class="grid grid-cols-6 gap-1 text-[12px]">
+      <button onclick="openActionWizard('move')" class="py-1.5 px-1 rounded-xl bg-sky-950/90 hover:bg-sky-900 border border-sky-400/60 text-sky-200 font-black flex flex-col items-center justify-center leading-tight">
+        <span>1.이동</span>
+        <span class="text-slate-300 font-bold">인접/비행</span>
+      </button>
+      <button onclick="openActionWizard('treat')" class="py-1.5 px-1 rounded-xl bg-rose-950/90 hover:bg-rose-900 border border-rose-400/60 text-rose-200 font-black flex flex-col items-center justify-center leading-tight">
+        <span>2.치료</span>
+        <span class="text-slate-300 font-bold" id="dockTreatSub">큐브제거</span>
+      </button>
+      <button onclick="openActionWizard('build_quarantine')" class="py-1.5 px-1 rounded-xl bg-amber-950/90 hover:bg-amber-900 border border-amber-400/60 text-amber-200 font-black flex flex-col items-center justify-center leading-tight">
+        <span id="dockBuildTitle">3.연구소</span>
+        <span class="text-slate-300 font-bold" id="dockBuildSub">건설/격리</span>
+      </button>
+      <button onclick="openActionWizard('share')" class="py-1.5 px-1 rounded-xl bg-purple-950/90 hover:bg-purple-900 border border-purple-400/60 text-purple-200 font-black flex flex-col items-center justify-center leading-tight">
+        <span>4.공유</span>
+        <span class="text-slate-300 font-bold">지식전달</span>
+      </button>
+      <button onclick="openActionWizard('cure_lab')" class="py-1.5 px-1 rounded-xl bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-400/60 text-emerald-200 font-black flex flex-col items-center justify-center leading-tight">
+        <span>5.치료제</span>
+        <span class="text-slate-300 font-bold" id="dockCureSub">개발/랩</span>
+      </button>
+      <button onclick="openActionWizard('event')" class="py-1.5 px-1 rounded-xl bg-cyan-950/90 hover:bg-cyan-900 border border-cyan-400/60 text-cyan-200 font-black flex flex-col items-center justify-center leading-tight">
+        <span>6.특수</span>
+        <span class="text-slate-300 font-bold" id="dockEventSub">이벤트</span>
+      </button>
+    </div>
+
+    <!-- 하단 4대 메인 탭 네비게이션 -->
+    <nav class="grid grid-cols-4 gap-1 pt-1 border-t border-white/10 text-[12px]">
+      <button onclick="switchTab('map')" id="tabBtn_map" class="py-1 rounded-lg flex items-center justify-center gap-1 bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-extrabold transition">
+        세계 지도
+      </button>
+      <button onclick="switchTab('agents')" id="tabBtn_agents" class="py-1 rounded-lg flex items-center justify-center gap-1 text-slate-400 hover:text-slate-200 font-bold transition">
+        요원·손패
+      </button>
+      <button onclick="switchTab('lab')" id="tabBtn_lab" class="py-1 rounded-lg flex items-center justify-center gap-1 text-slate-400 hover:text-slate-200 font-bold transition">
+        실험실·질병
+      </button>
+      <button onclick="switchTab('intel')" id="tabBtn_intel" class="py-1 rounded-lg flex items-center justify-center gap-1 text-slate-400 hover:text-slate-200 font-bold transition">
+        감염추적·로그
+      </button>
+    </nav>
+  </footer>
+
+  <!-- ========================================================= -->
+  <!-- 5. 통합 방역 액션 위저드 모달 (Action Wizard Modal)       -->
+  <!-- ========================================================= -->
+  <div id="modalActionWizard" class="hidden fixed inset-0 z-40 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-2">
+    <div class="w-full max-w-[480px] max-h-[88dvh] rounded-3xl bg-[#0e1729] border border-cyan-400/60 flex flex-col overflow-hidden shadow-2xl">
+      <div class="px-4 py-3 bg-[#09101d] border-b border-cyan-500/30 flex items-center justify-between gap-2">
+        <div class="min-w-0">
+          <div class="flex items-center gap-1.5">
+            <span id="wizBadge" class="px-2 py-0.5 rounded bg-cyan-950 text-cyan-200 border border-cyan-400/50 text-[12px] font-black">1행동 소모</span>
+            <span id="wizActionRemainHint" class="text-[12px] text-amber-300 font-bold">남은 행동 4회</span>
+          </div>
+          <h2 id="wizTitle" class="text-sm font-black text-white truncate mt-1">작전 위저드</h2>
+        </div>
+        <button onclick="closeActionWizard()" class="px-3 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-xs shrink-0">
+          닫기
+        </button>
+      </div>
+
+      <div id="wizBody" class="p-3 overflow-y-auto space-y-2.5 text-xs"></div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- 6. 턴 종료 & 감염 브리핑 모달                             -->
+  <!-- ========================================================= -->
+  <div id="modalTurnRecap" class="hidden fixed inset-0 z-40 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="w-full max-w-[440px] rounded-3xl bg-[#0e1729] border border-amber-400/60 p-4 space-y-3 shadow-2xl text-xs">
+      <div class="flex items-center justify-between border-b border-white/10 pb-2">
+        <strong class="text-base font-black text-amber-300" id="recapTitle">턴 종료 · 감염 보고서</strong>
+        <button onclick="closeTurnRecap()" class="px-3 py-1 rounded-xl bg-cyan-400 text-slate-950 font-black">작전 계속</button>
+      </div>
+      <div id="recapBody" class="space-y-2 text-slate-200 max-h-[60dvh] overflow-y-auto"></div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- 7. 손패 7장 초과 버리기 모달                              -->
+  <!-- ========================================================= -->
+  <div id="modalHandLimit" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="w-full max-w-[440px] rounded-3xl bg-[#0e1729] border border-rose-400/70 p-4 space-y-3 shadow-2xl text-xs">
+      <div class="border-b border-white/10 pb-2">
+        <strong class="text-base font-black text-rose-300 block">손패 상한(7장) 초과 — 카드 정리 필요</strong>
+        <p class="text-[12px] text-slate-300 mt-1">방역 요원은 최대 7장의 카드만 보유할 수 있습니다. 버리거나 즉시 발동할 카드를 선택하세요.</p>
+      </div>
+      <div id="handLimitList" class="space-y-1.5 max-h-[55dvh] overflow-y-auto"></div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- 8. 인터랙티브 5단계 한국어 가이드 모달                    -->
+  <!-- ========================================================= -->
+  <div id="modalGuide" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="w-full max-w-[460px] rounded-3xl bg-[#0e1729] border border-cyan-400/60 p-4 space-y-3 shadow-2xl text-xs">
+      <div class="flex items-center justify-between border-b border-white/10 pb-2">
+        <strong class="text-sm font-black text-cyan-300" id="guideSlideTitle">팬데믹 방역 매뉴얼</strong>
+        <button onclick="closeGuideModal()" class="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-200 font-bold">닫기</button>
+      </div>
+      <div id="guideSlideBody" class="space-y-2 leading-relaxed text-slate-200 max-h-[58dvh] overflow-y-auto"></div>
+      <div class="flex items-center justify-between pt-2 border-t border-white/10">
+        <button onclick="moveGuideSlide(-1)" id="btnGuidePrev" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-200 font-black">이전</button>
+        <span class="text-cyan-300 font-black" id="guideSlideCounter">1 / 5</span>
+        <button onclick="moveGuideSlide(1)" id="btnGuideNext" class="px-3 py-1.5 rounded-xl bg-cyan-400 text-slate-950 font-black">다음</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- 9. 게임 설정 & 3대 확장팩 조합 모달                       -->
+  <!-- ========================================================= -->
+  <div id="modalSettings" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="w-full max-w-[460px] max-h-[90dvh] rounded-3xl bg-[#0e1729] border border-cyan-400/60 p-4 flex flex-col gap-3 shadow-2xl text-xs">
+      <div class="flex items-center justify-between border-b border-white/10 pb-2 shrink-0">
+        <strong class="text-base font-black text-cyan-300">새 작전 설정 &amp; 확장팩 조합</strong>
+        <button onclick="closeSettingsModal()" class="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-200 font-bold">닫기</button>
+      </div>
+
+      <div class="space-y-3 overflow-y-auto pr-1">
+        <div class="grid grid-cols-2 gap-2">
+          <label class="space-y-1 block">
+            <span class="font-black text-slate-200">전염(Epidemic) 난이도</span>
+            <select id="cfgEpidemics" class="w-full p-2 rounded-xl bg-slate-900 border border-white/20 text-white font-bold">
+              <option value="4" selected>입문 (전염 4장)</option>
+              <option value="5">표준 (전염 5장)</option>
+              <option value="6">영웅 (전염 6장)</option>
+            </select>
+          </label>
+          <label class="space-y-1 block">
+            <span class="font-black text-slate-200">파견 요원 수</span>
+            <select id="cfgAgentCount" class="w-full p-2 rounded-xl bg-slate-900 border border-white/20 text-white font-bold">
+              <option value="2" selected>2인 협동 팀</option>
+              <option value="3">3인 정예 팀</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="space-y-1.5">
+          <span class="font-black text-cyan-300 block">3대 공식 확장팩 모듈 선택 (다중 결합 가능)</span>
+          <label class="flex items-start gap-2 p-2.5 rounded-xl bg-purple-950/40 border border-purple-400/40 cursor-pointer">
+            <input type="checkbox" id="cfgExpBrink" checked class="mt-0.5 accent-purple-400" />
+            <div>
+              <strong class="text-purple-200 block">벼랑 끝에서 (On the Brink)</strong>
+              <span class="text-[12px] text-slate-300">악성 균주 지정 + 5번째 보라색 돌연변이 질병 + 검역 전문가 요원 추가</span>
+            </div>
+          </label>
+          <label class="flex items-start gap-2 p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-400/40 cursor-pointer">
+            <input type="checkbox" id="cfgExpLab" checked class="mt-0.5 accent-emerald-400" />
+            <div>
+              <strong class="text-emerald-200 block">인 더 랩 (In the Lab)</strong>
+              <span class="text-[12px] text-slate-300">치료 시 시료 채취 → 염기서열 분석 → 시료 3개 투입 후 단 1~2장으로 치료제 합성!</span>
+            </div>
+          </label>
+          <label class="flex items-start gap-2 p-2.5 rounded-xl bg-amber-950/40 border border-amber-400/40 cursor-pointer">
+            <input type="checkbox" id="cfgExpEmergency" class="mt-0.5 accent-amber-400" />
+            <div>
+              <strong class="text-amber-200 block">비상사태 (State of Emergency)</strong>
+              <span class="text-[12px] text-slate-300">전 요원 2단 격리 마커 설치 + 방역 지휘관 + 긴급 위기 이벤트 발동</span>
+            </div>
+          </label>
+        </div>
+
+        <div class="space-y-1.5">
+          <span class="font-black text-cyan-300 block">선발 요원 역할 조합 (요원 1 &amp; 2)</span>
+          <div class="grid grid-cols-2 gap-2">
+            <select id="cfgRole0" class="w-full p-2 rounded-xl bg-slate-900 border border-white/20 text-white font-bold">
+              <option value="medic" selected>의무병 (치료 전담)</option>
+              <option value="scientist">과학자 (4장 치료제)</option>
+              <option value="researcher">연구원 (만능 전달)</option>
+              <option value="dispatcher">배패자 (원격 지휘)</option>
+              <option value="ops_expert">작전 전문가 (무료 연구소)</option>
+              <option value="quarantine_spec">검역 전문가 (주변 방어)</option>
+              <option value="field_director">방역 지휘관 (원격 격리)</option>
+            </select>
+            <select id="cfgRole1" class="w-full p-2 rounded-xl bg-slate-900 border border-white/20 text-white font-bold">
+              <option value="scientist" selected>과학자 (4장 치료제)</option>
+              <option value="medic">의무병 (치료 전담)</option>
+              <option value="researcher">연구원 (만능 전달)</option>
+              <option value="dispatcher">배패자 (원격 지휘)</option>
+              <option value="ops_expert">작전 전문가 (무료 연구소)</option>
+              <option value="quarantine_spec">검역 전문가 (주변 방어)</option>
+              <option value="field_director">방역 지휘관 (원격 격리)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <button onclick="applySettingsAndRestart()" class="w-full py-2.5 rounded-2xl bg-gradient-to-r from-cyan-400 to-sky-400 text-slate-950 font-black text-sm shadow-lg shrink-0">
+        이 설정으로 새 팬데믹 작전 시작!
+      </button>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- 10. 승리 / 패배 최종 결산 모달                            -->
+  <!-- ========================================================= -->
+  <div id="modalGameFinish" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="w-full max-w-[440px] rounded-3xl bg-[#0e1729] border border-cyan-400/70 p-5 space-y-3 text-center shadow-2xl">
+      <div id="finishBadge" class="inline-block px-3 py-1 rounded-full text-xs font-black">작전 결과</div>
+      <h2 id="finishTitle" class="text-xl font-black text-white">작전 종료</h2>
+      <p id="finishReason" class="text-xs text-slate-200 leading-relaxed"></p>
+      <div id="finishStatsBox" class="p-3 rounded-2xl bg-black/50 border border-white/10 text-xs text-left space-y-1 text-slate-200"></div>
+      <div class="grid grid-cols-2 gap-2 pt-2 text-xs">
+        <button onclick="closeFinishModal()" class="py-2.5 rounded-xl bg-slate-800 text-slate-200 font-black">보드 확인</button>
+        <button onclick="openSettingsModal()" class="py-2.5 rounded-xl bg-cyan-400 text-slate-950 font-black">새 작전 시작</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================
+    // (A) 커스텀 SVG 아이콘 및 4+1대 질병·24대 세계 도시 상수
+    // =========================================================
+    function iconSvg(kind) {
+      if (kind === "bio") {
+        return `<svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="8" r="2.5"/><circle cx="8.5" cy="14" r="2.5"/><circle cx="15.5" cy="14" r="2.5"/></svg>`;
+      }
+      if (kind === "gear") {
+        return `<svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M4.9 4.9l2.1 2.1m10 10l2.1 2.1M2 12h3m14 0h3M4.9 19.1l2.1-2.1m10-10l2.1-2.1"/></svg>`;
+      }
+      if (kind === "bulb") {
+        return `<svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6m-5 3h4M12 3a6 6 0 0 0-3.5 10.9c.7.6 1 1.3 1.1 2.1h4.8c.1-.8.4-1.5 1.1-2.1A6 6 0 0 0 12 3z"/></svg>`;
+      }
+      return "";
+    }
+
+    const DISEASE_COLORS = ["blue", "yellow", "black", "red", "purple"];
+
+    const DISEASE_META = {
+      blue:   { id: "blue",   name: "파랑 균주", short: "파랑", hex: "#3b82f6", darkHex: "#172554", textClass: "text-blue-300",   bgClass: "bg-blue-950/75",   borderClass: "border-blue-400/70",   maxPool: 24 },
+      yellow: { id: "yellow", name: "노랑 균주", short: "노랑", hex: "#eab308", darkHex: "#422006", textClass: "text-yellow-300", bgClass: "bg-yellow-950/75", borderClass: "border-yellow-400/70", maxPool: 24 },
+      black:  { id: "black",  name: "검정 균주", short: "검정", hex: "#a8a29e", darkHex: "#292524", textClass: "text-stone-200",  bgClass: "bg-stone-800/80",  borderClass: "border-stone-400/70",  maxPool: 24 },
+      red:    { id: "red",    name: "빨강 균주", short: "빨강", hex: "#ef4444", darkHex: "#450a0a", textClass: "text-red-300",    bgClass: "bg-red-950/75",    borderClass: "border-red-400/70",    maxPool: 24 },
+      purple: { id: "purple", name: "돌연변이(보라)", short: "보라", hex: "#a855f7", darkHex: "#3b0764", textClass: "text-purple-300", bgClass: "bg-purple-950/75", borderClass: "border-purple-400/70", maxPool: 12 }
+    };
+
+    const INFECTION_RATES = [2, 2, 2, 3, 3, 4, 4];
+
+    // 세계 24개 핵심 거점 도시 및 인접 항로 (태평양 횡단 포함)
+    const CITIES_SPEC = [
+      // 파랑 (북미·유럽 6도시)
+      { id: "atlanta",      name: "애틀랜타",   short: "애틀랜타", color: "blue", x: 185, y: 200, adj: ["chicago", "miami", "newyork"] },
+      { id: "chicago",      name: "시카고",     short: "시카고",   color: "blue", x: 125, y: 130, adj: ["atlanta", "newyork", "mexicocity", "tokyo"] },
+      { id: "newyork",      name: "뉴욕",       short: "뉴욕",     color: "blue", x: 265, y: 145, adj: ["chicago", "atlanta", "london", "paris"] },
+      { id: "london",       name: "런던",       short: "런던",     color: "blue", x: 355, y: 105, adj: ["newyork", "paris", "milan"] },
+      { id: "paris",        name: "파리",       short: "파리",     color: "blue", x: 415, y: 175, adj: ["london", "newyork", "milan", "algiers"] },
+      { id: "milan",        name: "밀라노",     short: "밀라노",   color: "blue", x: 495, y: 145, adj: ["london", "paris", "istanbul", "algiers"] },
+      // 노랑 (중남미·아프리카 6도시)
+      { id: "mexicocity",   name: "멕시코시티", short: "멕시코",   color: "yellow", x: 115, y: 265, adj: ["chicago", "miami", "bogota", "sydney"] },
+      { id: "miami",        name: "마이애미",   short: "마이애미", color: "yellow", x: 230, y: 255, adj: ["atlanta", "mexicocity", "bogota"] },
+      { id: "bogota",       name: "보고타",     short: "보고타",   color: "yellow", x: 225, y: 345, adj: ["mexicocity", "miami", "saopaulo"] },
+      { id: "saopaulo",     name: "상파울루",   short: "상파울루", color: "yellow", x: 295, y: 415, adj: ["bogota", "lagos"] },
+      { id: "lagos",        name: "라고스",     short: "라고스",   color: "yellow", x: 395, y: 350, adj: ["saopaulo", "algiers", "johannesburg", "cairo"] },
+      { id: "johannesburg", name: "요하네스버그", short: "요하네스", color: "yellow", x: 485, y: 430, adj: ["lagos", "cairo"] },
+      // 검정 (중동·남아시아·동유럽 6도시)
+      { id: "algiers",      name: "알제",       short: "알제",     color: "black", x: 410, y: 255, adj: ["paris", "milan", "cairo", "lagos"] },
+      { id: "cairo",        name: "카이로",     short: "카이로",   color: "black", x: 495, y: 270, adj: ["algiers", "istanbul", "baghdad", "lagos", "johannesburg"] },
+      { id: "istanbul",     name: "이스탄불",   short: "이스탄불", color: "black", x: 525, y: 195, adj: ["milan", "moscow", "baghdad", "cairo"] },
+      { id: "moscow",       name: "모스크바",   short: "모스크바", color: "black", x: 585, y: 105, adj: ["istanbul", "baghdad", "beijing"] },
+      { id: "baghdad",      name: "바그다드",   short: "바그다드", color: "black", x: 595, y: 250, adj: ["istanbul", "moscow", "cairo", "mumbai"] },
+      { id: "mumbai",       name: "뭄바이",     short: "뭄바이",   color: "black", x: 590, y: 340, adj: ["baghdad", "bangkok", "hongkong"] },
+      // 빨강 (동아시아·오세아니아 6도시)
+      { id: "beijing",      name: "베이징",     short: "베이징",   color: "red", x: 665, y: 115, adj: ["moscow", "seoul", "hongkong"] },
+      { id: "seoul",        name: "서울",       short: "서울",     color: "red", x: 755, y: 105, adj: ["beijing", "tokyo"] },
+      { id: "tokyo",        name: "도쿄",       short: "도쿄",     color: "red", x: 760, y: 185, adj: ["seoul", "hongkong", "chicago"] },
+      { id: "hongkong",     name: "홍콩",       short: "홍콩",     color: "red", x: 700, y: 255, adj: ["beijing", "tokyo", "bangkok", "mumbai"] },
+      { id: "bangkok",      name: "방콕",       short: "방콕",     color: "red", x: 675, y: 335, adj: ["mumbai", "hongkong", "sydney"] },
+      { id: "sydney",       name: "시드니",     short: "시드니",   color: "red", x: 760, y: 430, adj: ["bangkok", "mexicocity"] }
+    ];
+
+    const ROLES_SPEC = {
+      medic: {
+        id: "medic",
+        name: "의무병",
+        short: "의무",
+        color: "#f97316",
+        badgeClass: "bg-orange-950 border-orange-400 text-orange-200",
+        desc: "치료 시 해당 색 큐브 모두 제거 / 치료제 완료 질병 도시 진입 시 0행동 자동 정화"
+      },
+      scientist: {
+        id: "scientist",
+        name: "과학자",
+        short: "과학",
+        color: "#e2e8f0",
+        badgeClass: "bg-slate-800 border-slate-300 text-white",
+        desc: "치료제 개발 시 같은 색 카드 4장만 필요 (인 더 랩 최종 합성 시 1장만 필요!)"
+      },
+      researcher: {
+        id: "researcher",
+        name: "연구원",
+        short: "연구",
+        color: "#a16207",
+        badgeClass: "bg-amber-950 border-amber-400 text-amber-200",
+        desc: "같은 도시에 있는 동료에게 현재 위치와 무관하게 아무 도시 카드나 전달 가능"
+      },
+      dispatcher: {
+        id: "dispatcher",
+        name: "배패자",
+        short: "배패",
+        color: "#ec4899",
+        badgeClass: "bg-pink-950 border-pink-400 text-pink-200",
+        desc: "내 행동으로 동료 요원을 이동시키거나 다른 요원이 있는 도시로 무료 합류 이동"
+      },
+      ops_expert: {
+        id: "ops_expert",
+        name: "작전 전문가",
+        short: "작전",
+        color: "#22c55e",
+        badgeClass: "bg-emerald-950 border-emerald-400 text-emerald-200",
+        desc: "카드 소모 없이 현재 도시에 연구소 건설 / 연구소에서 아무 카드 버리고 원하는 도시 이동"
+      },
+      quarantine_spec: {
+        id: "quarantine_spec",
+        name: "검역 전문가",
+        short: "검역",
+        color: "#15803d",
+        badgeClass: "bg-green-950 border-green-400 text-green-200",
+        desc: "[벼랑 끝에서] 자신이 위치한 도시 및 인접 모든 도시에 큐브 배치 및 확산 자동 차단"
+      },
+      field_director: {
+        id: "field_director",
+        name: "방역 지휘관",
+        short: "지휘",
+        color: "#38bdf8",
+        badgeClass: "bg-sky-950 border-sky-400 text-sky-200",
+        desc: "[비상사태] 1행동으로 현재 또는 인접 도시에 2단 격리 마커 설치 / 턴당 1회 인접 큐브 1개 무료 치료"
+      }
+    };
+
+    const EVENT_CARDS_SPEC = [
+      { id: "airlift",     title: "공수 (특수)",       sub: "아무 요원이나 원하는 도시로 즉시 이동 (0행동)", kind: "event" },
+      { id: "gov_grant",   title: "정부 보조금 (특수)", sub: "카드 소모 없이 원하는 도시에 연구소 즉시 건설 (0행동)", kind: "event" },
+      { id: "forecast",    title: "예측 (특수)",       sub: "감염 덱 맨 위 3장 확인 후 위험 도시 뒤로 밀어 재배치", kind: "event" },
+      { id: "resilient",   title: "전염병 통제 (특수)", sub: "감염 버림 더미에서 가장 위험한 도시 카드 1장 영구 제거", kind: "event" },
+      { id: "quiet_night", title: "조용한 밤 (특수)",   sub: "이번 턴 종료 시 감염 단계를 완전히 건너뜀", kind: "event" }
+    ];
+
+    const GUIDE_SLIDES = [
+      {
+        title: "1. 《팬데믹》 승리 조건과 패배 조건",
+        html: `
+          <div class="p-3 rounded-xl bg-cyan-950/50 border border-cyan-500/40 space-y-2">
+            <strong class="text-cyan-300 text-sm block">인류 구원: 기본 4대 질병 치료제를 모두 개발하면 즉시 승리!</strong>
+            <p>• 《벼랑 끝에서》 돌연변이(보라)가 켜진 경우, 5종 치료제를 모두 만들거나 기본 4종 완료 시 보드 위 보라 큐브가 0개여도 승리합니다.</p>
+            <p class="text-rose-300 font-bold">• 즉시 패배 조건 3가지: ① 연쇄 확산 8회 발생 ② 특정 색 질병 큐브 공급처 고갈 ③ 플레이어 덱 고갈</p>
+          </div>
+        `
+      },
+      {
+        title: "2. 턴당 4행동 & 4가지 이동 수단",
+        html: `
+          <div class="p-3 rounded-xl bg-sky-950/50 border border-sky-500/40 space-y-1.5">
+            <p>1) <strong>인접 이동</strong>: 연결된 인접 도시로 카드 없이 1행동 이동 (태평양 횡단 항로 포함).</p>
+            <p>2) <strong>직항편</strong>: 목적지 도시 카드를 버리고 해당 도시로 즉시 이동.</p>
+            <p>3) <strong>전세편</strong>: 현재 내 위치 도시 카드를 버리고 세계 어디로든 이동.</p>
+            <p>4) <strong>왕복 항공편</strong>: 연구소가 지어진 도시끼리 카드 없이 즉시 이동.</p>
+          </div>
+        `
+      },
+      {
+        title: "3. 전염(Epidemic)과 연쇄 확산(Outbreak) 원리",
+        html: `
+          <div class="p-3 rounded-xl bg-rose-950/50 border border-rose-500/40 space-y-1.5">
+            <p>• 턴 종료 시 카드 2장을 뽑을 때 <strong>전염</strong>이 나오면: ① 감염률 +1 ② 감염 덱 <strong>맨 밑 도시</strong>에 큐브 3개 배치 ③ 감염 버림 더미를 섞어 감염 덱 <strong>맨 위</strong>에 올립니다!</p>
+            <p>• 따라서 <strong>이미 감염되었던 도시가 다음 턴에 다시 뽑힐 확률이 극도로 높습니다!</strong></p>
+            <p>• 한 도시에 같은 색 큐브가 이미 3개일 때 4번째가 놓이면 <strong>연쇄 확산(+1)</strong>이 터져 인접한 모든 도시에 큐브 1개씩이 퍼집니다.</p>
+          </div>
+        `
+      },
+      {
+        title: "4. 3대 확장팩 핵심 메커니즘 안내",
+        html: `
+          <div class="p-3 rounded-xl bg-purple-950/50 border border-purple-400/40 space-y-2">
+            <p>• <strong class="text-purple-200">[벼랑 끝에서]</strong>: 첫 전염 시 보드에 가장 많은 색상이 <strong>악성 균주</strong>로 지정되며, 5번째 <strong>보라색 돌연변이</strong>가 세계 곳곳에 출현합니다.</p>
+            <p>• <strong class="text-emerald-200">[인 더 랩]</strong>: 도시를 치료할 때 제거한 큐브가 실험실 시료로 들어옵니다. 연구소에서 <strong>염기서열 분석(1장) → 시료 3개 투입(1행동) → 합성(과학자 1장 / 일반 2장)</strong>으로 카드를 아껴 치료제를 만드세요!</p>
+            <p>• <strong class="text-amber-200">[비상사태]</strong>: 모든 요원이 1행동으로 현재 도시에 <strong>2단 격리 마커</strong>를 설치하여 향후 감염/확산을 2번 막아냅니다.</p>
+          </div>
+        `
+      },
+      {
+        title: "5. 모바일 조작 팁 (양방향 필터 & 듀얼 뷰)",
+        html: `
+          <div class="p-3 rounded-xl bg-emerald-950/50 border border-emerald-400/40 space-y-1.5">
+            <p>• 상단 손패 카드를 터치하면 지도가 자동으로 필터링되며 <strong>빠른 실행 바</strong>가 열립니다.</p>
+            <p>• 지도 상단 <strong>[스마트 일람표]</strong> 버튼을 누르면 위험 도시(큐브 3개)와 현재 요원이 갈 수 있는 도시 목록을 카드 형태로 한눈에 볼 수 있습니다.</p>
+          </div>
+        `
+      }
+    ];
+
+    // =========================================================
+    // (B) 전역 상태 및 유틸리티
+    // =========================================================
+    let G = null;
+    let activeTab = "map";
+    let coachEnabled = true;
+    let currentGuideSlide = 0;
+    let mapViewMode = "svg"; // 'svg' | 'list'
+    let mapCardFilterIdx = null;
+    let mapPan = { x: 0, y: 0 };
+    let mapZoom = 1.0;
+    let isDraggingMap = false;
+    let mapDragStart = { x: 0, y: 0, panX: 0, panY: 0 };
+    let undoStack = [];
+    let uidCounter = 1;
+
+    function nextUid(prefix) {
+      return `${prefix}_${uidCounter++}`;
+    }
+
+    function shuffleArray(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    let toastTimer = null;
+    function pushToast(msg, isError = false) {
+      const el = document.getElementById("toastBox");
+      if (!el) return;
+      el.textContent = msg;
+      el.className = `fixed top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-2xl text-xs font-extrabold shadow-2xl toast-enter pointer-events-none text-center max-w-[92%] ${
+        isError
+          ? "bg-rose-950/95 border border-rose-400 text-rose-100"
+          : "bg-slate-900/95 border border-cyan-400/75 text-cyan-100"
+      }`;
+      el.classList.remove("hidden");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.add("hidden"), 2800);
+    }
+
+    function log(msg) {
+      if (!G) return;
+      G.logs.unshift(`[${G.turnCount}턴] ${msg}`);
+      if (G.logs.length > 80) G.logs.length = 80;
+    }
+
+    // =========================================================
+    // (C) 새 게임 초기화 (기본판 + 3대 확장팩 조합 + 초기 감염)
+    // =========================================================
+    function initNewPandemicGame(opts = {}) {
+      const cfgEpidemics = Number(opts.epidemicCount || document.getElementById("cfgEpidemics")?.value || 4);
+      const cfgAgentCount = Number(opts.agentCount || document.getElementById("cfgAgentCount")?.value || 2);
+      const expOnTheBrink = opts.onTheBrink !== undefined ? opts.onTheBrink : (document.getElementById("cfgExpBrink")?.checked ?? true);
+      const expInTheLab = opts.inTheLab !== undefined ? opts.inTheLab : (document.getElementById("cfgExpLab")?.checked ?? true);
+      const expStateOfEmergency = opts.stateOfEmergency !== undefined ? opts.stateOfEmergency : (document.getElementById("cfgExpEmergency")?.checked ?? false);
+
+      const role0 = opts.roles?.[0] || document.getElementById("cfgRole0")?.value || "medic";
+      const role1 = opts.roles?.[1] || document.getElementById("cfgRole1")?.value || "scientist";
+      const fallbackRoles = ["researcher", "dispatcher", "ops_expert", "quarantine_spec", "field_director", "medic", "scientist"];
+      const chosenRoles = [role0];
+      if (role1 !== role0) chosenRoles.push(role1);
+      else chosenRoles.push(fallbackRoles.find(r => !chosenRoles.includes(r)));
+      while (chosenRoles.length < cfgAgentCount) {
+        chosenRoles.push(fallbackRoles.find(r => !chosenRoles.includes(r)) || "researcher");
+      }
+
+      const cities = {};
+      CITIES_SPEC.forEach(spec => {
+        cities[spec.id] = {
+          ...spec,
+          hasLab: spec.id === "atlanta",
+          quarantine: 0,
+          cubes: { blue: 0, yellow: 0, black: 0, red: 0, purple: 0 }
+        };
+      });
+
+      // 도시 카드 24장 + 이벤트 카드 생성 (스택으로 push/pop 동작: 배열 끝이 덱 맨 위)
+      const cityCards = CITIES_SPEC.map(c => ({
+        uid: nextUid("pcard"),
+        kind: "city",
+        cityId: c.id,
+        color: c.color,
+        title: `${c.short} (${DISEASE_META[c.color].short})`,
+        sub: `${c.name} 도시 카드 · ${DISEASE_META[c.color].name}`,
+        badgeClass: `${DISEASE_META[c.color].bgClass} ${DISEASE_META[c.color].borderClass} ${DISEASE_META[c.color].textClass}`
+      }));
+
+      const evCards = EVENT_CARDS_SPEC.map(ev => ({
+        uid: nextUid("ev"),
+        kind: "event",
+        eventId: ev.id,
+        title: ev.title,
+        sub: ev.sub,
+        badgeClass: "bg-cyan-950/90 border-cyan-400 text-cyan-200"
+      }));
+
+      // 확장 카드(돌연변이 / 비상사태 위기 이벤트) 덱 구성 전에 요원 초기 손패 먼저 분배
+      let starterPool = shuffleArray([...cityCards, ...evCards]);
+      const agents = chosenRoles.map((roleId, idx) => {
+        const spec = ROLES_SPEC[roleId] || ROLES_SPEC.medic;
+        const handSize = cfgAgentCount === 2 ? 4 : 3;
+        const hand = [];
+        for (let k = 0; k < handSize; k++) {
+          if (starterPool.length > 0) hand.push(starterPool.pop());
+        }
+        return {
+          idx,
+          id: `agent_${idx}`,
+          roleId,
+          name: spec.name,
+          short: spec.short,
+          color: spec.color,
+          badgeClass: spec.badgeClass,
+          desc: spec.desc,
+          cityId: "atlanta",
+          hand,
+          freeTreatUsedThisTurn: false
+        };
+      });
+
+      // 남은 카드 + 확장 특수 카드에 전염 카드를 균등 분할 삽입
+      const extraDeckCards = [...starterPool];
+      if (expOnTheBrink) {
+        extraDeckCards.push(
+          { uid: nextUid("mut"), kind: "mutation", title: "돌연변이 경보", sub: "[벼랑 끝에서] 보라색 돌연변이 질병 출현!", badgeClass: "bg-purple-950 border-purple-400 text-purple-200" },
+          { uid: nextUid("mut"), kind: "mutation", title: "돌연변이 급증", sub: "[벼랑 끝에서] 보라색 돌연변이 전파!", badgeClass: "bg-purple-950 border-purple-400 text-purple-200" }
+        );
+      }
+      if (expStateOfEmergency) {
+        extraDeckCards.push(
+          { uid: nextUid("emg"), kind: "emergency", emergencyId: "inf_surge", title: "위기: 감염 가속", sub: "[비상사태] 이번 턴 감염 시 1개 추가 전파", badgeClass: "bg-amber-950 border-amber-400 text-amber-200" },
+          { uid: nextUid("emg"), kind: "emergency", emergencyId: "logi_lock", title: "위기: 항공 통제", sub: "[비상사태] 다음 턴까지 직항/전세 비용 증가 경보", badgeClass: "bg-amber-950 border-amber-400 text-amber-200" }
+        );
+      }
+
+      const shuffledRemain = shuffleArray(extraDeckCards);
+      const piles = Array.from({ length: cfgEpidemics }, () => []);
+      shuffledRemain.forEach((c, i) => {
+        piles[i % cfgEpidemics].push(c);
+      });
+      for (let p = 0; p < piles.length; p++) {
+        piles[p].push({
+          uid: nextUid("epi"),
+          kind: "epidemic",
+          title: "전염 (Epidemic)",
+          sub: "감염률 증가 · 맨 밑 도시 3큐브 · 버림 더미 재적재!",
+          badgeClass: "bg-rose-950 border-rose-400 text-rose-200"
+        });
+        piles[p] = shuffleArray(piles[p]);
+      }
+      // 스택 top이 배열 끝이므로 reverse 순으로 합치면 0번째 파일이 가장 먼저 뽑힘
+      const playerDeck = [];
+      for (let p = piles.length - 1; p >= 0; p--) {
+        playerDeck.push(...piles[p]);
+      }
+
+      const infectionDeck = shuffleArray(CITIES_SPEC.map(c => ({ cityId: c.id, color: c.color })));
+
+      G = {
+        turnCount: 1,
+        activeAgentIdx: 0,
+        actionsLeft: 4,
+        ended: false,
+        victory: false,
+        finishReason: "",
+        epidemicCount: cfgEpidemics,
+        epidemicsTriggered: 0,
+        infectionRateIdx: 0,
+        outbreaks: 0,
+        skipNextInfection: false,
+        activeEmergency: null,
+        virulentStrain: null,
+        expansions: {
+          onTheBrink: Boolean(expOnTheBrink),
+          inTheLab: Boolean(expInTheLab),
+          stateOfEmergency: Boolean(expStateOfEmergency)
+        },
+        cubePool: {
+          blue: 24,
+          yellow: 24,
+          black: 24,
+          red: 24,
+          purple: expOnTheBrink ? 12 : 0
+        },
+        cures: { blue: 0, yellow: 0, black: 0, red: 0, purple: 0 }, // 0:미개발, 1:치료제개발, 2:박멸
+        lab: {
+          sequenced: { blue: false, yellow: false, black: false, red: false, purple: false },
+          testedCubes: { blue: 0, yellow: 0, black: 0, red: 0, purple: 0 },
+          samples: { blue: 0, yellow: 0, black: 0, red: 0, purple: 0 }
+        },
+        cities,
+        agents,
+        playerDeck,
+        playerDiscard: [],
+        infectionDeck,
+        infectionDiscard: [],
+        logs: []
+      };
+
+      // 초기 감염 9도시 배치 (3큐브 x 3도시, 2큐브 x 3도시, 1큐브 x 3도시)
+      for (let cnt = 3; cnt >= 1; cnt--) {
+        for (let k = 0; k < 3; k++) {
+          const infCard = G.infectionDeck.pop();
+          if (!infCard) break;
+          G.infectionDiscard.push(infCard);
+          for (let q = 0; q < cnt; q++) {
+            G.cities[infCard.cityId].cubes[infCard.color] += 1;
+            G.cubePool[infCard.color] -= 1;
+          }
+          log(`[초기 감염] ${G.cities[infCard.cityId].name}에 ${DISEASE_META[infCard.color].short} 큐브 ${cnt}개 발생`);
+        }
+      }
+
+      // 벼랑 끝에서 활성화 시 초기 보라 돌연변이 씨앗 1곳 배치
+      if (G.expansions.onTheBrink && G.infectionDeck.length > 0) {
+        const seedCard = G.infectionDeck[0];
+        G.cities[seedCard.cityId].cubes.purple += 1;
+        G.cubePool.purple -= 1;
+        log(`[돌연변이 출현] ${G.cities[seedCard.cityId].name}에서 미지의 보라색 균주 1개 포착!`);
+      }
+
+      mapCardFilterIdx = null;
+      undoStack = [];
+      saveUndoSnapshot();
+      renderAll();
+    }
+
+    function saveUndoSnapshot() {
+      if (!G) return;
+      const snap = JSON.stringify(G);
+      undoStack.push(snap);
+      if (undoStack.length > 25) undoStack.shift();
+    }
+
+    function undoLastAction() {
+      if (undoStack.length <= 1) {
+        pushToast("더 이상 되돌릴 이전 행동이 없습니다.", true);
+        return;
+      }
+      undoStack.pop();
+      G = JSON.parse(undoStack[undoStack.length - 1]);
+      mapCardFilterIdx = null;
+      closeActionWizard();
+      pushToast("직전 행동 상태로 되돌렸습니다.");
+      renderAll();
+    }
+
+    // =========================================================
+    // (D) 핵심 방역 규칙 엔진: 치료제·검역·큐브 배치·전염·연쇄 확산
+    // =========================================================
+    function getActiveAgent() {
+      return G.agents[G.activeAgentIdx] || G.agents[0];
+    }
+
+    function getActiveColors() {
+      return G.expansions.onTheBrink ? DISEASE_COLORS : ["blue", "yellow", "black", "red"];
+    }
+
+    function isQuarantineProtected(cityId) {
+      return G.agents.some(ag => {
+        if (ag.roleId !== "quarantine_spec") return false;
+        if (ag.cityId === cityId) return true;
+        return G.cities[ag.cityId].adj.includes(cityId);
+      });
+    }
+
+    function triggerGameEnd(victory, reason) {
+      if (G.ended) return;
+      G.ended = true;
+      G.victory = victory;
+      G.finishReason = reason;
+
+      const badge = document.getElementById("finishBadge");
+      const title = document.getElementById("finishTitle");
+      const rEl = document.getElementById("finishReason");
+      const statsEl = document.getElementById("finishStatsBox");
+
+      if (badge && title && rEl && statsEl) {
+        badge.textContent = victory ? "인류 방역 승리" : "팬데믹 확산 패배";
+        badge.className = victory
+          ? "inline-block px-3 py-1 rounded-full text-xs font-black bg-emerald-500 text-slate-950"
+          : "inline-block px-3 py-1 rounded-full text-xs font-black bg-rose-500 text-white";
+        title.textContent = victory ? "모든 질병의 치료제를 완성했습니다!" : "전 세계 방역망이 붕괴되었습니다";
+        rEl.textContent = reason;
+        const curedList = getActiveColors().filter(c => G.cures[c] >= 1).map(c => DISEASE_META[c].short).join(", ") || "없음";
+        statsEl.innerHTML = `
+          <div>• 총 진행 턴: <strong>${G.turnCount}턴</strong></div>
+          <div>• 발동된 전염: <strong>${G.epidemicsTriggered} / ${G.epidemicCount}회</strong></div>
+          <div>• 누적 연쇄 확산: <strong>${G.outbreaks} / 8회</strong></div>
+          <div>• 개발된 치료제: <strong>${curedList}</strong></div>
+        `;
+      }
+      const m = document.getElementById("modalGameFinish");
+      if (m) m.classList.remove("hidden");
+    }
+
+    function checkVictoryCondition() {
+      const baseDone = ["blue", "yellow", "black", "red"].every(c => G.cures[c] >= 1);
+      if (!baseDone) return false;
+      if (G.expansions.onTheBrink) {
+        const purpleLeftOnBoard = G.cubePool.purple < DISEASE_META.purple.maxPool;
+        if (G.cures.purple === 0 && purpleLeftOnBoard) {
+          return false;
+        }
+      }
+      triggerGameEnd(true, "WHO 방역팀의 헌신적인 공조로 인류를 위협하던 모든 질병의 치료제를 완성했습니다!");
+      return true;
+    }
+
+    function updateEradicatedStatus(color) {
+      if (G.cures[color] !== 1) return;
+      const anyLeftOnBoard = Object.values(G.cities).some(c => c.cubes[color] > 0);
+      if (!anyLeftOnBoard) {
+        G.cures[color] = 2;
+        log(`[질병 완전 박멸!] ${DISEASE_META[color].name}의 마지막 큐브가 사라져 완전 박멸되었습니다!`);
+        pushToast(`${DISEASE_META[color].name} 완전 박멸 달성!`);
+      }
+    }
+
+    // 의무병 패시브: 치료제가 발견된 질병의 큐브는 진입 또는 치료제 완성 즉시 0행동 제거
+    function applyMedicAutoClear() {
+      G.agents.forEach(ag => {
+        if (ag.roleId !== "medic") return;
+        const city = G.cities[ag.cityId];
+        getActiveColors().forEach(col => {
+          if (G.cures[col] >= 1 && city.cubes[col] > 0) {
+            const removed = city.cubes[col];
+            city.cubes[col] = 0;
+            G.cubePool[col] += removed;
+            if (G.expansions.inTheLab) G.lab.samples[col] += removed;
+            log(`[의무병 자동 정화] ${city.name}의 ${DISEASE_META[col].short} 큐브 ${removed}개 즉시 소멸`);
+            updateEradicatedStatus(col);
+          }
+        });
+      });
+    }
+
+    // 핵심 큐브 배치 & 연쇄 확산(Outbreak) 엔진
+    function addDiseaseCube(cityId, color, outbrokenSet = new Set(), recapEvents = null) {
+      if (G.ended) return;
+      if (G.cures[color] === 2) return; // 완전 박멸 시 배치 안 됨
+
+      const city = G.cities[cityId];
+      if (!city) return;
+
+      // 의무병이 치료제가 완성된 질병 도시에 서 있으면 큐브가 생기지 않음
+      const medicHere = G.agents.some(ag => ag.roleId === "medic" && ag.cityId === cityId);
+      if (medicHere && G.cures[color] >= 1) return;
+
+      // 검역 전문가 보호 반경 체크
+      if (isQuarantineProtected(cityId)) {
+        const msg = `[검역 차단] 검역 전문가의 통제로 ${city.name}(${DISEASE_META[color].short}) 감염이 차단되었습니다!`;
+        log(msg);
+        if (recapEvents) recapEvents.push(msg);
+        return;
+      }
+
+      // 비상사태 격리 마커 체크
+      if (city.quarantine > 0) {
+        city.quarantine -= 1;
+        const msg = `[격리 마커 방어] ${city.name} 격리 마커가 ${DISEASE_META[color].short} 침투를 막아냈습니다 (잔여 방어 ${city.quarantine}단)`;
+        log(msg);
+        if (recapEvents) recapEvents.push(msg);
+        return;
+      }
+
+      // 이미 3개면 연쇄 확산 (Outbreak)
+      if (city.cubes[color] >= 3) {
+        if (outbrokenSet.has(cityId)) return;
+        outbrokenSet.add(cityId);
+        G.outbreaks += 1;
+        const outMsg = `[연쇄 확산! #${G.outbreaks}/8] ${city.name}에서 ${DISEASE_META[color].short} 확산 발생!`;
+        log(outMsg);
+        if (recapEvents) recapEvents.push(outMsg);
+        if (G.outbreaks >= 8) {
+          triggerGameEnd(false, `${city.name}의 대규모 감염으로 누적 연쇄 확산(Outbreak)이 8회에 도달했습니다.`);
+          return;
+        }
+        city.adj.forEach(adjId => addDiseaseCube(adjId, color, outbrokenSet, recapEvents));
+        return;
+      }
+
+      if (G.cubePool[color] <= 0) {
+        triggerGameEnd(false, `${DISEASE_META[color].name} 큐브 공급처가 모두 고갈되어 방역에 실패했습니다.`);
+        return;
+      }
+
+      city.cubes[color] += 1;
+      G.cubePool[color] -= 1;
+    }
+
+    function resolveEpidemic(recapEvents) {
+      G.epidemicsTriggered += 1;
+      if (G.infectionRateIdx < INFECTION_RATES.length - 1) {
+        G.infectionRateIdx += 1;
+      }
+      const bottomCard = G.infectionDeck.shift();
+      if (bottomCard) {
+        G.infectionDiscard.push(bottomCard);
+        const outSet = new Set();
+        for (let k = 0; k < 3; k++) {
+          if (!G.ended) addDiseaseCube(bottomCard.cityId, bottomCard.color, outSet, recapEvents);
+        }
+        const msg = `[전염 발동 #${G.epidemicsTriggered}] 감염 덱 맨 밑 [${G.cities[bottomCard.cityId].name}] 3중 감염!`;
+        log(msg);
+        if (recapEvents) recapEvents.push(msg);
+      }
+
+      // 버림 더미 섞어 감염 덱 맨 위에 재적재
+      const reshuffled = shuffleArray(G.infectionDiscard);
+      G.infectionDiscard = [];
+      G.infectionDeck.push(...reshuffled);
+
+      // [벼랑 끝에서] 악성 균주(Virulent Strain) 지정 및 추가 위협
+      if (G.expansions.onTheBrink && !G.ended) {
+        if (!G.virulentStrain) {
+          let worstCol = "blue";
+          let maxUsed = -1;
+          ["blue", "yellow", "black", "red"].forEach(c => {
+            const used = DISEASE_META[c].maxPool - G.cubePool[c];
+            if (used > maxUsed) { maxUsed = used; worstCol = c; }
+          });
+          G.virulentStrain = worstCol;
+          const vMsg = `[악성 균주 지정!] 가장 치명적인 [${DISEASE_META[worstCol].name}]이(가) 악성 균주로 변이했습니다!`;
+          log(vMsg);
+          if (recapEvents) recapEvents.push(vMsg);
+        } else {
+          // 기존 악성 균주가 있는 도시 중 하나에 +1 추가 전파
+          const targetCity = Object.values(G.cities).find(ct => ct.cubes[G.virulentStrain] > 0 && ct.cubes[G.virulentStrain] < 3);
+          if (targetCity) {
+            addDiseaseCube(targetCity.id, G.virulentStrain, new Set(), recapEvents);
+            const exMsg = `[악성 균주 폭주] ${targetCity.name}에 ${DISEASE_META[G.virulentStrain].short} 추가 감염!`;
+            log(exMsg);
+            if (recapEvents) recapEvents.push(exMsg);
+          }
+        }
+      }
+    }
+
+    // =========================================================
+    // (E) 플레이어 6대 방역 행동 & 3대 확장팩 전용 액션
+    // =========================================================
+    function consumeActionPoint(label) {
+      G.actionsLeft = Math.max(0, G.actionsLeft - 1);
+      applyMedicAutoClear();
+      checkVictoryCondition();
+      if (!G.ended) {
+        pushToast(`${label} 완료 (남은 행동 ${G.actionsLeft}회)`);
+      }
+      renderAll();
+    }
+
+    function moveAgentAction(subjectAgentIdx, targetCityId, moveType, cardIdx = null) {
+      if (G.ended || G.actionsLeft <= 0) return false;
+      const actor = getActiveAgent();
+      const subject = G.agents[subjectAgentIdx];
+      if (!subject || !G.cities[targetCityId]) return false;
+      if (subject.cityId === targetCityId) {
+        pushToast("이미 해당 도시에 위치하고 있습니다.", true);
+        return false;
+      }
+
+      saveUndoSnapshot();
+      closeActionWizard();
+
+      let cardOwner = actor;
+      if (moveType === "ops_flight") {
+        if (actor.roleId !== "ops_expert" || !G.cities[actor.cityId].hasLab || cardIdx === null) {
+          pushToast("작전 전문가 특항편 조건이 맞지 않습니다.", true);
+          return false;
+        }
+        const disc = actor.hand.splice(cardIdx, 1)[0];
+        G.playerDiscard.push(disc);
+        subject.cityId = targetCityId;
+        log(`[작전 전문가 특항] ${disc.title} 버리고 ${G.cities[targetCityId].name} 이동`);
+      } else if (moveType === "direct" || moveType === "charter") {
+        const disc = cardOwner.hand.splice(cardIdx, 1)[0];
+        G.playerDiscard.push(disc);
+        subject.cityId = targetCityId;
+        log(`[${moveType === "direct" ? "직항편" : "전세편"}] ${subject.name}이(가) '${disc.title}' 카드를 사용해 ${G.cities[targetCityId].name} 도착`);
+      } else {
+        subject.cityId = targetCityId;
+        const typeLabel = moveType === "shuttle" ? "왕복 항공" : (moveType === "dispatch_join" ? "배패자 합류" : "인접 이동");
+        log(`[${typeLabel}] ${subject.name} -> ${G.cities[targetCityId].name} 이동`);
+      }
+
+      mapCardFilterIdx = null;
+      consumeActionPoint(`${G.cities[targetCityId].short} 이동`);
+      return true;
+    }
+
+    function treatDisease(cityId, color, isFreeDirector = false) {
+      if (G.ended) return false;
+      if (!isFreeDirector && G.actionsLeft <= 0) return false;
+      const actor = getActiveAgent();
+      const city = G.cities[cityId];
+      if (!city || city.cubes[color] <= 0) {
+        pushToast("제거할 질병 큐브가 없습니다.", true);
+        return false;
+      }
+
+      if (isFreeDirector) {
+        if (actor.roleId !== "field_director" || actor.freeTreatUsedThisTurn) return false;
+      }
+
+      saveUndoSnapshot();
+      closeActionWizard();
+
+      const clearAll = (actor.roleId === "medic" || G.cures[color] >= 1) && !isFreeDirector;
+      const removed = clearAll ? city.cubes[color] : 1;
+      city.cubes[color] -= removed;
+      G.cubePool[color] += removed;
+
+      if (G.expansions.inTheLab) {
+        G.lab.samples[color] += removed;
+      }
+      if (isFreeDirector) {
+        actor.freeTreatUsedThisTurn = true;
+      }
+
+      log(`[질병 치료] ${actor.name}: ${city.name}의 ${DISEASE_META[color].short} 큐브 ${removed}개 제거${G.expansions.inTheLab ? " (실험실 시료 확보)" : ""}`);
+      updateEradicatedStatus(color);
+
+      if (isFreeDirector) {
+        pushToast(`방역 지휘관 무료 치료 (${city.short} -1)`);
+        renderAll();
+      } else {
+        consumeActionPoint(`${city.short} 치료`);
+      }
+      return true;
+    }
+
+    function buildResearchStation(cardIdx = null) {
+      if (G.ended || G.actionsLeft <= 0) return false;
+      const actor = getActiveAgent();
+      const city = G.cities[actor.cityId];
+      if (city.hasLab) {
+        pushToast("이미 연구소가 건설된 도시입니다.", true);
+        return false;
+      }
+
+      const isOpsFree = (actor.roleId === "ops_expert");
+      if (!isOpsFree) {
+        if (cardIdx === null || !actor.hand[cardIdx] || actor.hand[cardIdx].cityId !== city.id) {
+          pushToast(`${city.name} 도시 카드가 필요합니다.`, true);
+          return false;
+        }
+      }
+
+      saveUndoSnapshot();
+      closeActionWizard();
+      if (!isOpsFree) {
+        const disc = actor.hand.splice(cardIdx, 1)[0];
+        G.playerDiscard.push(disc);
+      }
+      city.hasLab = true;
+      mapCardFilterIdx = null;
+      log(`[연구소 건설] ${actor.name}이(가) ${city.name}에 CDC 연구소를 세웠습니다${isOpsFree ? " (작전 전문가 무료)" : ""}`);
+      consumeActionPoint(`${city.short} 연구소 건설`);
+      return true;
+    }
+
+    function placeQuarantineMarker(targetCityId) {
+      if (G.ended || G.actionsLeft <= 0) return false;
+      const actor = getActiveAgent();
+      const canPlaceHere = (actor.cityId === targetCityId) ||
+        (actor.roleId === "field_director" && G.cities[actor.cityId].adj.includes(targetCityId));
+      if (!canPlaceHere) {
+        pushToast("현재 위치한 도시(방역 지휘관은 인접 도시 포함)에만 격리 마커를 설치할 수 있습니다.", true);
+        return false;
+      }
+
+      saveUndoSnapshot();
+      closeActionWizard();
+      G.cities[targetCityId].quarantine = 2;
+      log(`[격리 마커 설치] ${actor.name}: ${G.cities[targetCityId].name}에 2단 방어 격리선 구축!`);
+      consumeActionPoint(`${G.cities[targetCityId].short} 격리 설치`);
+      return true;
+    }
+
+    function shareKnowledgeCard(direction, giverIdx, receiverIdx, cardIdx) {
+      if (G.ended || G.actionsLeft <= 0) return false;
+      const giver = G.agents[giverIdx];
+      const receiver = G.agents[receiverIdx];
+      if (!giver || !receiver || giver.idx === receiver.idx) return false;
+      if (giver.cityId !== receiver.cityId) {
+        pushToast("같은 도시에 있는 요원끼리만 지식을 공유할 수 있습니다.", true);
+        return false;
+      }
+      const card = giver.hand[cardIdx];
+      if (!card || card.kind !== "city") return false;
+      if (giver.roleId !== "researcher" && card.cityId !== giver.cityId) {
+        pushToast("현재 도시와 일치하는 도시 카드만 전달할 수 있습니다 (연구원은 예외).", true);
+        return false;
+      }
+
+      saveUndoSnapshot();
+      closeActionWizard();
+      const movedCard = giver.hand.splice(cardIdx, 1)[0];
+      receiver.hand.push(movedCard);
+      log(`[지식 공유] ${giver.name} -> ${receiver.name}: '${movedCard.title}' 전달 완료`);
+      consumeActionPoint(`${movedCard.title} 공유`);
+      return true;
+    }
+
+    function discoverCure(color, cardIndices) {
+      if (G.ended || G.actionsLeft <= 0) return false;
+      const actor = getActiveAgent();
+      if (!G.cities[actor.cityId].hasLab) {
+        pushToast("연구소가 있는 도시에서만 치료제를 개발할 수 있습니다.", true);
+        return false;
+      }
+      const reqCount = actor.roleId === "scientist" ? 4 : 5;
+      if (!cardIndices || cardIndices.length !== reqCount) {
+        pushToast(`${DISEASE_META[color].name} 치료제 개발에는 카드 ${reqCount}장이 필요합니다.`, true);
+        return false;
+      }
+
+      saveUndoSnapshot();
+      closeActionWizard();
+      const sortedDesc = [...cardIndices].sort((a, b) => b - a);
+      sortedDesc.forEach(idx => {
+        const disc = actor.hand.splice(idx, 1)[0];
+        if (disc) G.playerDiscard.push(disc);
+      });
+
+      G.cures[color] = 1;
+      mapCardFilterIdx = null;
+      log(`[치료제 개발 성공!!] ${actor.name}이(가) [${DISEASE_META[color].name}] 치료제를 완성했습니다!`);
+      updateEradicatedStatus(color);
+      consumeActionPoint(`${DISEASE_META[color].short} 치료제 완성`);
+      return true;
+    }
+
+    // [인 더 랩 In the Lab] 3단계 실험실 워크플로우
+    function sequenceLabDisease(color, cardIdx) {
+      if (G.ended || G.actionsLeft <= 0) return false;
+      const actor = getActiveAgent();
+      if (!G.cities[actor.cityId].hasLab) {
+        pushToast("연구소가 있는 도시에서만 염기서열 분석이 가능합니다.", true);
+        return false;
+      }
+      const card = actor.hand[cardIdx];
+      if (!card || card.color !== color) {
+        pushToast(`${DISEASE_META[color].short} 색상의 도시 카드 1장을 제출해야 합니다.`, true);
+        return false;
+      }
+
+      saveUndoSnapshot();
+      closeActionWizard();
+      actor.hand.splice(cardIdx, 1);
+      G.playerDiscard.push(card);
+      G.lab.sequenced[color] = true;
+      log(`[인더랩 1단계] ${DISEASE_META[color].name} 염기서열 분석 개시! ('${card.title}' 제출)`);
+      consumeActionPoint(`${DISEASE_META[color].short} 염기서열 분석`);
+      return true;
+    }
+
+    function processLabSample(color) {
+      if (G.ended || G.actionsLeft <= 0) return false;
+      const actor = getActiveAgent();
+      if (!G.cities[actor.cityId].hasLab) {
+        pushToast("연구소 위에서 시료를 실험대에 주입할 수 있습니다.", true);
+        return false;
+      }
+      if (!G.lab.sequenced[color]) {
+        pushToast("먼저 1단계(염기서열 분석)를 완료하세요.", true);
+        return false;
+      }
+      const needMore = 3 - G.lab.testedCubes[color];
+      if (needMore <= 0 || G.lab.samples[color] <= 0) {
+        pushToast("보유 시료가 없거나 이미 3개 시료 분석이 끝났습니다.", true);
+        return false;
+      }
+
+      saveUndoSnapshot();
+      closeActionWizard();
+      const useCnt = Math.min(needMore, G.lab.samples[color]);
+      G.lab.samples[color] -= useCnt;
+      G.lab.testedCubes[color] += useCnt;
+      log(`[인더랩 2단계] ${DISEASE_META[color].short} 시료 ${useCnt}개 실험대 주입 완료 (${G.lab.testedCubes[color]}/3)`);
+      consumeActionPoint(`${DISEASE_META[color].short} 시료 분석`);
+      return true;
+    }
+
+    function synthesizeLabCure(color, cardIndices) {
+      if (G.ended || G.actionsLeft <= 0) return false;
+      const actor = getActiveAgent();
+      if (!G.cities[actor.cityId].hasLab) {
+        pushToast("연구소 위에서만 최종 합성이 가능합니다.", true);
+        return false;
+      }
+      if (!G.lab.sequenced[color] || G.lab.testedCubes[color] < 3) {
+        pushToast("염기서열 분석과 시료 3개 투입이 먼저 완료되어야 합니다.", true);
+        return false;
+      }
+      const reqCount = actor.roleId === "scientist" ? 1 : 2;
+      if (!cardIndices || cardIndices.length !== reqCount) {
+        pushToast(`실험실 합성에는 같은 색 카드 ${reqCount}장이 필요합니다.`, true);
+        return false;
+      }
+
+      saveUndoSnapshot();
+      closeActionWizard();
+      [...cardIndices].sort((a, b) => b - a).forEach(idx => {
+        const disc = actor.hand.splice(idx, 1)[0];
+        if (disc) G.playerDiscard.push(disc);
+      });
+      G.cures[color] = 1;
+      mapCardFilterIdx = null;
+      log(`[인더랩 3단계 · 합성 완료!!] ${actor.name}이(가) 실험실 합성으로 ${DISEASE_META[color].name} 치료제를 완성했습니다!`);
+      updateEradicatedStatus(color);
+      consumeActionPoint(`${DISEASE_META[color].short} 실험실 치료제`);
+      return true;
+    }
+
+    // 0행동 특수 이벤트 카드 실행
+    function executeEventCard(agentIdx, cardIdx, targetId = null) {
+      if (G.ended) return false;
+      const owner = G.agents[agentIdx];
+      const card = owner?.hand[cardIdx];
+      if (!card || card.kind !== "event") return false;
+
+      saveUndoSnapshot();
+      closeActionWizard();
+      owner.hand.splice(cardIdx, 1);
+      G.playerDiscard.push(card);
+
+      if (card.eventId === "quiet_night") {
+        G.skipNextInfection = true;
+        log(`[이벤트: 조용한 밤] 이번 턴 종료 시 감염 단계를 완전히 건너뜁니다!`);
+        pushToast("조용한 밤 발동! 이번 턴 감염 생략");
+      } else if (card.eventId === "gov_grant") {
+        const city = G.cities[targetId || owner.cityId];
+        city.hasLab = true;
+        log(`[이벤트: 정부 보조금] ${city.name}에 연구소 무료 즉시 건설!`);
+        pushToast(`${city.short} 연구소 즉시 건설!`);
+      } else if (card.eventId === "airlift") {
+        const dest = G.cities[targetId || "atlanta"];
+        getActiveAgent().cityId = dest.id;
+        applyMedicAutoClear();
+        log(`[이벤트: 긴급 공수] ${getActiveAgent().name} -> ${dest.name} 즉시 공수 이동!`);
+        pushToast(`${dest.short} 공수 완료!`);
+      } else if (card.eventId === "forecast") {
+        // 감염 덱 맨 위 3장 중 큐브 2~3개인 위험 도시를 덱 뒤쪽으로 밀어 완화
+        const topSlice = [];
+        for (let i = 0; i < 3 && G.infectionDeck.length > 0; i++) {
+          topSlice.push(G.infectionDeck.pop());
+        }
+        topSlice.sort((a, b) => G.cities[b.cityId].cubes[b.color] - G.cities[a.cityId].cubes[a.color]);
+        topSlice.forEach(c => G.infectionDeck.push(c));
+        log(`[이벤트: 예측] 감염 덱 상위 3장(${topSlice.map(x => G.cities[x.cityId].short).join(", ")}) 안전 순으로 재배치!`);
+        pushToast("예측 이벤트: 향후 감염 순서 안전 최적화 완료");
+      } else if (card.eventId === "resilient") {
+        if (G.infectionDiscard.length > 0) {
+          const removedInf = G.infectionDiscard.pop();
+          log(`[이벤트: 전염병 통제] 감염 버림 더미에서 [${G.cities[removedInf.cityId].name}] 영구 제거!`);
+          pushToast(`${G.cities[removedInf.cityId].short} 감염 카드 영구 제거!`);
+        } else {
+          pushToast("감염 버림 더미가 비어 있으나 이벤트가 소비되었습니다.");
+        }
+      }
+
+      mapCardFilterIdx = null;
+      renderAll();
+      return true;
+    }
+
+    // 턴 종료 -> 플레이어 2장 드로우(전염/돌연변이/위기 체크) -> 감염 단계 -> 다음 요원 교대
+    function endPlayerTurn() {
+      if (G.ended) return;
+      const actor = getActiveAgent();
+      saveUndoSnapshot();
+
+      const recapLines = [];
+      let epiTriggeredHere = false;
+
+      for (let d = 0; d < 2; d++) {
+        if (G.ended) break;
+        if (G.playerDeck.length === 0) {
+          triggerGameEnd(false, "플레이어 덱의 마지막 카드까지 모두 소진되어 방역 시간이 종료되었습니다.");
+          return;
+        }
+        const drawn = G.playerDeck.pop();
+        if (drawn.kind === "epidemic") {
+          epiTriggeredHere = true;
+          resolveEpidemic(recapLines);
+        } else if (drawn.kind === "mutation") {
+          const mutCard = G.infectionDeck.shift();
+          if (mutCard) {
+            G.infectionDiscard.push(mutCard);
+            addDiseaseCube(mutCard.cityId, "purple", new Set(), recapLines);
+            addDiseaseCube(mutCard.cityId, "purple", new Set(), recapLines);
+            const mTxt = `[돌연변이 발동!] ${G.cities[mutCard.cityId].name}에 보라색 돌연변이 2개 출현!`;
+            log(mTxt);
+            recapLines.push(mTxt);
+          }
+        } else if (drawn.kind === "emergency") {
+          G.activeEmergency = drawn.title;
+          const eTxt = `[비상 위기 발생!] ${drawn.title} — ${drawn.sub}`;
+          log(eTxt);
+          recapLines.push(eTxt);
+          if (drawn.emergencyId === "inf_surge" && G.infectionDeck.length > 0) {
+            const extraInf = G.infectionDeck[G.infectionDeck.length - 1];
+            addDiseaseCube(extraInf.cityId, extraInf.color, new Set(), recapLines);
+          }
+        } else {
+          actor.hand.push(drawn);
+          recapLines.push(`획득 카드: ${drawn.title}`);
+        }
+      }
+
+      // 감염 단계 (조용한 밤이면 스킵)
+      if (!G.ended) {
+        if (G.skipNextInfection) {
+          G.skipNextInfection = false;
+          recapLines.push("[조용한 밤 효과] 이번 턴 감염 단계를 완전히 건너뛰었습니다!");
+        } else {
+          const infCount = INFECTION_RATES[G.infectionRateIdx];
+          for (let i = 0; i < infCount; i++) {
+            if (G.ended || G.infectionDeck.length === 0) break;
+            const infCard = G.infectionDeck.pop();
+            G.infectionDiscard.push(infCard);
+            const beforeCnt = G.cities[infCard.cityId].cubes[infCard.color];
+            addDiseaseCube(infCard.cityId, infCard.color, new Set(), recapLines);
+            const afterCnt = G.cities[infCard.cityId].cubes[infCard.color];
+            recapLines.push(`감염: ${G.cities[infCard.cityId].name} (${DISEASE_META[infCard.color].short} ${beforeCnt}->${afterCnt})`);
+          }
+        }
+      }
+
+      // 다음 요원 턴으로 교대
+      actor.freeTreatUsedThisTurn = false;
+      G.turnCount += 1;
+      G.activeAgentIdx = (G.activeAgentIdx + 1) % G.agents.length;
+      G.actionsLeft = 4;
+      G.agents[G.activeAgentIdx].freeTreatUsedThisTurn = false;
+      mapCardFilterIdx = null;
+      applyMedicAutoClear();
+
+      if (!G.ended) {
+        // 리캡 모달 표시
+        const rTitle = document.getElementById("recapTitle");
+        const rBody = document.getElementById("recapBody");
+        if (rTitle && rBody) {
+          rTitle.textContent = epiTriggeredHere
+            ? `긴급 전염 경보! (${G.turnCount}턴 개시)`
+            : `${G.turnCount - 1}턴 종료 보고서`;
+          rBody.innerHTML = recapLines.map(line => `
+            <div class="p-2 rounded-xl ${line.includes("전염") || line.includes("확산") ? "bg-rose-950/70 border border-rose-400/50 text-rose-200 font-bold" : "bg-slate-900 border border-white/10"}">${line}</div>
+          `).join("");
+          document.getElementById("modalTurnRecap")?.classList.remove("hidden");
+        }
+      }
+
+      renderAll();
+      checkHandLimitModal();
+    }
+
+    function checkHandLimitModal() {
+      const m = document.getElementById("modalHandLimit");
+      const listEl = document.getElementById("handLimitList");
+      if (!m || !listEl) return;
+      const overAgent = G.agents.find(ag => ag.hand.length > 7);
+      if (!overAgent) {
+        m.classList.add("hidden");
+        return;
+      }
+      listEl.innerHTML = overAgent.hand.map((c, idx) => `
+        <div class="p-2.5 rounded-xl bg-slate-900 border border-white/15 flex items-center justify-between gap-2">
+          <div>
+            <strong class="text-white">${c.title}</strong>
+            <div class="text-[12px] text-slate-300">${c.sub}</div>
+          </div>
+          <button onclick="discardOverflowHandCard(${overAgent.idx}, ${idx})" class="px-2.5 py-1 rounded-lg bg-rose-500 text-white font-black shrink-0">버리기</button>
+        </div>
+      `).join("");
+      m.classList.remove("hidden");
+    }
+
+    function discardOverflowHandCard(agentIdx, cardIdx) {
+      const ag = G.agents[agentIdx];
+      if (!ag || !ag.hand[cardIdx]) return;
+      const disc = ag.hand.splice(cardIdx, 1)[0];
+      G.playerDiscard.push(disc);
+      log(`[손패 정리] ${ag.name}: '${disc.title}' 버림`);
+      renderAll();
+      checkHandLimitModal();
+    }
+
+    function closeTurnRecap() {
+      document.getElementById("modalTurnRecap")?.classList.add("hidden");
+    }
+
+    // =========================================================
+    // (F) 통합 방역 액션 위저드 (Action Wizard Modal)
+    // =========================================================
+    let wizState = {
+      open: false,
+      mode: "move",
+      targetCityId: null,
+      subjectAgentIdx: 0,
+      selectedCards: []
+    };
+
+    function openActionWizard(mode, opts = {}) {
+      if (G.ended) return;
+      const actor = getActiveAgent();
+      wizState = {
+        open: true,
+        mode,
+        targetCityId: opts.cityId || actor.cityId,
+        subjectAgentIdx: opts.agentIdx !== undefined ? opts.agentIdx : actor.idx,
+        selectedCards: opts.selectedCards ? [...opts.selectedCards] : []
+      };
+      renderActionWizard();
+      document.getElementById("modalActionWizard")?.classList.remove("hidden");
+    }
+
+    function closeActionWizard() {
+      wizState.open = false;
+      document.getElementById("modalActionWizard")?.classList.add("hidden");
+    }
+
+    function onSelectMapCity(cityId) {
+      if (!G || G.ended) return;
+      const city = G.cities[cityId];
+      if (!city) return;
+      const actor = getActiveAgent();
+      const hasAnyCube = getActiveColors().some(col => city.cubes[col] > 0);
+      if (cityId === actor.cityId && hasAnyCube) {
+        openActionWizard("treat", { cityId });
+      } else {
+        openActionWizard("move", { cityId });
+      }
+    }
+
+    function toggleWizCardSelection(idx) {
+      const pos = wizState.selectedCards.indexOf(idx);
+      if (pos !== -1) wizState.selectedCards.splice(pos, 1);
+      else wizState.selectedCards.push(idx);
+      renderActionWizard();
+    }
+
+    function setWizSubjectAgent(idx) {
+      wizState.subjectAgentIdx = idx;
+      renderActionWizard();
+    }
+
+    function renderActionWizard() {
+      const badgeEl = document.getElementById("wizBadge");
+      const remainEl = document.getElementById("wizActionRemainHint");
+      const titleEl = document.getElementById("wizTitle");
+      const bodyEl = document.getElementById("wizBody");
+      if (!badgeEl || !bodyEl) return;
+
+      const actor = getActiveAgent();
+      const curCity = G.cities[actor.cityId];
+      badgeEl.textContent = wizState.mode === "event" ? "특수 0행동" : "1행동 소모";
+      remainEl.textContent = `남은 행동: ${G.actionsLeft}/4`;
+
+      // 모드 1: 이동 (인접 / 직항 / 전세 / 왕복 / 배패자 원격 / 작전 전문가)
+      if (wizState.mode === "move") {
+        titleEl.textContent = `1. 요원 이동 (${actor.name} · 현재: ${curCity.short})`;
+        const subject = G.agents[wizState.subjectAgentIdx] || actor;
+        const subCity = G.cities[subject.cityId];
+
+        const subjectPicker = actor.roleId === "dispatcher"
+          ? `<div class="p-2 rounded-xl bg-pink-950/40 border border-pink-400/50 space-y-1">
+              <div class="font-black text-pink-200">배패자 능력 — 이동시킬 요원 선택:</div>
+              <div class="flex flex-wrap gap-1">${G.agents.map(ag => `
+                <button onclick="setWizSubjectAgent(${ag.idx})" class="px-2 py-1 rounded-lg border font-black ${ag.idx === subject.idx ? "bg-pink-400 text-slate-950 border-white" : "bg-slate-900 text-slate-200 border-white/20"}">${ag.name} (${G.cities[ag.cityId].short})</button>
+              `).join("")}</div>
+            </div>`
+          : "";
+
+        const moveOptions = [];
+        // (a) 인접 이동
+        subCity.adj.forEach(nid => {
+          const nc = G.cities[nid];
+          moveOptions.push({ city: nc, type: "adjacent", cardIdx: null, label: "인접 이동 (카드 무소모)" });
+        });
+        // (b) 왕복 항공편 (연구소 -> 연구소)
+        if (subCity.hasLab) {
+          Object.values(G.cities).filter(c => c.hasLab && c.id !== subCity.id).forEach(lc => {
+            moveOptions.push({ city: lc, type: "shuttle", cardIdx: null, label: "왕복 항공 (연구소 간 이동)" });
+          });
+        }
+        // (c) 배패자: 다른 요원이 있는 도시로 무료 합류
+        if (actor.roleId === "dispatcher") {
+          G.agents.forEach(other => {
+            if (other.cityId !== subject.cityId) {
+              moveOptions.push({ city: G.cities[other.cityId], type: "dispatch_join", cardIdx: null, label: `배패자 합류 (${other.name} 위치)` });
+            }
+          });
+        }
+        // (d) 직항편 (내 손패 도시 카드 -> 해당 도시)
+        actor.hand.forEach((c, idx) => {
+          if (c.kind === "city" && c.cityId !== subject.cityId) {
+            moveOptions.push({ city: G.cities[c.cityId], type: "direct", cardIdx: idx, label: `직항편 ('${c.title}' 버림)` });
+          }
+        });
+        // (e) 전세편 (현재 도시 카드 -> 선택한 targetCityId 또는 모든 도시)
+        const charterIdx = actor.hand.findIndex(c => c.kind === "city" && c.cityId === subject.cityId);
+        if (charterIdx !== -1 && wizState.targetCityId && wizState.targetCityId !== subject.cityId) {
+          moveOptions.push({ city: G.cities[wizState.targetCityId], type: "charter", cardIdx: charterIdx, label: `전세편 (${subCity.short} 카드 버리고 자유 이동)` });
+        }
+        // (f) 작전 전문가 연구소 특항편
+        if (actor.roleId === "ops_expert" && curCity.hasLab && wizState.targetCityId && wizState.targetCityId !== curCity.id) {
+          const anyCityIdx = actor.hand.findIndex(c => c.kind === "city");
+          if (anyCityIdx !== -1) {
+            moveOptions.push({ city: G.cities[wizState.targetCityId], type: "ops_flight", cardIdx: anyCityIdx, label: `작전 특항 ('${actor.hand[anyCityIdx].title}' 버림)` });
+          }
+        }
+
+        // targetCityId가 우선 정렬
+        moveOptions.sort((a, b) => (a.city.id === wizState.targetCityId ? -1 : 1) - (b.city.id === wizState.targetCityId ? -1 : 1));
+
+        bodyEl.innerHTML = `
+          ${subjectPicker}
+          <div class="text-[12px] text-cyan-300 font-extrabold">목적지 및 이동 수단을 선택하세요 (${subject.name} 현재: ${subCity.name}):</div>
+          <div class="space-y-1.5">
+            ${moveOptions.map(opt => `
+              <button onclick="moveAgentAction(${subject.idx}, '${opt.city.id}', '${opt.type}', ${opt.cardIdx})" ${G.actionsLeft > 0 ? "" : "disabled"} class="w-full p-2.5 rounded-xl border ${opt.city.id === wizState.targetCityId ? "bg-sky-900/75 border-sky-300 ring-2 ring-sky-400" : "bg-slate-900 border-white/15"} flex items-center justify-between text-left">
+                <div>
+                  <strong class="text-white">${opt.city.name} (${DISEASE_META[opt.city.color].short})</strong>
+                  <div class="text-[12px] text-cyan-200">${opt.label}</div>
+                </div>
+                <span class="px-2.5 py-1 rounded-lg bg-cyan-400 text-slate-950 font-black">이동</span>
+              </button>
+            `).join("")}
+          </div>
+        `;
+        return;
+      }
+
+      // 모드 2: 질병 치료 (Treat)
+      if (wizState.mode === "treat") {
+        titleEl.textContent = `2. 질병 치료 (${curCity.name})`;
+        const cubeRows = getActiveColors().filter(col => curCity.cubes[col] > 0).map(col => {
+          const m = DISEASE_META[col];
+          const isAll = (actor.roleId === "medic" || G.cures[col] >= 1);
+          return `
+            <button onclick="treatDisease('${curCity.id}', '${col}', false)" ${G.actionsLeft > 0 ? "" : "disabled"} class="w-full p-3 rounded-xl border ${m.borderClass} ${m.bgClass} flex items-center justify-between text-left">
+              <div>
+                <strong class="${m.textClass} text-sm">${m.name} 현재 ${curCity.cubes[col]}개</strong>
+                <div class="text-[12px] text-slate-200">${isAll ? "의무병/치료제 완료 효과: 전부 제거!" : "1행동으로 큐브 1개 제거"}${G.expansions.inTheLab ? " + 실험실 시료 채취" : ""}</div>
+              </div>
+              <span class="px-3 py-1.5 rounded-xl bg-white text-slate-950 font-black">치료 실행</span>
+            </button>
+          `;
+        });
+
+        // 방역 지휘관 무료 인접 치료 버튼
+        let directorFreeHtml = "";
+        if (actor.roleId === "field_director" && !actor.freeTreatUsedThisTurn) {
+          const adjCubes = [];
+          curCity.adj.forEach(aid => {
+            const ac = G.cities[aid];
+            getActiveColors().forEach(col => {
+              if (ac.cubes[col] > 0) adjCubes.push({ city: ac, col });
+            });
+          });
+          if (adjCubes.length > 0) {
+            directorFreeHtml = `
+              <div class="p-2.5 rounded-xl bg-sky-950/60 border border-sky-400/50 space-y-1.5">
+                <strong class="text-sky-300 block">방역 지휘관 무료 능력 (턴당 1회 0행동 인접 치료):</strong>
+                ${adjCubes.map(x => `
+                  <button onclick="treatDisease('${x.city.id}', '${x.col}', true)" class="w-full p-2 rounded-lg bg-slate-900 border border-sky-400/40 flex items-center justify-between text-left">
+                    <span class="text-white font-bold">${x.city.name} (${DISEASE_META[x.col].short} ${x.city.cubes[x.col]}개)</span>
+                    <span class="px-2 py-0.5 rounded bg-sky-400 text-slate-950 font-black">0행동 -1</span>
+                  </button>
+                `).join("")}
+              </div>
+            `;
+          }
+        }
+
+        bodyEl.innerHTML = (cubeRows.length > 0 ? cubeRows.join("") : `<div class="p-3 rounded-xl bg-slate-900 text-slate-300">현재 도시(${curCity.name})에는 제거할 질병 큐브가 없습니다.</div>`) + directorFreeHtml;
+        return;
+      }
+
+      // 모드 3: 연구소 건설 & 비상사태 격리 마커 설치
+      if (wizState.mode === "build_quarantine") {
+        titleEl.textContent = `3. 연구소 건설 & 격리 마커 설치 (${curCity.name})`;
+        const matchCardIdx = actor.hand.findIndex(c => c.kind === "city" && c.cityId === curCity.id);
+        const canBuildLab = !curCity.hasLab && (actor.roleId === "ops_expert" || matchCardIdx !== -1);
+        const canQuarantine = G.expansions.stateOfEmergency || actor.roleId === "field_director";
+        const qTargets = actor.roleId === "field_director" ? [curCity.id, ...curCity.adj] : [curCity.id];
+
+        bodyEl.innerHTML = `
+          <div class="p-3 rounded-xl bg-slate-900 border border-emerald-400/50 space-y-2">
+            <strong class="text-emerald-300 block">CDC 연구소 건설 (${curCity.name})</strong>
+            <div class="text-[12px] text-slate-300">
+              ${curCity.hasLab ? "이미 연구소가 건설되어 있습니다." : (actor.roleId === "ops_expert" ? "작전 전문가 패시브: 카드 소모 없이 1행동으로 즉시 건설!" : (matchCardIdx !== -1 ? `'${actor.hand[matchCardIdx].title}' 카드를 버리고 연구소 건설 가능!` : `건설하려면 '${curCity.short}' 도시 카드가 필요합니다.`))}
+            </div>
+            <button onclick="buildResearchStation(${matchCardIdx !== -1 ? matchCardIdx : null})" ${canBuildLab && G.actionsLeft > 0 ? "" : "disabled"} class="w-full py-2 rounded-xl font-black ${canBuildLab && G.actionsLeft > 0 ? "bg-emerald-400 text-slate-950" : "bg-slate-800 text-slate-500"}">
+              ${canBuildLab ? "연구소 건설 확정 (1행동)" : "연구소 건설 불가"}
+            </button>
+          </div>
+
+          <div class="p-3 rounded-xl bg-slate-900 border border-amber-400/50 space-y-2">
+            <strong class="text-amber-300 block">[비상사태] 2단 방어 격리 마커 설치</strong>
+            <div class="text-[12px] text-slate-300">
+              ${canQuarantine ? "격리 마커가 놓인 도시는 향후 감염 및 확산을 2회까지 완벽히 막아냅니다." : "설정에서 《비상사태 (State of Emergency)》 확장팩을 켜거나 [방역 지휘관] 역할일 때 사용할 수 있습니다."}
+            </div>
+            ${canQuarantine ? qTargets.map(tid => `
+              <button onclick="placeQuarantineMarker('${tid}')" ${G.actionsLeft > 0 ? "" : "disabled"} class="w-full p-2 rounded-lg bg-amber-950/60 border border-amber-400/40 flex items-center justify-between text-left">
+                <span class="font-bold text-amber-200">${G.cities[tid].name} (현재 격리 ${G.cities[tid].quarantine}단)</span>
+                <span class="px-2.5 py-0.5 rounded bg-amber-400 text-slate-950 font-black">2단 설치</span>
+              </button>
+            `).join("") : ""}
+          </div>
+        `;
+        return;
+      }
+
+      // 모드 4: 지식 공유 (같은 도시 요원 간 카드 전달)
+      if (wizState.mode === "share") {
+        titleEl.textContent = `4. 지식 공유 (${curCity.name})`;
+        const mates = G.agents.filter(ag => ag.idx !== actor.idx && ag.cityId === actor.cityId);
+        if (mates.length === 0) {
+          bodyEl.innerHTML = `<div class="p-3 rounded-xl bg-slate-900 border border-white/10 text-slate-300">현재 <strong>${curCity.name}</strong>에 함께 있는 다른 요원이 없습니다. 먼저 같은 도시로 모이세요!</div>`;
+          return;
+        }
+        const shareRows = [];
+        mates.forEach(mate => {
+          actor.hand.forEach((c, idx) => {
+            if (c.kind === "city" && (actor.roleId === "researcher" || c.cityId === curCity.id)) {
+              shareRows.push(`
+                <button onclick="shareKnowledgeCard('give', ${actor.idx}, ${mate.idx}, ${idx})" class="w-full p-2.5 rounded-xl bg-purple-950/60 border border-purple-400/50 flex items-center justify-between text-left">
+                  <div>
+                    <strong class="text-purple-200">주기: '${c.title}' -> ${mate.name}</strong>
+                    <div class="text-[12px] text-slate-300">${actor.roleId === "researcher" ? "연구원 능력(아무 카드 가능)" : "현재 도시 일치"}</div>
+                  </div>
+                  <span class="px-2.5 py-1 rounded-lg bg-purple-400 text-slate-950 font-black">전달</span>
+                </button>
+              `);
+            }
+          });
+          mate.hand.forEach((c, idx) => {
+            if (c.kind === "city" && (mate.roleId === "researcher" || c.cityId === curCity.id)) {
+              shareRows.push(`
+                <button onclick="shareKnowledgeCard('take', ${mate.idx}, ${actor.idx}, ${idx})" class="w-full p-2.5 rounded-xl bg-cyan-950/60 border border-cyan-400/50 flex items-center justify-between text-left">
+                  <div>
+                    <strong class="text-cyan-200">받기: ${mate.name}의 '${c.title}'</strong>
+                    <div class="text-[12px] text-slate-300">${mate.roleId === "researcher" ? "동료가 연구원" : "현재 도시 일치"}</div>
+                  </div>
+                  <span class="px-2.5 py-1 rounded-lg bg-cyan-400 text-slate-950 font-black">가져오기</span>
+                </button>
+              `);
+            }
+          });
+        });
+        bodyEl.innerHTML = shareRows.length > 0
+          ? shareRows.join("")
+          : `<div class="p-3 rounded-xl bg-slate-900 border border-white/10 text-slate-300">${mates.map(m => m.name).join(", ")} 요원과 같은 도시에 있으나, 현재 도시(${curCity.short})와 일치하는 카드가 서로 없습니다.</div>`;
+        return;
+      }
+
+      // 모드 5: 치료제 개발 & 인더랩 실험실 합성
+      if (wizState.mode === "cure_lab") {
+        titleEl.textContent = `5. 치료제 개발${G.expansions.inTheLab ? " & 인 더 랩 실험실" : ""}`;
+        if (!curCity.hasLab) {
+          bodyEl.innerHTML = `<div class="p-3 rounded-xl bg-rose-950/60 border border-rose-400/50 text-rose-200 font-bold">현재 도시(${curCity.name})에는 CDC 연구소가 없습니다! 애틀랜타 등 연구소가 있는 도시로 이동하세요.</div>`;
+          return;
+        }
+        const stdNeed = actor.roleId === "scientist" ? 4 : 5;
+        const labNeed = actor.roleId === "scientist" ? 1 : 2;
+        bodyEl.innerHTML = getActiveColors().map(col => {
+          const m = DISEASE_META[col];
+          const cured = G.cures[col] >= 1;
+          const matchingIndices = [];
+          actor.hand.forEach((c, idx) => {
+            if (c.kind === "city" && (c.color === col || (col === "purple" && G.cities[c.cityId].cubes.purple > 0))) {
+              matchingIndices.push(idx);
+            }
+          });
+          if (cured) {
+            return `<div class="p-2.5 rounded-xl bg-emerald-950/50 border border-emerald-400/40 font-black text-emerald-300">[완성됨] ${m.name} 치료제 개발 완료</div>`;
+          }
+
+          if (G.expansions.inTheLab) {
+            const seq = G.lab.sequenced[col];
+            const tested = G.lab.testedCubes[col];
+            const samp = G.lab.samples[col];
+            return `
+              <div class="p-2.5 rounded-xl ${m.bgClass} border ${m.borderClass} space-y-1.5">
+                <div class="flex items-center justify-between">
+                  <strong class="${m.textClass} font-black">${m.name} (보유 카드 ${matchingIndices.length}장)</strong>
+                  <span class="text-[12px] text-slate-200 font-bold">시료보관 ${samp} | 분석 ${tested}/3</span>
+                </div>
+                <div class="grid grid-cols-3 gap-1 text-[12px]">
+                  <button onclick="sequenceLabDisease('${col}', ${matchingIndices[0]})" ${!seq && matchingIndices.length >= 1 && G.actionsLeft > 0 ? "" : "disabled"} class="py-1.5 px-1 rounded-lg font-black ${seq ? "bg-emerald-500 text-slate-950" : (matchingIndices.length >= 1 ? "bg-white text-slate-950" : "bg-slate-800 text-slate-500")}">
+                    ${seq ? "1.분석완" : "1.분석(1장)"}
+                  </button>
+                  <button onclick="processLabSample('${col}')" ${seq && tested < 3 && samp > 0 && G.actionsLeft > 0 ? "" : "disabled"} class="py-1.5 px-1 rounded-lg font-black ${tested >= 3 ? "bg-emerald-500 text-slate-950" : (seq && samp > 0 ? "bg-cyan-400 text-slate-950" : "bg-slate-800 text-slate-500")}">
+                    ${tested >= 3 ? "2.시료완" : `2.주입(${samp})`}
+                  </button>
+                  <button onclick="synthesizeLabCure('${col}', [${matchingIndices.slice(0, labNeed).join(",")}])" ${seq && tested >= 3 && matchingIndices.length >= labNeed && G.actionsLeft > 0 ? "" : "disabled"} class="py-1.5 px-1 rounded-lg font-black ${seq && tested >= 3 && matchingIndices.length >= labNeed ? "bg-amber-400 text-slate-950" : "bg-slate-800 text-slate-500"}">
+                    3.합성(${labNeed}장)
+                  </button>
+                </div>
+              </div>
+            `;
+          } else {
+            const canCure = matchingIndices.length >= stdNeed;
+            return `
+              <div class="p-2.5 rounded-xl ${m.bgClass} border ${m.borderClass} flex items-center justify-between gap-2">
+                <div>
+                  <strong class="${m.textClass} font-black">${m.name} 치료제</strong>
+                  <div class="text-[12px] text-slate-200">보유 ${matchingIndices.length} / 필요 ${stdNeed}장</div>
+                </div>
+                <button onclick="discoverCure('${col}', [${matchingIndices.slice(0, stdNeed).join(",")}])" ${canCure && G.actionsLeft > 0 ? "" : "disabled"} class="px-3 py-1.5 rounded-xl font-black ${canCure ? "bg-emerald-400 text-slate-950" : "bg-slate-800 text-slate-500"}">
+                  ${canCure ? "치료제 개발!" : "카드 부족"}
+                </button>
+              </div>
+            `;
+          }
+        }).join("");
+      }
+
+      // 모드 6: 특수 이벤트 카드 발동 (0행동 프리 액션!)
+      if (wizState.mode === "event") {
+        titleEl.textContent = "6. 특수 이벤트 카드 발동 (0행동 무료!)";
+        const allEv = [];
+        G.agents.forEach(ag => {
+          ag.hand.forEach((c, idx) => {
+            if (c.kind === "event") allEv.push({ ag, c, idx });
+          });
+        });
+        bodyEl.innerHTML = allEv.length === 0
+          ? `<div class="p-3 rounded-xl bg-slate-900 border border-white/10 text-slate-300">현재 방역팀이 보유한 특수 이벤트 카드가 없습니다.</div>`
+          : allEv.map(item => `
+              <div class="p-3 rounded-xl bg-cyan-950/50 border border-cyan-400/50 flex items-center justify-between gap-2">
+                <div>
+                  <strong class="text-cyan-200">${item.c.title} (${item.ag.name} 보유)</strong>
+                  <div class="text-[12px] text-slate-200">${item.c.sub}</div>
+                </div>
+                <button onclick="executeEventCard(${item.ag.idx}, ${item.idx}, '${curCity.id}')" class="px-3 py-1.5 rounded-xl bg-cyan-400 text-slate-950 font-black shrink-0">발동</button>
+              </div>
+            `).join("");
+      }
+    }
+
+    // =========================================================
+    // (G) HUD, 양방향 손패 필터, 듀얼 뷰 지도, 4대 탭 렌더링
+    // =========================================================
+    function switchTab(tabKey) {
+      activeTab = tabKey;
+      ["map", "agents", "lab", "intel"].forEach(k => {
+        const v = document.getElementById("view_" + k);
+        const b = document.getElementById("tabBtn_" + k);
+        if (v) v.classList.toggle("hidden", k !== tabKey);
+        if (b) {
+          b.className = (k === tabKey)
+            ? "py-1 rounded-lg flex items-center justify-center gap-1 bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-extrabold transition"
+            : "py-1 rounded-lg flex items-center justify-center gap-1 text-slate-400 hover:text-slate-200 font-bold transition";
+        }
+      });
+      renderAll();
+    }
+
+    function toggleCoachBanner() {
+      coachEnabled = !coachEnabled;
+      document.getElementById("coachAdviceText")?.classList.toggle("hidden", !coachEnabled);
+      const btn = document.getElementById("btnCoachToggle");
+      if (btn) btn.textContent = coachEnabled ? "접기" : "펼치기";
+    }
+
+    function selectActiveAgent(idx) {
+      if (!G || !G.agents[idx]) return;
+      G.activeAgentIdx = idx;
+      mapCardFilterIdx = null;
+      renderAll();
+      pushToast(`활성 요원 전환: ${G.agents[idx].name} (${G.cities[G.agents[idx].cityId].short})`);
+    }
+
+    function onClickHudHandCard(idx) {
+      const actor = getActiveAgent();
+      if (!actor || !actor.hand[idx]) return;
+      mapCardFilterIdx = (mapCardFilterIdx === idx) ? null : idx;
+      renderAll();
+    }
+
+    function clearHudCardFilter() {
+      mapCardFilterIdx = null;
+      renderAll();
+    }
+
+    function openWizardWithFilteredCard(kind) {
+      const actor = getActiveAgent();
+      const c = mapCardFilterIdx !== null ? actor.hand[mapCardFilterIdx] : null;
+      if (c && c.kind === "event") {
+        openActionWizard("event");
+        return;
+      }
+      if (kind === "move" && c && c.kind === "city") {
+        openActionWizard("move", { cityId: c.cityId });
+        return;
+      }
+      if (c && c.kind === "city" && c.cityId === actor.cityId) {
+        openActionWizard("build_quarantine");
+        return;
+      }
+      openActionWizard("cure_lab");
+    }
+
+    function toggleMapViewMode() {
+      mapViewMode = (mapViewMode === "svg") ? "list" : "svg";
+      renderMapView();
+    }
+
+    function computeBestPandemicCoach() {
+      const actor = getActiveAgent();
+      const curCity = G.cities[actor.cityId];
+      const urgentCities = Object.values(G.cities).filter(c => getActiveColors().some(col => c.cubes[col] >= 3));
+      if (urgentCities.length > 0) {
+        return `<strong class="text-rose-300">[긴급 확산 경보!]</strong> 현재 <strong>${urgentCities.map(c => c.short).join(", ")}</strong>에 큐브 3개가 쌓여 있습니다! <strong>[2.치료]</strong>나 격리 마커로 연쇄 확산을 막으세요.`;
+      }
+      const myThree = getActiveColors().some(col => curCity.cubes[col] > 0);
+      if (myThree && G.actionsLeft > 0) {
+        return `<strong class="text-cyan-300">[현장 치료 가능]</strong> 현재 위치한 <strong>${curCity.name}</strong>에 질병 큐브가 있습니다. 하단 <strong>[2.치료]</strong>를 눌러 정화${G.expansions.inTheLab ? " 및 시료를 확보" : ""}하세요!`;
+      }
+      if (G.actionsLeft === 0) {
+        return `<strong class="text-amber-300">[행동 완료]</strong> 이번 턴 4행동을 모두 마쳤습니다! 오른쪽 아래 <strong>[턴 종료]</strong> 버튼을 눌러 카드를 뽑으세요.`;
+      }
+      return `<strong class="text-sky-300">[방역 지휘]</strong> 지도에서 도시를 직접 터치하거나 <strong>[스마트 일람표]</strong>로 위험 도시·가능 행동을 한눈에 확인하세요!`;
+    }
+
+    function renderAll() {
+      if (!G) return;
+      renderHUD();
+      renderMapView();
+      renderAgentsView();
+      renderLabView();
+      renderIntelView();
+      renderDockBar();
+    }
+
+    function renderHUD() {
+      const actor = getActiveAgent();
+      if (mapCardFilterIdx !== null && !actor.hand[mapCardFilterIdx]) {
+        mapCardFilterIdx = null;
+      }
+
+      document.getElementById("hudTurnBadge").textContent = `${G.turnCount}턴`;
+      const exList = [];
+      if (G.expansions.onTheBrink) exList.push("벼랑");
+      if (G.expansions.inTheLab) exList.push("랩");
+      if (G.expansions.stateOfEmergency) exList.push("비상");
+      document.getElementById("hudExpBadge").textContent = exList.length > 0 ? exList.join("+") : "기본판";
+
+      document.getElementById("hudOutbreaks").textContent = `${G.outbreaks}/8`;
+      document.getElementById("hudInfRate").textContent = `${INFECTION_RATES[G.infectionRateIdx]}장`;
+      document.getElementById("hudDeckLeft").textContent = `${G.playerDeck.length}장`;
+
+      const curesRow = document.getElementById("hudCuresRow");
+      if (curesRow) {
+        curesRow.innerHTML = getActiveColors().map(col => {
+          const m = DISEASE_META[col];
+          const st = G.cures[col];
+          return `<span class="px-1.5 py-0.5 rounded font-black ${st >= 1 ? "bg-emerald-500 text-slate-950" : `${m.bgClass} ${m.textClass} border ${m.borderClass}`}">${m.short.slice(0, 1)}${st === 2 ? "박" : (st === 1 ? "완" : "")}</span>`;
+        }).join("");
+      }
+
+      const agBar = document.getElementById("hudAgentsBar");
+      if (agBar) {
+        agBar.innerHTML = G.agents.map(ag => `
+          <button onclick="selectActiveAgent(${ag.idx})" class="px-2 py-0.5 rounded-lg border ${ag.idx === G.activeAgentIdx ? "bg-cyan-400 text-slate-950 border-white font-black" : "bg-slate-900 text-slate-200 border-white/20 font-bold"} shrink-0">
+            ${ag.name}(${ag.hand.length})
+          </button>
+        `).join("");
+      }
+
+      document.getElementById("hudActionsLeft").textContent = `행동 ${G.actionsLeft}/4`;
+      document.getElementById("hudHandCountLabel").textContent = `${actor.short} ${actor.hand.length}/7장`;
+
+      const tray = document.getElementById("hudHandTray");
+      if (tray) {
+        tray.innerHTML = actor.hand.map((c, idx) => `
+          <button onclick="onClickHudHandCard(${idx})" class="px-2 py-0.5 rounded-lg border ${c.badgeClass} ${mapCardFilterIdx === idx ? "ring-2 ring-cyan-300 brightness-125" : ""} shrink-0 text-left">
+            <span class="text-[12px] font-black">#${idx + 1} ${c.title}</span>
+          </button>
+        `).join("");
+      }
+
+      const cardBar = document.getElementById("selectedCardActionBar");
+      const cardBarLabel = document.getElementById("selectedCardBarLabel");
+      if (cardBar && cardBarLabel) {
+        if (mapCardFilterIdx !== null && actor.hand[mapCardFilterIdx]) {
+          cardBar.classList.remove("hidden");
+          cardBarLabel.textContent = `선택 카드 [#${mapCardFilterIdx + 1} ${actor.hand[mapCardFilterIdx].title}] 지도 연동 중`;
+        } else {
+          cardBar.classList.add("hidden");
+        }
+      }
+
+      const labCount = Object.values(G.cities).filter(c => c.hasLab).length;
+      document.getElementById("coachExpansionHint").textContent = `연구소 ${labCount}/6${G.virulentStrain ? ` · 악성:${DISEASE_META[G.virulentStrain].short}` : ""}`;
+      document.getElementById("coachAdviceText").innerHTML = computeBestPandemicCoach();
+
+      const emgBanner = document.getElementById("activeEmergencyBanner");
+      if (emgBanner) {
+        if (G.activeEmergency) {
+          emgBanner.classList.remove("hidden");
+          emgBanner.textContent = `활성 비상 위기: ${G.activeEmergency}`;
+        } else {
+          emgBanner.classList.add("hidden");
+        }
+      }
+      document.getElementById("legendPurpleBadge")?.classList.toggle("hidden", !G.expansions.onTheBrink);
+    }
+
+    function renderMapView() {
+      const actor = getActiveAgent();
+      const filteredCard = (mapCardFilterIdx !== null && actor.hand[mapCardFilterIdx]) ? actor.hand[mapCardFilterIdx] : null;
+
+      // 1) 항로 렌더링 (태평양 횡단 항로는 좌우 끝으로 랩어라운드 점선 처리)
+      const routesLayer = document.getElementById("mapRoutesLayer");
+      let routeHtml = "";
+      const drawnPairs = new Set();
+      Object.values(G.cities).forEach(c1 => {
+        c1.adj.forEach(id2 => {
+          const pairKey = [c1.id, id2].sort().join("--");
+          if (drawnPairs.has(pairKey)) return;
+          drawnPairs.add(pairKey);
+          const c2 = G.cities[id2];
+          if (!c2) return;
+
+          const isPacificWrap = Math.abs(c1.x - c2.x) > 450;
+          if (isPacificWrap) {
+            const leftCity = c1.x < c2.x ? c1 : c2;
+            const rightCity = c1.x < c2.x ? c2 : c1;
+            routeHtml += `<line x1="${leftCity.x}" y1="${leftCity.y}" x2="0" y2="${leftCity.y}" stroke="#38bdf8" stroke-opacity="0.6" stroke-width="2.6" stroke-dasharray="6,5" />`;
+            routeHtml += `<line x1="${rightCity.x}" y1="${rightCity.y}" x2="820" y2="${rightCity.y}" stroke="#38bdf8" stroke-opacity="0.6" stroke-width="2.6" stroke-dasharray="6,5" />`;
+          } else {
+            routeHtml += `<line x1="${c1.x}" y1="${c1.y}" x2="${c2.x}" y2="${c2.y}" stroke="transparent" stroke-width="28" stroke-linecap="round" />`;
+            routeHtml += `<line x1="${c1.x}" y1="${c1.y}" x2="${c2.x}" y2="${c2.y}" stroke="#334155" stroke-width="2.4" stroke-linecap="round" />`;
+          }
+        });
+      });
+      if (routesLayer) routesLayer.innerHTML = routeHtml;
+
+      // 2) 24개 세계 거점 도시 카드 렌더링
+      const citiesLayer = document.getElementById("mapCitiesLayer");
+      let cityHtml = "";
+      Object.values(G.cities).forEach(c => {
+        const m = DISEASE_META[c.color];
+        const w = 78;
+        const h = 42;
+        const x0 = c.x - w / 2;
+        const y0 = c.y - h / 2;
+
+        const maxCube = Math.max(...getActiveColors().map(col => c.cubes[col]));
+        const isDanger = maxCube >= 3;
+        const isAdjToActor = G.cities[actor.cityId].adj.includes(c.id);
+        const isFilterMatch = filteredCard && filteredCard.kind === "city" && filteredCard.cityId === c.id;
+        const strokeCol = isFilterMatch ? "#38bdf8" : (isDanger ? "#f43f5e" : (c.id === actor.cityId ? "#34d399" : m.hex));
+        const strokeW = (isFilterMatch || isDanger || c.id === actor.cityId) ? 3.2 : 1.8;
+
+        cityHtml += `<g class="map-node" filter="url(#nodeDropShadow)" onclick="onSelectMapCity('${c.id}')">`;
+        cityHtml += `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" rx="9" fill="#0d1525" stroke="${strokeCol}" stroke-width="${strokeW}" class="${isDanger ? "danger-pulse" : (isFilterMatch ? "valid-highlight" : "")}" />`;
+        cityHtml += `<rect x="${x0 + 2}" y="${y0 + 2}" width="${w - 4}" height="18" rx="7" fill="${m.darkHex}" />`;
+        cityHtml += `<text x="${c.x}" y="${y0 + 14.5}" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="900">${c.short}</text>`;
+
+        // 연구소 / 격리 마커 표시 + 큐브 배지
+        const cubeParts = getActiveColors().filter(col => c.cubes[col] > 0).map(col => `${DISEASE_META[col].short.slice(0, 1)}${c.cubes[col]}`);
+        const statusTxt = cubeParts.length > 0 ? cubeParts.join(" ") : (c.hasLab ? "연구소" : (isAdjToActor ? "인접" : "안전"));
+        const statusFill = cubeParts.length > 0 ? (isDanger ? "#fda4af" : "#fde047") : (c.hasLab ? "#6ee7b7" : "#94a3b8");
+        cityHtml += `<text x="${c.x}" y="${y0 + 34}" text-anchor="middle" fill="${statusFill}" font-size="12" font-weight="900">${statusTxt}</text>`;
+        if (c.hasLab) {
+          cityHtml += `<rect x="${x0 - 4}" y="${y0 - 4}" width="18" height="14" rx="4" fill="#10b981" stroke="#ffffff" stroke-width="1" />`;
+          cityHtml += `<text x="${x0 + 5}" y="${y0 + 7}" text-anchor="middle" fill="#020617" font-size="12" font-weight="900">연</text>`;
+        }
+        if (c.quarantine > 0) {
+          cityHtml += `<rect x="${x0 + w - 16}" y="${y0 - 4}" width="18" height="14" rx="4" fill="#f59e0b" stroke="#ffffff" stroke-width="1" />`;
+          cityHtml += `<text x="${x0 + w - 7}" y="${y0 + 7}" text-anchor="middle" fill="#020617" font-size="12" font-weight="900">${c.quarantine}</text>`;
+        }
+        cityHtml += `</g>`;
+      });
+      if (citiesLayer) citiesLayer.innerHTML = cityHtml;
+
+      // 3) 요원 말(Pawns) 렌더링
+      const pawnsLayer = document.getElementById("mapPawnsLayer");
+      let pawnHtml = "";
+      G.agents.forEach(ag => {
+        const c = G.cities[ag.cityId];
+        if (!c) return;
+        const px = c.x - 18 + ag.idx * 20;
+        const py = c.y - 25;
+        const isCurrent = ag.idx === G.activeAgentIdx;
+        pawnHtml += `<g onclick="selectActiveAgent(${ag.idx})" class="map-node">`;
+        pawnHtml += `<circle cx="${px}" cy="${py}" r="11" fill="${ag.color}" stroke="${isCurrent ? "#ffffff" : "#0f172a"}" stroke-width="${isCurrent ? 2.8 : 1.5}" />`;
+        pawnHtml += `<text x="${px}" y="${py + 4}" text-anchor="middle" fill="#020617" font-size="12" font-weight="900">${ag.short.slice(0, 1)}</text>`;
+        pawnHtml += `</g>`;
+      });
+      if (pawnsLayer) pawnsLayer.innerHTML = pawnHtml;
+
+      // 4) 듀얼 뷰 토글 & 스마트 일람표 갱신
+      const svgBox = document.getElementById("mapSvgContainer");
+      const listBox = document.getElementById("mapSmartListContainer");
+      const toggleBtn = document.getElementById("btnMapViewMode");
+      const zoomBox = document.getElementById("mapZoomControlsBox");
+      if (svgBox && listBox && toggleBtn) {
+        const isList = (mapViewMode === "list");
+        svgBox.classList.toggle("hidden", isList);
+        listBox.classList.toggle("hidden", !isList);
+        if (zoomBox) zoomBox.classList.toggle("hidden", isList);
+        toggleBtn.textContent = isList ? "그래픽 지도" : "스마트 일람표";
+        renderSmartMapList(filteredCard);
+      }
+
+      const curCity = G.cities[actor.cityId];
+      const dangerCount = Object.values(G.cities).filter(c => getActiveColors().some(col => c.cubes[col] >= 3)).length;
+      document.getElementById("bottomCityInfoStat").textContent = `위치: ${curCity.name}${curCity.hasLab ? " [연구소]" : ""}`;
+      document.getElementById("bottomCubePoolStat").textContent = `위험도시(3큐브) ${dangerCount}곳`;
+    }
+
+    function renderSmartMapList(filteredCard = null) {
+      const box = document.getElementById("mapSmartListContainer");
+      if (!box) return;
+      const actor = getActiveAgent();
+      const curCity = G.cities[actor.cityId];
+
+      const urgentCities = Object.values(G.cities).filter(c => getActiveColors().some(col => c.cubes[col] > 0))
+        .sort((a, b) => Math.max(...getActiveColors().map(col => b.cubes[col])) - Math.max(...getActiveColors().map(col => a.cubes[col])));
+
+      const listHtml = urgentCities.map(c => {
+        const cubesTxt = getActiveColors().filter(col => c.cubes[col] > 0).map(col => `${DISEASE_META[col].short} ${c.cubes[col]}개`).join(" · ");
+        const maxC = Math.max(...getActiveColors().map(col => c.cubes[col]));
+        const isMatch = filteredCard && filteredCard.cityId === c.id;
+        return `
+          <button onclick="onSelectMapCity('${c.id}')" class="w-full p-2.5 rounded-xl border text-left flex items-center justify-between gap-2 ${
+            isMatch ? "bg-cyan-950/75 border-cyan-300 ring-2 ring-cyan-400" : (maxC >= 3 ? "bg-rose-950/65 border-rose-400/70" : "bg-slate-900 border-white/15")
+          }">
+            <div>
+              <strong class="text-white">${c.name} (${DISEASE_META[c.color].short})${c.hasLab ? " [연구소]" : ""}</strong>
+              <div class="text-[12px] ${maxC >= 3 ? "text-rose-200 font-bold" : "text-slate-300"}">${cubesTxt}${c.quarantine > 0 ? ` · 격리 ${c.quarantine}단` : ""}</div>
+            </div>
+            <span class="px-2.5 py-1 rounded-lg ${c.id === curCity.id ? "bg-emerald-400 text-slate-950" : "bg-cyan-950 text-cyan-200 border border-cyan-400/50"} font-black shrink-0">
+              ${c.id === curCity.id ? "현재/치료" : "이동"}
+            </span>
+          </button>
+        `;
+      }).join("");
+
+      box.innerHTML = `
+        <div class="font-black text-cyan-300">질병 발생 도시 위험도 순위 (${urgentCities.length}곳)</div>
+        <div class="space-y-1.5">${listHtml || `<div class="p-3 rounded-xl bg-slate-900 text-slate-300">현재 전 세계에 감염 큐브가 없습니다!</div>`}</div>
+      `;
+    }
+
+    function renderAgentsView() {
+      const countBadge = document.getElementById("agentsTabCountBadge");
+      const box = document.getElementById("agentsDetailList");
+      if (countBadge) countBadge.textContent = `${G.agents.length}인 방역팀`;
+      if (!box) return;
+
+      box.innerHTML = G.agents.map(ag => `
+        <div class="p-3 rounded-2xl bg-slate-900/90 border ${ag.idx === G.activeAgentIdx ? "border-cyan-400 ring-1 ring-cyan-400" : "border-white/15"} space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <strong class="text-sm font-black" style="color:${ag.color}">${ag.name}</strong>
+              <span class="text-[12px] text-slate-300 ml-1">위치: ${G.cities[ag.cityId].name}</span>
+            </div>
+            <button onclick="selectActiveAgent(${ag.idx})" class="px-2.5 py-1 rounded-lg font-black text-[12px] ${ag.idx === G.activeAgentIdx ? "bg-cyan-400 text-slate-950" : "bg-slate-800 text-cyan-200 border border-cyan-400/40"}">
+              ${ag.idx === G.activeAgentIdx ? "조작 중" : "이 요원 선택"}
+            </button>
+          </div>
+          <div class="text-[12px] text-cyan-200">${ag.desc}</div>
+          <div class="flex flex-wrap gap-1 pt-1">
+            ${ag.hand.map(c => `<span class="px-2 py-0.5 rounded-lg border ${c.badgeClass} text-[12px] font-bold">${c.title}</span>`).join("")}
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function renderLabView() {
+      const modeBadge = document.getElementById("labModeBadge");
+      const statusGrid = document.getElementById("diseaseStatusGrid");
+      const labBenchBox = document.getElementById("inTheLabBenchBox");
+      const labCards = document.getElementById("labWorkbenchCards");
+      if (modeBadge) modeBadge.textContent = G.expansions.inTheLab ? "인 더 랩 가동" : "기본 연구소";
+      if (labBenchBox) labBenchBox.classList.toggle("hidden", !G.expansions.inTheLab);
+
+      if (statusGrid) {
+        statusGrid.innerHTML = getActiveColors().map(col => {
+          const m = DISEASE_META[col];
+          const st = G.cures[col];
+          const statusLabel = st === 2 ? "완전 박멸" : (st === 1 ? "치료제 완성" : "치료제 미개발");
+          return `
+            <div class="p-2.5 rounded-xl ${m.bgClass} border ${m.borderClass} flex items-center justify-between">
+              <div>
+                <strong class="${m.textClass} font-black">${m.name}${G.virulentStrain === col ? " [악성 균주]" : ""}</strong>
+                <div class="text-[12px] text-slate-200">잔여 큐브 풀: ${G.cubePool[col]} / ${m.maxPool}</div>
+              </div>
+              <span class="px-2.5 py-1 rounded-lg font-black text-[12px] ${st >= 1 ? "bg-emerald-400 text-slate-950" : "bg-slate-900 text-slate-200"}">${statusLabel}</span>
+            </div>
+          `;
+        }).join("");
+      }
+
+      if (labCards && G.expansions.inTheLab) {
+        labCards.innerHTML = getActiveColors().map(col => {
+          const m = DISEASE_META[col];
+          return `
+            <div class="p-2.5 rounded-xl bg-slate-900 border ${m.borderClass} flex items-center justify-between gap-2">
+              <div>
+                <strong class="${m.textClass}">${m.name}</strong>
+                <div class="text-[12px] text-slate-300">시료 보관 ${G.lab.samples[col]}개 · 분석 ${G.lab.testedCubes[col]}/3 · 서열 ${G.lab.sequenced[col] ? "완료" : "미완"}</div>
+              </div>
+              <button onclick="openActionWizard('cure_lab')" class="px-2.5 py-1 rounded-lg bg-purple-400 text-slate-950 font-black shrink-0">실험실 열기</button>
+            </div>
+          `;
+        }).join("");
+      }
+    }
+
+    function renderIntelView() {
+      const chips = document.getElementById("infectionDiscardChips");
+      const expBox = document.getElementById("activeExpansionsSummaryBox");
+      const logBox = document.getElementById("gameLogsBox");
+      if (chips) {
+        chips.innerHTML = G.infectionDiscard.length === 0
+          ? `<span class="text-slate-400">아직 버려진 감염 카드가 없습니다.</span>`
+          : G.infectionDiscard.map(ic => `<span class="px-2 py-0.5 rounded-lg border ${DISEASE_META[ic.color].bgClass} ${DISEASE_META[ic.color].borderClass} ${DISEASE_META[ic.color].textClass} font-black text-[12px]">${G.cities[ic.cityId].short}</span>`).join("");
+      }
+      if (expBox) {
+        expBox.innerHTML = `
+          <div>• 벼랑 끝에서: <strong>${G.expansions.onTheBrink ? "활성 (악성 균주 + 보라색 돌연변이)" : "비활성"}</strong></div>
+          <div>• 인 더 랩: <strong>${G.expansions.inTheLab ? "활성 (시료 채취 + 바이오 실험실 합성)" : "비활성"}</strong></div>
+          <div>• 비상사태: <strong>${G.expansions.stateOfEmergency ? "활성 (격리 마커 + 위기 이벤트)" : "비활성"}</strong></div>
+        `;
+      }
+      if (logBox) {
+        logBox.innerHTML = G.logs.map(l => `<div>• ${l}</div>`).join("");
+      }
+    }
+
+    function renderDockBar() {
+      const actor = getActiveAgent();
+      const curCity = G.cities[actor.cityId];
+      document.getElementById("dockStatusLabel").textContent = `활성: ${actor.name} · ${curCity.short} (${G.actionsLeft}/4행동)`;
+      const cubeSumHere = getActiveColors().reduce((acc, col) => acc + curCity.cubes[col], 0);
+      document.getElementById("dockTreatSub").textContent = cubeSumHere > 0 ? `${cubeSumHere}개 제거!` : "큐브없음";
+      const evCount = G.agents.reduce((acc, ag) => acc + ag.hand.filter(c => c.kind === "event").length, 0);
+      document.getElementById("dockEventSub").textContent = evCount > 0 ? `보유 ${evCount}장` : "0장";
+    }
+
+    // =========================================================
+    // (H) 지도 두 손가락 핀치 줌 & 드래그 패닝 & 모달 제어
+    // =========================================================
+    function clampMapPan() {
+      const limit = Math.max(220, Math.round(360 * mapZoom));
+      mapPan.x = Math.max(-limit, Math.min(limit, mapPan.x));
+      mapPan.y = Math.max(-limit, Math.min(limit, mapPan.y));
+    }
+
+    function applyMapTransform() {
+      clampMapPan();
+      const g = document.getElementById("mapTransformGroup");
+      if (g) {
+        g.setAttribute("transform", `translate(${mapPan.x + 410 * (1 - mapZoom)} ${mapPan.y + 250 * (1 - mapZoom)}) scale(${mapZoom})`);
+      }
+      const badge = document.getElementById("mapZoomLevelBadge");
+      if (badge) badge.textContent = `${Math.round(mapZoom * 100)}%`;
+    }
+
+    function zoomMap(factor) {
+      mapZoom = Math.max(0.85, Math.min(2.6, mapZoom * factor));
+      applyMapTransform();
+    }
+
+    function resetMapPan() {
+      mapZoom = 1.0;
+      mapPan = { x: 0, y: 0 };
+      applyMapTransform();
+    }
+
+    function bindMapPanZoomGestures() {
+      const cont = document.getElementById("mapSvgContainer");
+      if (!cont) return;
+      let pinchStartDist = 0;
+      let pinchStartZoom = 1.0;
+
+      cont.addEventListener("mousedown", e => {
+        isDraggingMap = true;
+        mapDragStart = { x: e.clientX, y: e.clientY, panX: mapPan.x, panY: mapPan.y };
+      });
+      window.addEventListener("mousemove", e => {
+        if (!isDraggingMap) return;
+        mapPan.x = mapDragStart.panX + (e.clientX - mapDragStart.x);
+        mapPan.y = mapDragStart.panY + (e.clientY - mapDragStart.y);
+        applyMapTransform();
+      });
+      window.addEventListener("mouseup", () => { isDraggingMap = false; });
+
+      cont.addEventListener("touchstart", e => {
+        if (e.touches.length === 2) {
+          isDraggingMap = false;
+          const dx = e.touches[0].clientX - e.touches[1].clientX;
+          const dy = e.touches[0].clientY - e.touches[1].clientY;
+          pinchStartDist = Math.hypot(dx, dy);
+          pinchStartZoom = mapZoom;
+        } else if (e.touches.length === 1) {
+          isDraggingMap = true;
+          mapDragStart = { x: e.touches[0].clientX, y: e.touches[0].clientY, panX: mapPan.x, panY: mapPan.y };
+        }
+      }, { passive: true });
+
+      cont.addEventListener("touchmove", e => {
+        if (e.touches.length === 2 && pinchStartDist > 0) {
+          e.preventDefault();
+          const dx = e.touches[0].clientX - e.touches[1].clientX;
+          const dy = e.touches[0].clientY - e.touches[1].clientY;
+          const dist = Math.hypot(dx, dy);
+          mapZoom = Math.max(0.85, Math.min(2.6, pinchStartZoom * (dist / pinchStartDist)));
+          applyMapTransform();
+        } else if (isDraggingMap && e.touches.length === 1) {
+          mapPan.x = mapDragStart.panX + (e.touches[0].clientX - mapDragStart.x);
+          mapPan.y = mapDragStart.panY + (e.touches[0].clientY - mapDragStart.y);
+          applyMapTransform();
+        }
+      }, { passive: false });
+
+      cont.addEventListener("touchend", () => { isDraggingMap = false; pinchStartDist = 0; });
+    }
+
+    function openGuideModal(idx = 0) {
+      currentGuideSlide = Math.max(0, Math.min(GUIDE_SLIDES.length - 1, idx));
+      renderGuideSlide();
+      document.getElementById("modalGuide")?.classList.remove("hidden");
+    }
+
+    function closeGuideModal() {
+      document.getElementById("modalGuide")?.classList.add("hidden");
+    }
+
+    function moveGuideSlide(delta) {
+      currentGuideSlide = Math.max(0, Math.min(GUIDE_SLIDES.length - 1, currentGuideSlide + delta));
+      renderGuideSlide();
+    }
+
+    function renderGuideSlide() {
+      const s = GUIDE_SLIDES[currentGuideSlide];
+      document.getElementById("guideSlideTitle").textContent = s.title;
+      document.getElementById("guideSlideBody").innerHTML = s.html;
+      document.getElementById("guideSlideCounter").textContent = `${currentGuideSlide + 1} / ${GUIDE_SLIDES.length}`;
+      document.getElementById("btnGuidePrev").disabled = (currentGuideSlide === 0);
+      document.getElementById("btnGuideNext").disabled = (currentGuideSlide === GUIDE_SLIDES.length - 1);
+    }
+
+    function openSettingsModal() {
+      document.getElementById("modalSettings")?.classList.remove("hidden");
+    }
+
+    function closeSettingsModal() {
+      document.getElementById("modalSettings")?.classList.add("hidden");
+    }
+
+    function closeFinishModal() {
+      document.getElementById("modalGameFinish")?.classList.add("hidden");
+    }
+
+    function applySettingsAndRestart() {
+      closeSettingsModal();
+      closeFinishModal();
+      initNewPandemicGame();
+      pushToast("새 팬데믹 작전이 시작되었습니다!");
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("iconHeaderBio").innerHTML = iconSvg("bio");
+      document.getElementById("iconGearMini").innerHTML = iconSvg("gear");
+      document.getElementById("iconCoachBulb").innerHTML = iconSvg("bulb");
+      bindMapPanZoomGestures();
+      initNewPandemicGame({ epidemicCount: 4, agentCount: 2, onTheBrink: true, inTheLab: true, stateOfEmergency: false });
+      applyMapTransform();
+    });
+  </script>
+</body>
+</html>
